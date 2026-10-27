@@ -12,3 +12,8 @@ compatibility_date = "2026-10-01"
 # database_name = "imoxy-net-db"
 # database_id = "replace-with-your-d1-database-id"
 # migrations_dir = "migrations"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api/*", "/health"]

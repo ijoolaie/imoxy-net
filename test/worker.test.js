@@ -33,3 +33,22 @@ test("unsupported methods do not accidentally serve the health endpoint", async 
   const response = await worker.fetch(request("/health", "POST"));
   assert.equal(response.status, 404);
 });
+
+test("static panel routes use the Assets binding while API routes remain in Worker", async () => {
+  const calls = [];
+  const env = {
+    ASSETS: {
+      async fetch(request) {
+        calls.push(new URL(request.url).pathname);
+        return new Response("panel-asset", { status: 200, headers: { "content-type": "text/plain" } });
+      }
+    }
+  };
+  const panel = await worker.fetch(request("/"), env);
+  assert.equal(await panel.text(), "panel-asset");
+  assert.deepEqual(calls, ["/"]);
+  const api = await worker.fetch(request("/api/v1/capabilities"), env);
+  assert.equal(api.status, 200);
+  assert.ok((await api.json()).implemented.includes("cloudflare-read-only-inventory-and-dry-run-plans"));
+  assert.deepEqual(calls, ["/"]);
+});
