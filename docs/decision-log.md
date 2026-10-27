@@ -22,3 +22,8 @@ Account persistence uses prepared statements and a fixed field-to-column allowli
 ## 2026-10-27 — provisional UTC quota accounting
 
 The first quota policy evaluates total and daily usage in UTC, treats null limits as unlimited and equality with the quota as allowed. This is an imoxy baseline, not a Nova parity claim. REF-006–008 must establish upstream expiry/quota boundaries, timezone and accounting semantics before compatibility is frozen. Hard enforcement is blocked on data-plane integration and atomic reservation/idempotency design.
+
+
+## 2026-10-27 — subscription tokens are random, hash-at-rest credentials
+
+The subscription service returns a cryptographically random token once and persists only its SHA-256 hash. Revocation is idempotent, links are invalid when either the subscription or account is expired/disabled, and a subscription cannot outlive the account. Auto and Base64 output are provisional clean-room formats; the public route and reference compatibility remain pending.
