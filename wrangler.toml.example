@@ -1,0 +1,6 @@
+name = "imoxy-net"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+# Configure separate development/staging/production environments.
+# Add KV/D1 bindings only after the data model and migration strategy are reviewed.
