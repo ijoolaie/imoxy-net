@@ -4,38 +4,41 @@
 
 ## Current status (2026-10-27)
 - Repository: https://github.com/ijoolaie/imoxy-net (private).
-- Merged PRs #1–#8: repository foundation, API/domain contract and scenario inventory, security primitives, D1 account adapter, account service, auth/session service, HTTP auth/account routes, and quota/usage foundations.
-- PR #7 CI passed on head 925fa00520a25da3370faddb18b670ca57ee9554; PR #8 CI passed on head c41814158de5d35a2682dbdcd90db950bdcc3d15.
-- Current work branch: test/sqlite-migrations.
-- Branch head before this hand-off edit: 88b7f6ee29c20f2179738b1f032f7d2c211f1d0e.
-- Current feature work: execute both SQL migrations in Node SQLite with foreign keys and verify constraints, counters, rate-limit windows and cascade behavior. Exact-head CI must be checked after this edit.
+- Merged PRs #1–#8: foundation, API/domain contract, security primitives, D1 account adapter, account service, auth/session service, HTTP auth/account routes, quota/usage foundations.
+- Merged PR #9: SQLite migration/schema integration tests; exact PR-head CI run 40469034249 passed with 62 tests.
+- Current work branch: feat/subscriptions.
+- Branch head before this hand-off edit: d04bc8a56c9c465235777a7c5413c9c2bf38de99.
+- Current feature work: subscription token lifecycle and provisional Auto/Base64 rendering service with D1 persistence and tests. Exact-head CI must be checked after this edit.
 - Product status: no Nova runtime parity claim, no production deployment, no live Cloudflare writes.
 
 ## Product target
 Independently implement behavior matching Nova Proxy 5.0.0 (pinned commit ad2116aa89f8c7db8248f8142c1432900d835eb7) before imoxy-specific improvements. Web panel, Telegram bot and Android APK share domain services and authorization/quota rules. Support panel-only, Cloudflare-only, and combined modes.
 
-## Work delivered
-- Authenticated HTTP routes for bootstrap, login, session inspection/logout, account CRUD and read-only usage summaries.
-- Shared password/session, account, authorization and quota services; D1 adapters for principals, sessions, accounts, audit events, rate limits and usage.
-- Current branch adds test/schema-migrations.test.js using Node's built-in SQLite module and runs tests with --experimental-sqlite.
-- The migration test executes 0001_initial.sql and 0002_auth_rate_limits.sql with foreign keys enabled; verifies table creation, invalid role/quota/FK rejection, additive usage counters, rate-limit window reset, and cascading account deletion while retaining audit history.
-- This closes part of the SQLite syntax/schema-validation gap but does not validate Cloudflare D1 deployment/batch semantics.
+## Current branch work
+- Added src/domain/subscription-service.js for subscription token creation, list, idempotent revocation, account/subscription expiry checks, and Auto/Base64 text rendering over injected URI entries.
+- Subscription tokens are generated randomly; D1 persists only token hashes. Management lists omit both raw tokens and hashes.
+- D1 adapter supports create/list/find/revoke/touch operations with audit batching.
+- Extended RBAC with subscription read/create/revoke permissions for admin/operator roles; viewer cannot revoke.
+- Added tests for expiry caps, inactive accounts, raw-token secrecy, revocation, Auto/Base64 equivalence, malformed formats, D1 persistence and RBAC.
+- Updated roadmap, API contract, acceptance plan, decision log and README.
+- The subscription service is not yet wired to public HTTP delivery because protocol-entry generation and reference-verified output formats are not yet implemented.
 
 ## Known gaps
 - Exact-head CI is not yet confirmed for this branch.
-- Cloudflare D1 migrations have not been applied to an actual account/database; D1-specific behavior, production backup/restore, rollback, concurrency and interrupted-write recovery remain unverified.
-- Quota evaluation and usage accounting are not wired into a proxy data plane. There are no atomic quota reservations or idempotent usage event IDs, so hard concurrent enforcement is not available.
-- Subscription token lifecycle and output formats, proxy protocol/transport generation, Cloudflare workflows, web panel, Telegram bot and Android APK remain unimplemented.
+- Cloudflare D1 has not been exercised against a real database; SQLite migration tests pass, but D1-specific batch behavior, backup/restore, concurrency and rollback remain unverified.
+- Subscription Auto/Base64 behavior is a provisional imoxy implementation, not verified Nova compatibility; Clash format and HTTP subscription delivery are not wired.
+- Proxy protocol/transport generation and traffic-data-plane quota enforcement remain unimplemented.
+- Cloudflare provider workflows, web panel, Telegram bot and Android APK remain unimplemented.
 - Reference scenarios have not been executed against an authorized running Nova 5.0.0 instance.
 - Commercial distribution requires separate review of the observed PolyForm Noncommercial 1.0.0 terms.
 
 ## Next actions
-1. Query exact branch SHA and CI after this hand-off edit; resolve all failures before merge.
-2. Add D1-specific integration/recovery validation when a Cloudflare test database and scoped credentials are available.
-3. Implement idempotent usage-event ingestion and atomic reservation semantics before claiming hard quota enforcement.
-4. Implement subscription token lifecycle and formats/protocol generation against evidence from the pinned reference.
-5. Build Cloudflare adapter read-only/mock-first, then web panel, Telegram bot and Android client over the shared core.
-6. Execute parity scenarios, security/reliability tests and controlled release gates.
+1. Query exact branch SHA and CI after this hand-off edit; fix failures before merge.
+2. Implement protocol endpoint models/generation and reference-compare VLESS/Trojan/Shadowsocks URI output.
+3. Wire subscription management and public delivery routes after the output generator is ready; verify Auto/Base64/Clash semantics.
+4. Add actual Cloudflare D1 integration and recovery validation when scoped credentials/database are available.
+5. Build Cloudflare adapter read-only/mock-first, then web panel, Telegram bot and Android client over the shared API.
+6. Execute parity scenarios and controlled release/security gates.
 7. End every repository-work response with a schematic status report for phases 0–13.
 
 ## Mandatory progress reporting
