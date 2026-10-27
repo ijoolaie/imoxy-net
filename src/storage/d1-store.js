@@ -55,6 +55,26 @@ function assertAuditEvent(event) {
   }
 }
 
+function principalAuditInsert(event, resourceType, resourceId, existenceSql, existenceValues) {
+  if (!event || typeof event.id !== "string" || !event.id ||
+      typeof event.action !== "string" || !event.action ||
+      typeof event.createdAt !== "string" || !event.createdAt) {
+    throw new TypeError("A valid audit event is required.");
+  }
+  const statement = `INSERT INTO audit_events
+    (id, actor_principal_id, action, resource_type, resource_id, outcome, request_id, details_json, created_at)
+    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
+    WHERE ${existenceSql}`;
+  return {
+    statement,
+    values: [
+      event.id, event.actorPrincipalId ?? null, event.action, resourceType, resourceId,
+      event.outcome ?? "success", event.requestId ?? null,
+      JSON.stringify(event.details ?? {}), event.createdAt, ...existenceValues
+    ]
+  };
+}
+
 export function createD1Store(db) {
   if (!db || typeof db.prepare !== "function" || typeof db.batch !== "function") {
     throw new TypeError("A Cloudflare D1-compatible database binding is required.");
@@ -139,5 +159,109 @@ export function createD1Store(db) {
       ]);
       return (results?.[1]?.meta?.changes ?? 0) > 0;
     }
+
+    async findPrincipalByUsername(username) {
+      if (typeof username !== "string" || !username) return null;
+      const row = await db.prepare(`SELECT id, username, password_hash, role, status, created_at, updated_at
+        FROM principals WHERE username = ? COLLATE NOCASE LIMIT 1`).bind(username).first();
+      if (!row) return null;
+      return {
+        id: row.id, username: row.username, passwordHash: row.password_hash,
+        role: row.role, status: row.status, createdAt: row.created_at, updatedAt: row.updated_at
+      };
+    },
+
+    async countPrincipals() {
+      const row = await db.prepare("SELECT COUNT(*) AS count FROM principals").first();
+      return Number(row?.count ?? 0);
+    },
+
+    async createInitialOwner(principal, auditEvent) {
+      const insert = db.prepare(`INSERT INTO principals
+        (id, username, password_hash, role, status, created_at, updated_at)
+        SELECT ?, ?, ?, 'owner', 'active', ?, ?
+        WHERE NOT EXISTS (SELECT 1 FROM principals)`).bind(
+        principal.id, principal.username, principal.passwordHash, principal.createdAt, principal.updatedAt
+      );
+      const audit = principalAuditInsert(
+        auditEvent, "principal", principal.id,
+        "EXISTS (SELECT 1 FROM principals WHERE id = ?)", [principal.id]
+      );
+      const results = await db.batch([insert, db.prepare(audit.statement).bind(...audit.values)]);
+      return (results?.[0]?.meta?.changes ?? 0) === 1;
+    },
+
+    async createSession(session, auditEvent) {
+      const insert = db.prepare(`INSERT INTO sessions
+        (id, principal_id, token_hash, created_at, expires_at, last_seen_at, user_agent_hash, ip_prefix_hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(
+        session.id, session.principalId, session.tokenHash, session.createdAt, session.expiresAt,
+        session.lastSeenAt ?? session.createdAt, session.userAgentHash ?? null, session.ipPrefixHash ?? null
+      );
+      const audit = principalAuditInsert(
+        auditEvent, "session", session.id,
+        "EXISTS (SELECT 1 FROM sessions WHERE id = ?)", [session.id]
+      );
+      await db.batch([insert, db.prepare(audit.statement).bind(...audit.values)]);
+      return { ...session };
+    },
+
+    async findSessionByTokenHash(tokenHash) {
+      const row = await db.prepare(`SELECT
+        s.id AS session_id, s.principal_id, s.token_hash, s.created_at AS session_created_at,
+        s.expires_at, s.revoked_at, s.last_seen_at,
+        p.id AS joined_principal_id, p.username, p.role, p.status,
+        p.created_at AS principal_created_at, p.updated_at AS principal_updated_at
+        FROM sessions s JOIN principals p ON p.id = s.principal_id
+        WHERE s.token_hash = ? LIMIT 1`).bind(tokenHash).first();
+      if (!row) return null;
+      return {
+        id: row.session_id, principalId: row.principal_id, tokenHash: row.token_hash,
+        createdAt: row.session_created_at, expiresAt: row.expires_at,
+        revokedAt: row.revoked_at, lastSeenAt: row.last_seen_at,
+        principal: {
+          id: row.joined_principal_id, username: row.username, role: row.role,
+          status: row.status, createdAt: row.principal_created_at, updatedAt: row.principal_updated_at
+        }
+      };
+    },
+
+    async touchSession(id, lastSeenAt) {
+      await db.prepare("UPDATE sessions SET last_seen_at = ? WHERE id = ? AND revoked_at IS NULL")
+        .bind(lastSeenAt, id).run();
+    },
+
+    async revokeSession(id, revokedAt, auditEvent) {
+      const update = db.prepare("UPDATE sessions SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL")
+        .bind(revokedAt, id);
+      const audit = principalAuditInsert(
+        auditEvent, "session", id,
+        "EXISTS (SELECT 1 FROM sessions WHERE id = ? AND revoked_at = ?)", [id, revokedAt]
+      );
+      const results = await db.batch([update, db.prepare(audit.statement).bind(...audit.values)]);
+      return (results?.[0]?.meta?.changes ?? 0) > 0;
+    },
+
+    async consumeAuthAttempt({ keyHash, windowStartedAt, now }) {
+      if (typeof keyHash !== "string" || keyHash.length < 32) {
+        throw new TypeError("An opaque hashed rate-limit key is required.");
+      }
+      const row = await db.prepare(`INSERT INTO auth_rate_limits (key_hash, window_started_at, attempt_count, updated_at)
+        VALUES (?, ?, 1, ?)
+        ON CONFLICT(key_hash) DO UPDATE SET
+          window_started_at = excluded.window_started_at,
+          attempt_count = CASE
+            WHEN auth_rate_limits.window_started_at = excluded.window_started_at
+              THEN auth_rate_limits.attempt_count + 1
+            ELSE 1
+          END,
+          updated_at = excluded.updated_at
+        RETURNING attempt_count`).bind(keyHash, windowStartedAt, now).first();
+      return Number(row?.attempt_count ?? 0);
+    },
+
+    async clearAuthAttempts(keyHash) {
+      await db.prepare("DELETE FROM auth_rate_limits WHERE key_hash = ?").bind(keyHash).run();
+    },
   };
 }
