@@ -4,12 +4,12 @@ An independently implemented, behavior-compatible proxy management platform.
 
 ## Current status
 
-This repository is a foundation, not a feature-complete replacement yet. Only the health endpoint is implemented. Proxy protocols, authentication, subscriptions, Cloudflare provisioning, bot, website and APK are not implemented until they have passing acceptance tests.
+This repository is a foundation, not a feature-complete replacement yet. Only the health and capability-reporting endpoints are implemented. The account validation helper and initial D1 schema are design foundations, not a working account API. Proxy protocols, authentication, subscriptions, Cloudflare provisioning, bot, website and APK are not implemented until they have passing acceptance tests.
 
 ## Roadmap and engineering records
 
 - [Phased product roadmap and exit gates](docs/roadmap.md)
-- [Behavioral parity matrix](docs/parity-matrix.md)
+- [Behavioral parity matrix](docs/parity-matrix.md)\n- [Versioned API contract](docs/api-contract.md)\n- [Prioritized black-box reference scenarios](docs/reference-scenarios.md)
 - [Acceptance-test plan](docs/acceptance-test-plan.md)
 - [Architecture](docs/architecture.md)
 - [Reference baseline](docs/reference-baseline.md)
