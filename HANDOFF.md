@@ -9,8 +9,9 @@
 - No Telegram token, live webhook, live Cloudflare API, deployment or production mutation was used.
 - Exact-head CI is pending until the branch head is finalized.
 - Repository: https://github.com/ijoolaie/imoxy-net (private).
-- Merged PRs #1–#12: foundation, API/domain contract, security, D1 account adapter, account service, auth/session service, auth/account routes, quota/usage foundations, SQLite migration tests, subscription lifecycle, and protocol/Clash generators.
-- Merged PR #12 CI passed on exact head cd70edebf5f8c7c3123581db1a8d418558c7b999.
+- Merged PRs #1–#14: foundation, API/domain contract, security, D1 account adapter, account service, auth/session service, auth/account routes, quota/usage foundations, SQLite migration tests, subscription lifecycle, protocol/Clash generators, Cloudflare read-only inventory/planning, and initial web panel.
+- PR #14 CI passed on exact head b88ac70f70b07b7ec8afd9fee3bd2ce4c41b4127 (run 40473756203); merged as cb2974f100e2b8b7ebabdda0a8be07d93361f032.
+- PR #15 CI passed on exact head 5633997b0137ff40aa90a5f99fbc9d2842ff48de (run 40474070538); PR remains open pending final review/merge.
 - Current work branch: feat/cloudflare-readonly.
 - Branch head before this hand-off edit: e13649a95c9454e6b506ba6d84327356adc27543.
 - Current work adds a GET-only Cloudflare client, protected inventory and dry-run plan routes, sanitized plan generation, and panel-only/cloudflare-only/combined mode gating. Exact-head CI must be checked after this edit.
