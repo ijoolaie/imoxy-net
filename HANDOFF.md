@@ -6,9 +6,14 @@
 
 - Current work branch: `feat/android-client`.
 - PR #14 web panel merged as `cb2974f100e2b8b7ebabdda0a8be07d93361f032`; exact-head CI passed (run 40473756203).
-- PR #16 contains the initial Telegram read-only webhook and is pending review/CI on its rebased head.
-- This branch adds the native Android login/account-list client, Android Keystore-backed AES-GCM token storage, HTTPS-only API client, and a debug APK build workflow. Exact-head Android CI is pending.
+- PR #16 Telegram read-only webhook merged as `5614847c97d7060e17b519875e38a34717c9bf0a`; exact-head CI passed (run 40474303173).
+- This branch adds a native Android login/account-list client, Android Keystore-backed AES-GCM token storage, HTTPS-only API client, and a debug APK build workflow. Exact-head Node and Android CI must be checked before merge.
 - No production deployment, live Telegram API call, live Cloudflare mutation or production signing occurred.
+
+- Current work branch: `feat/telegram-readonly-bot-rebased`.
+- PR #14 web panel merged as `cb2974f100e2b8b7ebabdda0a8be07d93361f032`; CI passed on exact head `b88ac70f70b07b7ec8afd9fee3bd2ce4c41b4127` (run 40473756203).
+- Telegram work adds a secret-validated webhook, numeric user allowlist, read-only `/start`, `/help`, `/status`, and `/accounts` commands, shared API routing and mocked tests.
+- No Telegram token, live webhook, live Cloudflare API, deployment or production mutation was used. Exact-head CI for the rebased branch must be checked before merge.
 - Repository: https://github.com/ijoolaie/imoxy-net (private).
 - Merged PRs #1–#13: foundation, API/domain contract, security primitives, D1 account adapter, account service, auth/session service, auth/account routes, quota/usage foundations, SQLite migration tests, subscription lifecycle, protocol/Clash generators, and read-only Cloudflare inventory/planning with operating modes.
 - PR #13 exact-head CI passed on 5e96db6b0ff1d6c927a3426d3a9f8a578b95a3c0.
