@@ -37,8 +37,8 @@ export function createQuotaService({
       }
 
       let reason = null;
-      if (account.status !== "active") reason = "account_disabled";
-      else if (account.expiresAt && Date.parse(account.expiresAt) <= timestamp) reason = "account_expired";
+      if (account.status === "expired" || (account.expiresAt && Date.parse(account.expiresAt) <= timestamp)) reason = "account_expired";
+      else if (account.status !== "active") reason = "account_disabled";
       else if (account.quotaBytes !== null && account.quotaBytes !== undefined &&
           projectedTotalBytes > account.quotaBytes) reason = "total_quota_exceeded";
       else if (account.dailyQuotaBytes !== null && account.dailyQuotaBytes !== undefined &&
