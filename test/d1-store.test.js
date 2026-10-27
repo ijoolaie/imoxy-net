@@ -120,3 +120,12 @@ test("usage records use an atomic upsert with bounded non-negative counters", as
     downloadBytes: 0, requestCount: 1, updatedAt: "2026-10-27T12:00:00.000Z"
   }), TypeError);
 });
+
+test("usage date validation rejects impossible calendar days", async () => {
+  const store = createD1Store(makeDb());
+  await assert.rejects(() => store.getUsageSummary("acct-1", "2026-02-30"), TypeError);
+  await assert.rejects(() => store.recordUsage({
+    accountId: "acct-1", usageDate: "2026-02-30", uploadBytes: 0,
+    downloadBytes: 0, requestCount: 1, updatedAt: "2026-10-27T12:00:00.000Z"
+  }), TypeError);
+});
