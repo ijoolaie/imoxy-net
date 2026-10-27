@@ -6,6 +6,11 @@ For each scenario record: reference release/commit, environment, request/action,
 
 ## Initial scenarios
 
+- Telegram webhook rejects invalid secret headers, oversized bodies, non-JSON payloads and unsupported methods.
+- Telegram commands are ignored for users outside the explicit numeric allowlist; tests use mocked Telegram delivery only.
+- Telegram `/accounts` invokes the shared account service with viewer-level permission and exposes only username/status; mutations and secret material are not exposed.
+- Telegram API route wiring is tested independently from the provider network.
+
 - Static panel assets are served through the Workers Assets binding while /api/* and /health remain routed through the Worker.
 - Browser UI uses same-origin cookie sessions, renders untrusted API values with textContent, and exposes no Cloudflare apply action.
 - Cloudflare UI visibility follows operating mode; browser E2E, accessibility audit and deployed-Worker tests remain pending.
