@@ -75,7 +75,7 @@ class ApiClient(baseUrl: String) {
                 val message = parsed.optJSONObject("error")?.optString("message")
                     ?.takeIf { it.isNotBlank() }
                     ?: "Request failed (HTTP $code)."
-                throw ApiException(message.take(180))
+                throw ApiException(message.take(180), code)
             }
             return parsed
         } finally {
@@ -100,4 +100,4 @@ class ApiClient(baseUrl: String) {
     }
 }
 
-class ApiException(message: String) : Exception(message)
+class ApiException(message: String, val statusCode: Int? = null) : Exception(message)
