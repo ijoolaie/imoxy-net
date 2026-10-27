@@ -16,7 +16,8 @@
 - PR #20 cross-interface contract tests merged as `ff0de52785baadc5d87bbfb2ccc2f9256a5cccc4`; exact-head CI passed on `ab06dfc9c76ce39b2817adad425a7902984c9431` (run 40476873922).
 - Android debug APK artifact from run 40475130813: `imoxy-android-debug`; GitHub reports SHA-256 digest `ca898eefefb2dda20f79f799a0d8c18b20b3945d11b5552645e045461dea0912`. Unsigned debug artifact only, not a production release.
 - PR #27 Telegram private-chat restriction merged as `88aa54fb00fbc0ba8fe91db45773bbb4bfce5f38`; exact-head CI passed on `e625de2152ab201a6788e0916df197edb3042df5` (pull_request run 40495044071 and push run 40495036669). A regression test verifies an allowlisted user cannot run `/accounts` in a group, and ignored group updates create no replay claim.
-- PR #28 hand-off/roadmap refresh merged as `7e2c414697063fdf404a13bb43ab86e18435619a`; main CI passed on that exact commit (run 40495242380). The functional security fix from PR #27 also passed main CI on `88aa54fb00fbc0ba8fe91db45773bbb4bfce5f38` (run 40495094674).
+- PR #28 hand-off/roadmap refresh merged as `7e2c414697063fdf404a13bb43ab86e18435619a`; main CI passed on that exact commit (run 40495242380). The functional security fix from PR #27 passed main CI on `88aa54fb00fbc0ba8fe91db45773bbb4bfce5f38` (run 40495094674).
+- PR #29 post-merge CI hand-off correction merged as `12cfb9f7e8c3f01a07346165bfdeb28c684893da`; main CI passed on that exact commit (run 40495393858). No open PRs were present at the latest repository check.
 - No production deployment, real Cloudflare write, live Telegram API call, or Nova runtime comparison has occurred.
 
 ## Implementation summary
@@ -36,13 +37,11 @@
 
 ## Next actions
 
-1. Verify the post-merge main CI for PR #27, then refresh this hand-off with the resulting main SHA/run.
-2. Execute REF-001–REF-032 against an authorized disposable instance of the pinned Nova commit; preserve sanitized input/output/state evidence.
-3. Obtain qualified license/distribution review for observed PolyForm Noncommercial 1.0.0 terms.
-4. Add real D1 migration, backup/restore, concurrency and failure-injection tests.
-5. Add browser E2E/accessibility checks, Android emulator/device tests, Telegram account linking and real webhook validation.
-6. Keep Cloudflare writes disabled until least privilege, preview approval, idempotency and rollback are tested.
-7. Implement Phase 13 candidates only after parity and legal gates pass.
+1. Obtain an authorized disposable instance of pinned Nova Proxy 5.0.0 and qualified license/distribution review; until then REF-001–REF-032 cannot be black-box verified and release remains blocked.
+2. Add real Cloudflare D1 migration, backup/restore, concurrency and failure-injection tests; SQLite tests are not a substitute for D1 validation.
+3. Add browser E2E/accessibility checks, Android emulator/device tests, secure Telegram account linking and real webhook validation when credentials and a safe test environment are available.
+4. Keep Cloudflare writes disabled until least privilege, preview approval, idempotency and rollback are tested.
+5. Implement Phase 13 candidates only after parity and legal gates pass.
 
 ## Mandatory progress reporting
 
