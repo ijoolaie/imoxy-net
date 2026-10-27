@@ -58,7 +58,9 @@ test("usage upserts add counters without overwriting previous traffic", () => {
   upsert.run("a1", "2026-10-27", 10, 20, 1, timestamp);
   upsert.run("a1", "2026-10-27", 3, 7, 2, timestamp);
   const row = db.prepare("SELECT upload_bytes, download_bytes, request_count FROM usage_daily WHERE account_id = ?").get("a1");
-  assert.deepEqual(row, { upload_bytes: 13, download_bytes: 27, request_count: 3 });
+  assert.equal(row.upload_bytes, 13);
+  assert.equal(row.download_bytes, 27);
+  assert.equal(row.request_count, 3);
   db.close();
 });
 
