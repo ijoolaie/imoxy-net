@@ -15,14 +15,15 @@
 - PR #25 Phase 9 roadmap/handoff refresh merged as `ba0dc8d8a5ed4e7a45d7d720e72d6bd94feeaca9`; exact-head CI passed on `52d838e77ffdcaf128d12f50cce6f16bde1efa50` (run 40477982801).
 - PR #20 cross-interface contract tests merged as `ff0de52785baadc5d87bbfb2ccc2f9256a5cccc4`; exact-head CI passed on `ab06dfc9c76ce39b2817adad425a7902984c9431` (run 40476873922).
 - Android debug APK artifact from run 40475130813: `imoxy-android-debug`; GitHub reports SHA-256 digest `ca898eefefb2dda20f79f799a0d8c18b20b3945d11b5552645e045461dea0912`. Unsigned debug artifact only, not a production release.
-- Latest main commit at hand-off refresh: `ba0dc8d8a5ed4e7a45d7d720e72d6bd94feeaca9`; main CI passed (run 40478034914). No open PRs at the time of this check.
+- PR #27 Telegram private-chat restriction merged as `88aa54fb00fbc0ba8fe91db45773bbb4bfce5f38`; exact-head CI passed on `e625de2152ab201a6788e0916df197edb3042df5` (pull_request run 40495044071 and push run 40495036669). A regression test verifies an allowlisted user cannot run `/accounts` in a group, and ignored group updates create no replay claim.
+- Latest verified main commit before this hand-off refresh: `88aa54fb00fbc0ba8fe91db45773bbb4bfce5f38`. The post-merge main CI result is not yet verified.
 - No production deployment, real Cloudflare write, live Telegram API call, or Nova runtime comparison has occurred.
 
 ## Implementation summary
 
 - Worker API: health/capability reporting, authentication/session routes, account CRUD foundations, quota/usage foundations, subscription lifecycle, provisional protocol/Clash generators, read-only Cloudflare inventory and deterministic dry-run plans.
 - Web panel: same-origin login/session, account list/create, usage summary, Cloudflare inventory/preview. Editing/deletion, subscriptions/nodes UI, audit UI, browser E2E and accessibility review remain.
-- Telegram: secret-validated allowlisted read-only `/start`, `/help`, `/status`, `/accounts`; D1 update-ID deduplication, two-minute stale-claim recovery, seven-day cleanup and retry claim release on delivery failure. Durable account linking, real D1 tests, and full workflows remain.
+- Telegram: secret-validated allowlisted read-only `/start`, `/help`, `/status`, `/accounts`; private-chat-only command handling; D1 update-ID deduplication, two-minute stale-claim recovery, seven-day cleanup and retry claim release on delivery failure. Group/channel updates are ignored before a replay claim or outbound message. Durable account linking, real D1 tests, and full workflows remain.
 - Android: HTTPS-only API login, account list/refresh/logout and Android Keystore AES-GCM session storage; debug APK CI passes, but device install, E2E, signing and provenance remain.
 - Cloudflare: read-only inventory and dry-run planning only; no apply/delete/write route.
 - Reference parity: no runtime behavior has been verified. Documentation claims are hypotheses, not black-box proof.
@@ -35,7 +36,7 @@
 
 ## Next actions
 
-1. Verify exact-head CI for `docs/telegram-replay-handoff`, then merge only if green and mergeable.
+1. Verify the post-merge main CI for PR #27, then refresh this hand-off with the resulting main SHA/run.
 2. Execute REF-001–REF-032 against an authorized disposable instance of the pinned Nova commit; preserve sanitized input/output/state evidence.
 3. Obtain qualified license/distribution review for observed PolyForm Noncommercial 1.0.0 terms.
 4. Add real D1 migration, backup/restore, concurrency and failure-injection tests.
