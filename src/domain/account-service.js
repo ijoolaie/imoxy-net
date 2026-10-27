@@ -1,4 +1,4 @@
-import { validateAccountInput } from "./validation.js";
+import { validateAccountInput, ValidationError } from "./validation.js";
 
 export class DomainError extends Error {
   constructor(code, message, status) {
