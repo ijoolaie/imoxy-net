@@ -70,6 +70,8 @@ Exit gate:
 - No client duplicates authorization or quota business rules.
 
 ### Phase 3 — Security and identity foundation
+**State:** In progress — password hashing and session-token primitives have unit tests; authentication endpoints, session lifecycle enforcement and role checks remain unimplemented.
+
 Deliver:
 - Authentication, secure sessions/token lifecycle, logout/revocation, role/permission checks.
 - Secret handling, encryption-at-rest strategy where applicable, redacted logs, rate limits, CSRF/origin protections for browser flows, and security headers.
