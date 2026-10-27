@@ -4,6 +4,12 @@
 
 ## Current status (2026-10-27)
 
+- Current work branch: `feat/android-client-rebased`.
+- PR #14 web panel merged as `cb2974f100e2b8b7ebabdda0a8be07d93361f032`; exact-head CI passed (run 40473756203).
+- PR #16 Telegram read-only webhook merged as `5614847c97d7060e17b519875e38a34717c9bf0a`; exact-head CI passed (run 40474303173).
+- This branch adds a native Android login/account-list client, Android Keystore-backed AES-GCM token storage, HTTPS-only API client, and a debug APK build workflow. Exact-head Node and Android CI must be checked before merge.
+- No production deployment, live Telegram API call, live Cloudflare mutation or production signing occurred.
+
 - Current work branch: `feat/telegram-readonly-bot-rebased`.
 - PR #14 web panel merged as `cb2974f100e2b8b7ebabdda0a8be07d93361f032`; CI passed on exact head `b88ac70f70b07b7ec8afd9fee3bd2ce4c41b4127` (run 40473756203).
 - Telegram work adds a secret-validated webhook, numeric user allowlist, read-only `/start`, `/help`, `/status`, and `/accounts` commands, shared API routing and mocked tests.
