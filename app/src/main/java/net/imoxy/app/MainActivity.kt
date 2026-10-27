@@ -104,7 +104,7 @@ class MainActivity : Activity() {
                     setBusy(false, "Account list updated.")
                 }
             } catch (error: Exception) {
-                if (error is ApiException && error.message?.contains("401") == true) {
+                if (error is ApiException && error.statusCode == 401) {
                     try { tokenStore.clear() } catch (_: Exception) { }
                 }
                 runOnUiThread {
