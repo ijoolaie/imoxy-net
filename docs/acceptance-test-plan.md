@@ -6,6 +6,10 @@ For each scenario record: reference release/commit, environment, request/action,
 
 ## Initial scenarios
 
+- Both SQL migrations execute in Node SQLite with foreign keys enabled; tests assert expected tables, role/quota/FK constraints, additive usage upserts, auth rate-limit window reset, and cascade behavior while preserving audit history.
+- This validates SQLite syntax and schema behavior locally in CI, but does not replace a deployed Cloudflare D1 migration/batch/recovery test.
+
+
 - Total/daily quota equality is allowed; projected overage is denied, with total-quota failure taking precedence when both dimensions exceed.
 - Disabled/expired accounts are denied; null quotas are unlimited and zero quotas deny positive traffic.
 - Usage deltas are non-negative safe integers, stored per UTC day, and usage summaries validate calendar dates.
