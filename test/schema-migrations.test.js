@@ -40,6 +40,23 @@ test("Telegram webhook update IDs are unique and processing claims can be releas
   db.close();
 });
 
+test("Telegram stale processing claims can be recovered but processed updates stay deduplicated", () => {
+  const db = databaseWithMigrations();
+  const claim = db.prepare(`INSERT INTO telegram_webhook_updates (update_id, status, received_at, processed_at)
+    VALUES (?, 'processing', datetime('now'), NULL)
+    ON CONFLICT(update_id) DO UPDATE SET
+      status = 'processing', received_at = datetime('now'), processed_at = NULL
+    WHERE telegram_webhook_updates.status = 'processing'
+      AND telegram_webhook_updates.received_at < datetime('now', '-2 minutes')`);
+  assert.equal(claim.run("stale-1").changes, 1);
+  db.prepare("UPDATE telegram_webhook_updates SET received_at = datetime('now', '-5 minutes') WHERE update_id = ?").run("stale-1");
+  assert.equal(claim.run("stale-1").changes, 1, "stale processing claim should be reclaimed");
+  assert.equal(claim.run("stale-1").changes, 0, "fresh processing claim should not be taken over");
+  db.prepare("UPDATE telegram_webhook_updates SET status = 'processed', processed_at = datetime('now') WHERE update_id = ?").run("stale-1");
+  assert.equal(claim.run("stale-1").changes, 0, "processed update should never be claimed again");
+  db.close();
+});
+
 test("schema constraints reject invalid roles, negative quotas and orphan usage rows", () => {
   const db = databaseWithMigrations();
   assert.throws(() => db.prepare(`INSERT INTO principals
