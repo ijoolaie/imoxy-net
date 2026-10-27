@@ -24,7 +24,9 @@ test("capabilities explicitly distinguish implemented and pending features", asy
 test("unknown paths return JSON 404", async () => {
   const response = await worker.fetch(request("/missing"));
   assert.equal(response.status, 404);
-  assert.deepEqual(await response.json(), { error: "not_found" });
+  const body = await response.json();
+  assert.equal(body.error.code, "not_found");
+  assert.ok(body.error.requestId);
 });
 
 test("unsupported methods do not accidentally serve the health endpoint", async () => {
