@@ -22,6 +22,15 @@ This document pins the first black-box characterization target. It does not auth
 
 These are documented behaviors and test hypotheses, not yet independently verified against a live reference instance.
 
+## Source evidence and status
+
+- Pinned README: https://github.com/IRNova/Nova-Proxy/blob/ad2116aa89f8c7db8248f8142c1432900d835eb7/README.md
+- Pinned package manifest: https://github.com/IRNova/Nova-Proxy/blob/ad2116aa89f8c7db8248f8142c1432900d835eb7/package.json
+- Pinned deployment guide: https://github.com/IRNova/Nova-Proxy/blob/ad2116aa89f8c7db8248f8142c1432900d835eb7/DEPLOY.md
+- The feature inventory and source/evidence distinctions are maintained in [reference-evidence.md](reference-evidence.md).
+- The prioritized executable scenarios now cover bootstrap/auth, accounts/quotas, subscriptions/protocols, network/fallback, bot, install/update, localization and client import. All remain **Not run** against a live pinned runtime.
+- Repository API/domain tests are evidence of imoxy behavior only; they do not establish Nova compatibility.
+
 ## Implementation constraint
 
 The imoxy goal is behavioral compatibility using an independent implementation. Do not copy the upstream minified/obfuscated worker or protected panel source. Derive test cases from externally observable behavior, protocol specifications, and documented user-facing behavior. Keep a record of the source of each requirement and obtain legal review if a planned implementation could be considered a derivative work or if the project's intended distribution model changes.
