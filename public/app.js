@@ -32,6 +32,8 @@ function setSignedIn(principal) {
   byId("appPanel").hidden = !principal;
   byId("welcome").textContent = principal ? `Welcome, ${principal.username}` : "Accounts";
   byId("cloudflarePanel").hidden = !principal || state.mode === "panel-only";
+  byId("accountsPanel").hidden = !principal || state.mode === "cloudflare-only";
+  byId("createAccountPanel").hidden = !principal || state.mode === "cloudflare-only";
 }
 
 function formatBytes(value) {
@@ -140,7 +142,7 @@ byId("loginForm").addEventListener("submit", async (event) => {
     });
     byId("password").value = "";
     setSignedIn(result.principal);
-    await loadAccounts();
+    if (state.mode !== "cloudflare-only") await loadAccounts();
     setStatus("Signed in successfully.", "success");
   } catch (error) {
     setStatus(error.message, "error");
@@ -224,7 +226,7 @@ async function start() {
     try {
       const data = await api("/api/v1/auth/me");
       setSignedIn(data.principal);
-      await loadAccounts();
+      if (state.mode !== "cloudflare-only") await loadAccounts();
       setStatus("Connected to the API.", "success");
     } catch {
       setSignedIn(null);
