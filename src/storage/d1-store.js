@@ -13,6 +13,12 @@ const ACCOUNT_SELECT = `SELECT id, username, status, expires_at, quota_bytes,
   daily_quota_bytes, speed_limit_kbps, max_connections, notes, created_at, updated_at
   FROM proxy_accounts`;
 
+function isValidUsageDate(value) {
+  if (typeof value !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;
+  const timestamp = Date.parse(value + "T00:00:00.000Z");
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value;
+}
+
 function toAccount(row) {
   if (!row) return null;
   return {
@@ -266,8 +272,7 @@ export function createD1Store(db) {
 
     async getUsageSummary(accountId, usageDate) {
       if (typeof accountId !== "string" || !accountId ||
-          typeof usageDate !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(usageDate) ||
-          new Date(usageDate).toISOString().slice(0, 10) !== usageDate) {
+          !isValidUsageDate(usageDate)) {
         throw new TypeError("A valid account ID and UTC usage date are required.");
       }
       const row = await db.prepare(`SELECT
