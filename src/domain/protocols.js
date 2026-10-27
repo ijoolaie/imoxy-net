@@ -73,9 +73,12 @@ function validateNodeName(value) {
 function buildTlsParams(node, security) {
   const params = [];
   addParam(params, "security", security);
-  addParam(params, "sni", node.sni);
-  addParam(params, "fp", node.fingerprint);
-  if (Array.isArray(node.alpn) && node.alpn.length) addParam(params, "alpn", node.alpn.join(","));
+  addParam(params, "sni", safeText(node.sni, "sni", 253));
+  addParam(params, "fp", safeText(node.fingerprint, "fingerprint", 64));
+  if (node.alpn !== undefined && node.alpn !== null) {
+    if (!Array.isArray(node.alpn) || node.alpn.length > 8) throw invalid("alpn", "must_be_an_array_of_up_to_8_values");
+    addParam(params, "alpn", node.alpn.map((value) => safeText(value, "alpn", 32, { required: true })).join(","));
+  }
   if (node.allowInsecure === true) addParam(params, "allowInsecure", "1");
   if (security === "reality") {
     addParam(params, "pbk", safeText(node.publicKey, "publicKey", 256, { required: true }));
@@ -88,7 +91,7 @@ function transportParams(node, transport) {
   const params = [];
   addParam(params, "type", transport);
   if (transport === "ws") {
-    addParam(params, "host", node.host ?? node.sni);
+    addParam(params, "host", safeText(node.host ?? node.sni, "host", 253));
     addParam(params, "path", safeText(node.path ?? "/", "path", 1024));
   } else if (transport === "grpc") {
     addParam(params, "serviceName", safeText(node.serviceName ?? "", "serviceName", 256));
@@ -157,7 +160,8 @@ export function buildClashConfig(nodes, { groupName = "Proxy" } = {}) {
   const group = validateNodeName(groupName);
   const seen = new Set();
   const normalized = nodes.map((node) => {
-    const name = validateNodeName(node?.name);
+    if (!node || typeof node !== "object" || Array.isArray(node)) throw invalid("node", "must_be_an_object");
+    const name = validateNodeName(node.name);
     if (seen.has(name)) throw invalid("name", "must_be_unique");
     seen.add(name);
     const protocol = node.protocol;
@@ -166,7 +170,7 @@ export function buildClashConfig(nodes, { groupName = "Proxy" } = {}) {
     const port = normalizePort(node.port);
     const transport = normalizeTransport(node.transport);
     if (transport === "xhttp") throw invalid("transport", "clash_xhttp_support_not_verified");
-    const security = normalizeSecurity(node.security, protocol);
+    const security = protocol === "shadowsocks" ? "none" : normalizeSecurity(node.security, protocol);
     const result = { name, protocol, server, port, transport, security, node };
     if (protocol === "vless") {
       result.uuid = safeText(node.uuid, "uuid", 36, { required: true });
@@ -201,7 +205,7 @@ export function buildClashConfig(nodes, { groupName = "Proxy" } = {}) {
     if (item.protocol === "vless") {
       lines.push(`    uuid: ${quoteYaml(item.uuid)}`);
       lines.push("    tls: " + (item.security !== "none"));
-      if (item.security !== "none" && item.node.sni) lines.push(`    servername: ${quoteYaml(item.node.sni)}`);
+      if (item.security !== "none" && item.node.sni) lines.push(`    servername: ${quoteYaml(safeText(item.node.sni, "sni", 253))}`);
       if (item.node.fingerprint) lines.push(`    client-fingerprint: ${quoteYaml(item.node.fingerprint)}`);
       if (item.flow) lines.push(`    flow: ${quoteYaml(item.flow)}`);
       if (item.security === "reality") {
@@ -212,7 +216,7 @@ export function buildClashConfig(nodes, { groupName = "Proxy" } = {}) {
     } else if (item.protocol === "trojan") {
       lines.push(`    password: ${quoteYaml(item.password)}`);
       lines.push("    tls: true");
-      if (item.node.sni) lines.push(`    sni: ${quoteYaml(item.node.sni)}`);
+      if (item.node.sni) lines.push(`    sni: ${quoteYaml(safeText(item.node.sni, "sni", 253))}`);
     } else {
       lines.push(`    cipher: ${quoteYaml(item.method)}`);
       lines.push(`    password: ${quoteYaml(item.password)}`);
@@ -222,7 +226,7 @@ export function buildClashConfig(nodes, { groupName = "Proxy" } = {}) {
     if (item.transport === "ws") {
       lines.push("    ws-opts:");
       lines.push(`      path: ${quoteYaml(item.node.path ?? "/")}`);
-      const host = item.node.host ?? item.node.sni;
+      const host = safeText(item.node.host ?? item.node.sni, "host", 253);
       if (host) {
         lines.push("      headers:");
         lines.push(`        Host: ${quoteYaml(host)}`);
