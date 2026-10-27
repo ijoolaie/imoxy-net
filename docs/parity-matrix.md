@@ -21,6 +21,10 @@ Status vocabulary: **Not assessed**, **In progress**, **Verified**, **Blocked**,
 | Observability | Usage, audit logs, connection records, privacy controls | Not assessed | REF-025; initial audit/usage tables drafted; behavior and retention unverified |
 | Interfaces | Web panel, Telegram bot, Android APK | Not assessed | Initial web panel and read-only Telegram/Android slices exist; Nova parity and end-to-end workflows are unverified |
 | Workflows | Panel only; Cloudflare only; panel + Cloudflare | Not assessed | REF-022–024; not implemented or runtime-tested |
+| Mixed protocol | One link combining VLESS and Trojan; fallback when one is blocked | Not assessed | REF-029; generator and real client fallback unverified |
+| Risk and endpoint headers | Host risk classification, custom-domain warning, subscription response headers, ECH/SNI options | Not assessed | REF-030; version-specific 5.0.0 claims are documented hypotheses |
+| Installation/update automation | One-click, Telegram installer, Wrangler deployment, update PR and rollback | Not assessed | REF-031; no reference deployment or update workflow was run |
+| Client import behavior | Auto/Base64/Clash import in representative clients | Not assessed | REF-032; generated outputs are provisional and not runtime-compared |
 
 Detailed prioritized cases and evidence requirements: [reference-scenarios.md](reference-scenarios.md). All cases currently remain unrun against the pinned runtime.
 
