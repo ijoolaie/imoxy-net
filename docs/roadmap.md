@@ -105,7 +105,7 @@ Exit gate:
 - Every mutation is authorized, validated, auditable, and safe to retry where promised.
 
 ### Phase 6 — Subscription and proxy compatibility
-**State:** In progress — subscription token generation/storage/revocation, account-expiry caps, and provisional Auto/Base64 rendering are implemented as a tested domain service. Subscription HTTP delivery, Clash format, protocol generation, and reference output comparison remain.
+**State:** In progress — subscription token generation/storage/revocation, account-expiry caps, provisional Auto/Base64/Clash rendering, and clean-room VLESS/Trojan/Shadowsocks URI plus Clash YAML generators are implemented with tests. Public delivery, persistent proxy-node configuration, target-client smoke tests and reference output comparison remain.
 
 Deliver:
 - Subscription tokens/access rules, expiry/revocation, and supported output formats.
