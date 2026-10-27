@@ -1,7 +1,8 @@
 import { createSessionCredential, hashSessionToken } from "../security/crypto.js";
 import { DomainError } from "./account-service.js";
+import { buildClashConfig } from "./protocols.js";
 
-const ALLOWED_FORMATS = new Set(["auto", "base64"]);
+const ALLOWED_FORMATS = new Set(["auto", "base64", "clash"]);
 
 function fail(code, message, status) {
   return new DomainError(code, message, status);
@@ -48,6 +49,7 @@ export function createSubscriptionService({
   store,
   authorize,
   getEntries,
+  getNodes = null,
   idFactory = () => globalThis.crypto.randomUUID(),
   now = () => new Date().toISOString()
 }) {
@@ -175,15 +177,23 @@ export function createSubscriptionService({
         throw fail("not_found", "The subscription link is invalid or unavailable.", 404);
       }
       if (!subscription.formats.includes(format)) throw fail("not_acceptable", "This subscription does not permit the requested format.", 406);
-      const entries = await getEntries(subscription.accountId);
-      if (!Array.isArray(entries) || entries.some((entry) =>
-        typeof entry !== "string" || entry.length > 4096 ||
-        !/^(?:vless|trojan|ss):\/\/[^\r\n]+$/i.test(entry)
-      )) {
-        throw fail("dependency_unavailable", "Subscription entries are unavailable or invalid.", 503);
+      let body;
+      if (format === "clash") {
+        if (typeof getNodes !== "function") {
+          throw fail("dependency_unavailable", "Clash configuration generation is not configured.", 503);
+        }
+        body = buildClashConfig(await getNodes(subscription.accountId));
+      } else {
+        const entries = await getEntries(subscription.accountId);
+        if (!Array.isArray(entries) || entries.some((entry) =>
+          typeof entry !== "string" || entry.length > 4096 ||
+          !/^(?:vless|trojan|ss):\/\/[^\r\n]+$/i.test(entry)
+        )) {
+          throw fail("dependency_unavailable", "Subscription entries are unavailable or invalid.", 503);
+        }
+        const plainText = entries.length ? entries.join("\n") + "\n" : "";
+        body = format === "base64" ? base64Utf8(plainText) : plainText;
       }
-      const plainText = entries.length ? entries.join("\n") + "\n" : "";
-      const body = format === "base64" ? base64Utf8(plainText) : plainText;
       await store.touchSubscription(subscription.id, now());
       return { body, format, subscriptionId: subscription.id };
     }
