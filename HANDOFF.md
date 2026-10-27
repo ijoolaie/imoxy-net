@@ -11,8 +11,8 @@
 - Merged PR #5: authorization-gated account service.
 - Merged PR #6: auth/session service, one-time owner bootstrap, persistent rate limits and initial RBAC; CI passed on exact final head 5d68d1ec1662a026ed2b8d63b8dde2a4324af709.
 - Current work branch: feat/http-auth-routes.
-- Branch head before this hand-off edit: a432b7648d2bd3513bfb923350d4ae47a1c5246b.
-- Current feature work: HTTP auth/session and account CRUD routes, cookie/origin protections, route tests, D1 setup docs. Exact-head CI must be checked after this edit.
+- Branch head before this hand-off edit: 5f96e57e468125bc01f035b98bd31571c03487d3.
+- Current feature work: HTTP auth/session and account CRUD routes, cookie/origin protections, route tests, D1 setup docs. The first CI run (40468281503) failed two tests: pagination validation was missing its ValidationError import, and the legacy 404 test expected the old string error. Both are fixed in commits 9090e47b8adaf97f876b626d4194c840a43d9062 and 5f96e57e468125bc01f035b98bd31571c03487d3. Re-check CI on the new exact head.
 - Product status: no Nova runtime parity claim, no production deployment, no live Cloudflare writes.
 
 ## Product target
@@ -36,7 +36,7 @@ Independently implement behavior matching Nova Proxy 5.0.0 (pinned commit ad2116
 - Commercial distribution requires separate review of the observed PolyForm Noncommercial 1.0.0 terms.
 
 ## Next actions
-1. Query exact feature branch SHA and CI after this hand-off edit; fix failures before merge.
+1. Query exact feature branch SHA and CI after this hand-off edit; confirm both CI fixes pass.
 2. Review all auth routes, particularly browser/native transport behavior, rate limiting, origin checks, error handling and bootstrap lifecycle.
 3. Add real D1 integration tests for migrations, constraints, batch/audit behavior, rate-limit counters, session revocation and backup/restore.
 4. Implement quota/usage services and subscription token lifecycle; then independently implement required proxy protocol/transport output.
