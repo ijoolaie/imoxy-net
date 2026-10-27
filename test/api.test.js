@@ -164,8 +164,8 @@ test("logout clears the browser session cookie and is idempotent", async () => {
 test("usage summaries require a session and validate the UTC date", async () => {
   const { api, env, state } = fixture();
   state.accounts.set("acct-1", { id: "acct-1", username: "customer_01", status: "active" });
-  const unauthorized = await api.fetch(new Request("https://imoxy.test/api/v1/accounts/acct-1/usage"));
-  assert.equal(unauthorized.status, 503); // database binding is required before route services initialize
+  const unauthorized = await api.fetch(new Request("https://imoxy.test/api/v1/accounts/acct-1/usage"), env);
+  assert.equal(unauthorized.status, 401);
   const response = await api.fetch(new Request("https://imoxy.test/api/v1/accounts/acct-1/usage?date=2026-10-27", {
     headers: { authorization: `Bearer ${bearer}` }
   }), env);
