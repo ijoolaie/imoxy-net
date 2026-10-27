@@ -227,3 +227,8 @@ Exit gate:
 - A test passing on an earlier commit does not validate a later commit.
 - A feature is not “complete” while its critical acceptance tests are missing.
 - Estimates and calendar dates are intentionally not committed until task sizing, dependencies, and delivery capacity are measured.
+
+
+### Security maintenance note — 2026-10-27
+
+Fixed successful-login rate-limit cleanup to clear each HMAC-derived IP and normalized-username key individually. Added a regression assertion for multi-key cleanup. This strengthens the current imoxy auth implementation but does not close Phase 1 reference characterization or prove Nova parity.
