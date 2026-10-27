@@ -4,6 +4,8 @@
 
 ## Current state — 2026-10-27
 
+- Active maintenance change: fixed successful-login rate-limit cleanup so each HMAC-derived IP and normalized-username key is cleared independently; regression coverage asserts all counters are removed. Work branch: `fix/auth-rate-limit-reset`; PR/CI evidence will be added after review. This is not Nova parity evidence.
+
 - Repository: https://github.com/ijoolaie/imoxy-net (private).
 - Product target: independently implement behaviorally compatible behavior against Nova Proxy 5.0.0, pinned commit `ad2116aa89f8c7db8248f8142c1432900d835eb7`, then add separately approved imoxy improvements.
 - Interfaces: web panel, Telegram bot, Android APK. Shared API/domain services and authorization/quota policy are required.
