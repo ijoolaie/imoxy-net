@@ -154,7 +154,7 @@ export function createApiHandler({
             service: "imoxy-net",
             mode,
             supportedModes: OPERATING_MODES,
-            implemented: ["health", "capability-reporting", "authentication-and-session-routes", "account-management-routes", "cloudflare-read-only-inventory-and-dry-run-plans"],
+            implemented: ["health", "capability-reporting", "authentication-and-session-routes", "account-management-routes", "cloudflare-read-only-inventory-and-dry-run-plans", "web-panel-initial-slice", "android-client-initial-slice"],
             requiresConfiguration: ["D1 binding", "AUTH_RATE_LIMIT_SECRET", "BOOTSTRAP_OWNER_SECRET for initial setup", "CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID for provider reads"],
             pending: [
               "cloudflare-resource-mutation-and-recovery",
@@ -163,8 +163,8 @@ export function createApiHandler({
               "proxy-protocols-and-transports",
               "cloudflare-write-operations-and-recovery",
               "telegram-bot",
-              "web-panel",
-              "android-client"
+              "web-panel-completion",
+              "android-client-completion"
             ],
             requestId
           });
