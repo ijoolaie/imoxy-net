@@ -50,7 +50,15 @@ These rules apply to every contributor, coding agent, and maintenance session wo
 - Distinguish GitHub CI results by commit SHA; a successful earlier commit does not prove a later commit passed.
 - Do not say a change was merged, deployed, or published without verifying that exact state.
 
-## 8. Session completion checklist
+## 8. Schematic progress report at the end of every response
+- Every user-facing response about work on this repository MUST end with a compact schematic progress report, including interim replies, status updates, and partial completions. Do not omit it merely because the task is unfinished.
+- The report MUST show overall project progress and progress for each roadmap phase (Phase 0 through Phase 13) using a compact visual status bar or table. Use consistent status labels: `Not started`, `In progress`, `Blocked`, `Complete`. Use percentage estimates only when they are evidence-based; otherwise use status labels and clearly avoid implying measured completion.
+- Show the current active phase, its concrete completed items, remaining work, and blockers. Distinguish verified work from assumptions and untested work.
+- Base phase status on `docs/roadmap.md`, acceptance evidence, current repository state, and CI results for the exact commit. A passing foundation CI does not mean later phases or product parity are complete.
+- Keep the schematic concise enough to append to every response, but include all phases every time. Update `docs/roadmap.md` when a phase status changes materially, and keep `HANDOFF.md` aligned before ending the work session.
+- Suggested format: overall status, active phase, then a compact Phase 0–13 row/list with status symbols and labels. Do not mark a phase complete without meeting its exit gate.
+
+## 9. Session completion checklist
 - [ ] Code and docs reflect the same state.
 - [ ] Tests/checks run; results recorded with commit SHA.
 - [ ] Diff and repository state inspected.
