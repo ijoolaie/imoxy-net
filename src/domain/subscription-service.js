@@ -90,6 +90,13 @@ export function createSubscriptionService({
     },
 
     async create(accountId, input = {}) {
+      if (!input || typeof input !== "object" || Array.isArray(input)) {
+        throw fail("validation_failed", "The subscription request must be an object.", 400);
+      }
+      const unknownFields = Object.keys(input).filter((key) => !["formats", "expiresAt"].includes(key));
+      if (unknownFields.length) {
+        throw fail("validation_failed", "The subscription request contains unsupported fields.", 400);
+      }
       const principal = await principalFor("subscription.create", accountId);
       const account = await store.getAccount(accountId);
       if (!account) throw fail("not_found", "The requested account was not found.", 404);
@@ -160,6 +167,7 @@ export function createSubscriptionService({
       const tokenHash = await hashSessionToken(token);
       const subscription = await store.findSubscriptionByTokenHash(tokenHash);
       const timestamp = Date.parse(now());
+      if (!Number.isFinite(timestamp)) throw fail("dependency_unavailable", "The service clock is unavailable.", 503);
       if (!subscription || subscription.revokedAt ||
           (subscription.expiresAt && Date.parse(subscription.expiresAt) <= timestamp) ||
           subscription.account?.status !== "active" ||
