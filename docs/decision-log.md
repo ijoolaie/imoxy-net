@@ -27,3 +27,8 @@ The first quota policy evaluates total and daily usage in UTC, treats null limit
 ## 2026-10-27 — subscription tokens are random, hash-at-rest credentials
 
 The subscription service returns a cryptographically random token once and persists only its SHA-256 hash. Revocation is idempotent, links are invalid when either the subscription or account is expired/disabled, and a subscription cannot outlive the account. Auto and Base64 output are provisional clean-room formats; the public route and reference compatibility remain pending.
+
+
+## 2026-10-27 — Cloudflare integration starts read-only
+
+The first provider client is deliberately GET-only. Inventory and deterministic dry-run planning are exposed behind provider permissions, with no apply or delete endpoint. Live provider validation, least-privilege scope verification, idempotent mutations and rollback must be completed before any write capability is considered.
