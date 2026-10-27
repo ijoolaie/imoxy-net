@@ -86,3 +86,6 @@ For each scenario record: reference release/commit, environment, request/action,
 - Failure injection covers unavailable storage, provider errors, timeouts and partial provisioning.
 
 Executable repository tests currently cover API/auth/session behavior, account-domain authorization and audit metadata, quota-policy boundaries, subscription lifecycle, protocol formatting, Cloudflare read-only inventory/dry-run planning, operating-mode gating, Telegram webhook security/replay handling, cross-interface account-list contracts, SQLite migration constraints, and Android build configuration. The CI suite is an imoxy implementation test suite, not proof of Nova parity. All REF-001–REF-032 scenarios remain unrun against the pinned reference; real D1 integration/recovery, deployed Worker, browser/device E2E, and live Telegram webhook validation remain pending.
+
+
+- After a successful login, all rate-limit counters consumed for the request (IP and normalized username) are cleared individually; a regression test uses multiple opaque keys and asserts the store is empty. This verifies imoxy behavior only and does not establish Nova rate-limit parity.
