@@ -10,25 +10,36 @@ The Telegram bot, web panel and Android client must share domain services and au
 
 ## 2026-10-27 — honest capability reporting
 
-Unimplemented endpoints must not return fake success. Current implementation is intentionally limited to health and capability reporting.
+Unimplemented endpoints must not return fake success. Capability reporting distinguishes implemented initial slices from pending full workflows. Implementation status is not a claim of Nova compatibility.
 
-\n## 2026-10-27 — schema separates admin principals from proxy accounts\n\nThe initial D1 schema separates control-plane principals/sessions from end-user proxy accounts. Subscription tokens are represented by hashes; provider resource metadata excludes provider credentials. This is a proposed imoxy data model pending migration, threat-model, and reference-compatibility validation.\n\n## 2026-10-27 — documented feature list is not runtime evidence\n\nA prioritized black-box scenario inventory was added from the pinned README feature claims. These are hypotheses only until executed against an authorized instance of the pinned release. No reference behavior is marked verified.\n
+## 2026-10-27 — schema separates admin principals from proxy accounts
+
+The initial D1 schema separates control-plane principals/sessions from end-user proxy accounts. Subscription tokens are represented by hashes; provider resource metadata excludes provider credentials. This is a proposed imoxy data model pending migration, threat-model, and reference-compatibility validation.
+
+## 2026-10-27 — documented feature list is not runtime evidence
+
+The pinned README, package manifest, license and deployment guide are recorded as source evidence. The prioritized black-box scenarios are hypotheses until executed against an authorized instance of the pinned release. No reference behavior is marked verified.
 
 ## 2026-10-27 — parameterized D1 access and audited mutations
 
 Account persistence uses prepared statements and a fixed field-to-column allowlist. Mutations require an audit event and use D1 batch operations to keep the account write and audit insert together. Current tests use a mocked D1-compatible binding; real D1 migration and concurrency behavior still require integration validation.
 
-
 ## 2026-10-27 — provisional UTC quota accounting
 
 The first quota policy evaluates total and daily usage in UTC, treats null limits as unlimited and equality with the quota as allowed. This is an imoxy baseline, not a Nova parity claim. REF-006–008 must establish upstream expiry/quota boundaries, timezone and accounting semantics before compatibility is frozen. Hard enforcement is blocked on data-plane integration and atomic reservation/idempotency design.
-
 
 ## 2026-10-27 — subscription tokens are random, hash-at-rest credentials
 
 The subscription service returns a cryptographically random token once and persists only its SHA-256 hash. Revocation is idempotent, links are invalid when either the subscription or account is expired/disabled, and a subscription cannot outlive the account. Auto and Base64 output are provisional clean-room formats; the public route and reference compatibility remain pending.
 
-
 ## 2026-10-27 — Cloudflare integration starts read-only
 
 The first provider client is deliberately GET-only. Inventory and deterministic dry-run planning are exposed behind provider permissions, with no apply or delete endpoint. Live provider validation, least-privilege scope verification, idempotent mutations and rollback must be completed before any write capability is considered.
+
+## 2026-10-27 — interfaces are thin clients over the shared API
+
+The web panel and Android client use the same versioned Worker API. The initial Telegram webhook calls the shared account domain service for read-only listing and has an explicit allowlist. The Telegram allowlist is an interim bootstrap control, not a substitute for durable per-principal account linking; mutating bot commands remain blocked until linking, audit and replay protections are implemented.
+
+## 2026-10-27 — Android token storage uses platform Keystore
+
+The initial Android client stores a bearer token encrypted with AES-GCM under a key managed by Android Keystore. It requires HTTPS and disables authenticated redirects, app backup and cleartext traffic. Device-level validation, release signing and threat review remain required.
