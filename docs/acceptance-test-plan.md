@@ -6,6 +6,11 @@ For each scenario record: reference release/commit, environment, request/action,
 
 ## Initial scenarios
 
+- Telegram webhook rejects invalid secret headers, oversized bodies, non-JSON payloads and unsupported methods.
+- Telegram commands are ignored for users outside the explicit numeric allowlist; tests use mocked Telegram delivery only.
+- Telegram `/accounts` invokes the shared account service with viewer-level permission and exposes only username/status; mutations and secret material are not exposed.
+- Telegram API route wiring is tested independently from the provider network.
+
 - Cloudflare client sends GET only, paginates within a bound, sanitizes provider errors and never echoes credentials.
 - Protected inventory and dry-run plan routes require an authenticated principal; unauthenticated calls never reach the provider client.
 - Dry-run plans mark operations for explicit approval, omit deletions, sanitize resource fields and perform no writes.
