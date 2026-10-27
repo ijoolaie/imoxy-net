@@ -33,7 +33,7 @@ The `fields` member is optional. Error messages are safe for clients and must no
 | Resource | Planned endpoints | Security and consistency requirements |
 |---|---|---|
 | Installation | `GET/PATCH /installation` | Owner/admin only for changes; schema-validated settings |
-| Authentication | `POST /auth/bootstrap`, `POST /auth/login`, `GET /auth/me`, `POST /auth/logout` | One-time owner setup; rate-limited login; session token hash persistence; expiry/revocation; no password/token hashes in responses. Service primitives exist; HTTP routes are not wired. |
+| Authentication | `POST /auth/bootstrap`, `POST /auth/login`, `GET /auth/me`, `POST /auth/logout` | One-time owner setup; rate-limited login; session token hash persistence; expiry/revocation; no password/token hashes in responses. Service and HTTP routes are implemented; deployment still requires configured D1 and secrets. |
 | Principals | `GET/POST /principals`, `PATCH/DELETE /principals/:id` | Owner/admin policy; password/session revocation |
 | Proxy accounts | `GET/POST /accounts`, `GET/PATCH/DELETE /accounts/:id` | Shared expiry/quota rules; audited mutations |
 | Subscriptions | `POST /accounts/:id/subscriptions`, `POST /subscriptions/:id/revoke` | Store token hashes only; never return a stored secret |
