@@ -97,3 +97,26 @@ test("mutations require an audit event", async () => {
   const store = createD1Store(makeDb());
   await assert.rejects(() => store.createAccount({ id: "acct-1", username: "x" }, null), TypeError);
 });
+
+test("usage summaries bind the requested UTC date and account ID", async () => {
+  const db = makeDb({ firstRow: { total_bytes: 1500, daily_bytes: 300, request_count: 7 } });
+  const summary = await createD1Store(db).getUsageSummary("acct-1", "2026-10-27");
+  assert.equal(summary.totalBytes, 1500);
+  assert.equal(summary.dailyBytes, 300);
+  assert.equal(summary.requestCount, 7);
+  assert.deepEqual(db.calls[0].values, ["2026-10-27", "acct-1"]);
+});
+
+test("usage records use an atomic upsert with bounded non-negative counters", async () => {
+  const db = makeDb();
+  await createD1Store(db).recordUsage({
+    accountId: "acct-1", usageDate: "2026-10-27", uploadBytes: 20,
+    downloadBytes: 30, requestCount: 1, updatedAt: "2026-10-27T12:00:00.000Z"
+  });
+  assert.match(db.calls[0].sql, /ON CONFLICT\(account_id, usage_date\) DO UPDATE/);
+  assert.deepEqual(db.calls[0].values, ["acct-1", "2026-10-27", 20, 30, 1, "2026-10-27T12:00:00.000Z"]);
+  await assert.rejects(() => createD1Store(db).recordUsage({
+    accountId: "acct-1", usageDate: "2026-10-27", uploadBytes: -1,
+    downloadBytes: 0, requestCount: 1, updatedAt: "2026-10-27T12:00:00.000Z"
+  }), TypeError);
+});
