@@ -4,6 +4,7 @@ import { authorizeAction, AuthError, createAuthService } from "../security/auth-
 import { createD1Store } from "../storage/d1-store.js";
 import { createCloudflareClient } from "../providers/cloudflare-client.js";
 import { buildCloudflarePlan } from "../providers/cloudflare-plan.js";
+import { getOperatingMode, OPERATING_MODES } from "../domain/operating-mode.js";
 
 const COOKIE_NAME = "__Host-imoxy_session";
 const MAX_BODY_BYTES = 16 * 1024;
@@ -148,8 +149,11 @@ export function createApiHandler({
         }
 
         if (request.method === "GET" && url.pathname === "/api/v1/capabilities") {
+          const mode = getOperatingMode(env);
           return response({
             service: "imoxy-net",
+            mode,
+            supportedModes: OPERATING_MODES,
             implemented: ["health", "capability-reporting", "authentication-and-session-routes", "account-management-routes", "cloudflare-read-only-inventory-and-dry-run-plans"],
             requiresConfiguration: ["D1 binding", "AUTH_RATE_LIMIT_SECRET", "BOOTSTRAP_OWNER_SECRET for initial setup", "CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID for provider reads"],
             pending: [
@@ -173,6 +177,13 @@ export function createApiHandler({
           return response({ error: { code: "not_found", message: "The requested route was not found.", requestId } }, 404);
         }
 
+        const mode = getOperatingMode(env);
+        if (cloudflarePath && mode === "panel-only") {
+          return response({ error: { code: "feature_disabled", message: "Cloudflare integration is disabled in this operating mode.", requestId } }, 404);
+        }
+        if (accountPath && mode === "cloudflare-only") {
+          return response({ error: { code: "feature_disabled", message: "Account management is disabled in this operating mode.", requestId } }, 404);
+        }
         requireDatabase(env);
         const store = storeFactory(env);
         const auth = authFactory(store, env);
