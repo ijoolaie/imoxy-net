@@ -49,3 +49,8 @@ An imoxy-only regression fix ensures successful login clears each IP/username ra
 ## Usage accounting implementation note — 2026-10-27
 
 Imoxy rejects a combined upload/download delta that exceeds the JavaScript safe-integer range before persistence. This is a defensive implementation choice, not verified Nova behavior; REF-007–008 remain pending.
+
+
+## Usage counter hardening note — 2026-10-27
+
+The imoxy D1 adapter now rejects combined deltas outside the safe-integer range and guards per-day aggregate updates against safe-integer overflow. This is a defensive storage behavior, not a Nova compatibility finding. REF-006–008 remain unrun against the pinned runtime; real D1 behavior and replay/idempotency semantics remain unverified.

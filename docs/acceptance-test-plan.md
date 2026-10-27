@@ -92,3 +92,6 @@ Executable repository tests currently cover API/auth/session behavior, account-d
 
 
 - Usage reporting rejects combined upload/download byte deltas outside the safe-integer range before persistence; regression coverage verifies the storage adapter is not called. This is imoxy safety behavior, not Nova parity evidence.
+
+
+- D1 usage upserts reject combined byte deltas outside the safe-integer range before execution; conditional conflict updates refuse per-day upload, download, request-count, or combined daily-byte totals that would exceed the supported range. Adapter tests verify the guard clauses and zero-change failure path. Real D1 concurrency/transaction behavior remains unverified; usage-event idempotency is not implemented because the current reporting contract has no stable event identifier.

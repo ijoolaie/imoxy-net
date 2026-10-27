@@ -48,3 +48,8 @@ The authentication implementation now clears every HMAC-derived rate-limit key (
 ## Additional imoxy quota safety regression (2026-10-27)
 
 The quota service now rejects a usage report when individually safe upload/download byte counts sum outside JavaScript's safe-integer range, before calling storage. A regression test asserts no usage write occurs. This is implementation hardening only; REF-007–008 remain unrun against Nova.
+
+
+## Additional D1 usage-counter guard (2026-10-27)
+
+The D1 adapter now rejects combined upload/download deltas outside the JavaScript safe-integer range and guards daily counter increments in the atomic upsert. If an existing daily row would exceed the supported safe-integer range, the upsert makes no change and the adapter reports a range error. Unit tests cover the SQL guard contract and zero-change failure path. This does not provide idempotency, lifetime-total reservation, real D1 evidence, or Nova parity.

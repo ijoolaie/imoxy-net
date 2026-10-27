@@ -294,19 +294,28 @@ export function createD1Store(db) {
       if (typeof accountId !== "string" || !accountId ||
           !isValidUsageDate(usageDate) ||
           ![uploadBytes, downloadBytes, requestCount].every((value) => Number.isSafeInteger(value) && value >= 0) ||
+          !Number.isSafeInteger(uploadBytes + downloadBytes) ||
           typeof updatedAt !== "string" || !Number.isFinite(Date.parse(updatedAt))) {
         throw new TypeError("Usage record fields are invalid.");
       }
-      await db.prepare(`INSERT INTO usage_daily
+      const result = await db.prepare(`INSERT INTO usage_daily
         (account_id, usage_date, upload_bytes, download_bytes, request_count, updated_at)
         VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(account_id, usage_date) DO UPDATE SET
           upload_bytes = usage_daily.upload_bytes + excluded.upload_bytes,
           download_bytes = usage_daily.download_bytes + excluded.download_bytes,
           request_count = usage_daily.request_count + excluded.request_count,
-          updated_at = excluded.updated_at`).bind(
+          updated_at = excluded.updated_at
+        WHERE usage_daily.upload_bytes <= 9007199254740991 - excluded.upload_bytes
+          AND usage_daily.download_bytes <= 9007199254740991 - excluded.download_bytes
+          AND usage_daily.request_count <= 9007199254740991 - excluded.request_count
+          AND usage_daily.upload_bytes + usage_daily.download_bytes
+            <= 9007199254740991 - excluded.upload_bytes - excluded.download_bytes`).bind(
         accountId, usageDate, uploadBytes, downloadBytes, requestCount, updatedAt
       ).run();
+      if (result?.meta?.changes === 0) {
+        throw new RangeError("Usage counters would exceed the supported safe-integer range.");
+      }
     },
 
     async getSubscriptionById(id) {
