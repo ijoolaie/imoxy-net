@@ -6,8 +6,8 @@
 - **Repository:** https://github.com/ijoolaie/imoxy-net (private)
 - **Merged foundation PR:** [#1](https://github.com/ijoolaie/imoxy-net/pull/1), squash merge commit `2142591abdc863d7f7ab85f36a395fd7a8bc82a1`.
 - **Current work branch:** `feat/domain-contract-and-schema`.
-- **Branch head before this hand-off edit:** `4de18a2fd830712585662461fe7e76c928b000ea`.
-- **CI:** PR #1 head `995fd4e7dd941502e9ab84ab9fc6719be10e736e` passed CI (run 40465498032). Main push CI for merge commit `2142591abdc863d7f7ab85f36a395fd7a8bc82a1` was queued at last query; re-check it. New feature branch CI must be checked on its exact final SHA.
+- **Branch head before this hand-off edit:** `e13525d5d8062b01982ef85b1bb92efc038aecae`.
+- **CI:** PR #1 head `995fd4e7dd941502e9ab84ab9fc6719be10e736e` passed CI (run 40465498032). Main merge commit `2142591abdc863d7f7ab85f36a395fd7a8bc82a1` passed CI (run 40466075513). Feature branch run 40466348656 was still in progress on earlier SHA `1e13c25ef316849830d08ec7bc232b9d5157868d`; later commits include validation and migration fixes and require exact-head CI.
 - **Product status:** still a foundation; no behavioral parity claim, no production deployment, no live Cloudflare writes.
 
 ## Product target
@@ -19,7 +19,7 @@ Independently implement behavior matching Nova Proxy 5.0.0 (pinned commit `ad211
 - Added `docs/api-contract.md`: v1 conventions, error envelope, planned resource endpoints, operating modes, and shared authorization requirements.
 - Added `docs/reference-scenarios.md`: 28 prioritized black-box scenarios based on documented upstream feature claims. They are hypotheses, not runtime verification.
 - Updated parity matrix, acceptance plan, decision log, roadmap and README to link scenarios and reflect actual progress.
-- Validation bug found by test design and fixed: JavaScript date parsing can normalize invalid calendar days, so the validator now compares normalized and submitted calendar dates.
+- Validation bugs found by test design and fixed: JavaScript date parsing can normalize invalid calendar days, so the validator compares normalized and submitted calendar dates; empty PATCH payloads are rejected. Removed an unnecessary PRAGMA from the initial D1 migration.
 
 ## Still missing
 - The new code has not yet been confirmed by CI on the current final branch SHA at the time of writing.
