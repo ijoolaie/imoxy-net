@@ -2,6 +2,9 @@ import { createAccountService, DomainError } from "../domain/account-service.js"
 import { ValidationError } from "../domain/validation.js";
 import { authorizeAction, AuthError, createAuthService } from "../security/auth-service.js";
 import { createD1Store } from "../storage/d1-store.js";
+import { createCloudflareClient } from "../providers/cloudflare-client.js";
+import { buildCloudflarePlan } from "../providers/cloudflare-plan.js";
+import { getOperatingMode, OPERATING_MODES } from "../domain/operating-mode.js";
 
 const COOKIE_NAME = "__Host-imoxy_session";
 const MAX_BODY_BYTES = 16 * 1024;
@@ -132,7 +135,9 @@ function requireDatabase(env) {
 export function createApiHandler({
   storeFactory = (env) => createD1Store(env.DB),
   authFactory = (store) => createAuthService({ store }),
-  accountServiceFactory = (store, authorize) => createAccountService({ store, authorize })
+  accountServiceFactory = (store, authorize) => createAccountService({ store, authorize }),
+  cloudflareFactory = (env) => createCloudflareClient(env),
+  cloudflarePlanFactory = buildCloudflarePlan
 } = {}) {
   return {
     async fetch(request, env = {}) {
@@ -144,15 +149,19 @@ export function createApiHandler({
         }
 
         if (request.method === "GET" && url.pathname === "/api/v1/capabilities") {
+          const mode = getOperatingMode(env);
           return response({
             service: "imoxy-net",
-            implemented: ["health", "capability-reporting", "authentication-and-session-routes", "account-management-routes"],
-            requiresConfiguration: ["D1 binding", "AUTH_RATE_LIMIT_SECRET", "BOOTSTRAP_OWNER_SECRET for initial setup"],
+            mode,
+            supportedModes: OPERATING_MODES,
+            implemented: ["health", "capability-reporting", "authentication-and-session-routes", "account-management-routes", "cloudflare-read-only-inventory-and-dry-run-plans"],
+            requiresConfiguration: ["D1 binding", "AUTH_RATE_LIMIT_SECRET", "BOOTSTRAP_OWNER_SECRET for initial setup", "CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID for provider reads"],
             pending: [
+              "cloudflare-resource-mutation-and-recovery",
               "quota-enforcement-and-usage-accounting",
               "subscription-formats",
               "proxy-protocols-and-transports",
-              "cloudflare-resource-management",
+              "cloudflare-write-operations-and-recovery",
               "telegram-bot",
               "web-panel",
               "android-client"
@@ -163,10 +172,18 @@ export function createApiHandler({
 
         const authPath = url.pathname.startsWith("/api/v1/auth/");
         const accountPath = url.pathname === "/api/v1/accounts" || url.pathname.startsWith("/api/v1/accounts/");
-        if (!authPath && !accountPath) {
+        const cloudflarePath = url.pathname === "/api/v1/cloudflare/inventory" || url.pathname === "/api/v1/cloudflare/plan";
+        if (!authPath && !accountPath && !cloudflarePath) {
           return response({ error: { code: "not_found", message: "The requested route was not found.", requestId } }, 404);
         }
 
+        const mode = getOperatingMode(env);
+        if (cloudflarePath && mode === "panel-only") {
+          return response({ error: { code: "feature_disabled", message: "Cloudflare integration is disabled in this operating mode.", requestId } }, 404);
+        }
+        if (accountPath && mode === "cloudflare-only") {
+          return response({ error: { code: "feature_disabled", message: "Account management is disabled in this operating mode.", requestId } }, 404);
+        }
         requireDatabase(env);
         const store = storeFactory(env);
         const auth = authFactory(store, env);
@@ -214,6 +231,30 @@ export function createApiHandler({
           if (credential) await auth.logout(credential.token);
           return response({ success: true, requestId }, 200,
             credential?.source === "cookie" ? { "set-cookie": `${COOKIE_BASE}; Max-Age=0` } : {});
+        }
+
+        if (cloudflarePath) {
+          const credential = requestToken(request);
+          if (credential?.source === "cookie" && request.method !== "GET") assertSameOrigin(request, true);
+          else assertSameOrigin(request, false);
+          if (!credential) throw new AuthError("unauthorized", "Authentication failed.", 401);
+          const principal = await auth.resolveSession(credential.token);
+          if (url.pathname === "/api/v1/cloudflare/inventory" && request.method === "GET") {
+            authorizeAction(principal, "provider.read");
+            const inventory = await cloudflareFactory(env).getInventory({ zoneId: env.CLOUDFLARE_ZONE_ID });
+            return response({ inventory, requestId });
+          }
+          if (url.pathname === "/api/v1/cloudflare/plan" && request.method === "POST") {
+            authorizeAction(principal, "provider.preview");
+            const body = await readJson(request);
+            if (Object.keys(body).some((key) => key !== "desired") || !body.desired || typeof body.desired !== "object" || Array.isArray(body.desired)) {
+              throw makeError("validation_failed", "Only a desired resource declaration is accepted.", 400);
+            }
+            const inventory = await cloudflareFactory(env).getInventory({ zoneId: env.CLOUDFLARE_ZONE_ID });
+            const plan = await cloudflarePlanFactory({ current: inventory, desired: body.desired });
+            return response({ plan, requestId });
+          }
+          throw makeError("method_not_allowed", "The method is not allowed for this route.", 405);
         }
 
         if (accountPath) {

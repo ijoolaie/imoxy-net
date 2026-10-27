@@ -15,3 +15,11 @@
 - Set BOOTSTRAP_OWNER_SECRET as a separate random value of at least 32 characters for the one-time owner bootstrap route. Send it only in the X-Bootstrap-Secret header. Remove this secret after successful owner creation.
 - Test browser login/logout using same-origin HTTPS. Browser sessions use the Secure, HttpOnly, SameSite=Strict __Host-imoxy_session cookie. Native clients without an Origin header receive a bearer token and must keep it in platform secure storage.
 - No deployment or migration has been run by this repository change. Do not expose the service publicly until real D1 integration tests, backup/restore, origin and abuse tests, and a reviewed bootstrap procedure pass.
+
+
+## Cloudflare read-only setup
+
+- Set IMOXY_MODE to panel-only (default), cloudflare-only, or combined. Review the mode change before deployment; cloudflare-only disables account CRUD routes and panel-only disables Cloudflare routes.
+- Add CLOUDFLARE_API_TOKEN as a platform secret with read-only least-privilege scopes, and set CLOUDFLARE_ACCOUNT_ID as the 32-character account ID. Set CLOUDFLARE_ZONE_ID only when DNS/Worker-route inventory is needed.
+- The current provider client performs GET requests only. GET /api/v1/cloudflare/inventory and POST /api/v1/cloudflare/plan are read-only; no apply or delete endpoint exists.
+- No Cloudflare credentials or live API access were used in tests. Validate against a dedicated test account before considering write support.

@@ -118,6 +118,8 @@ Exit gate:
 - Secrets and endpoint exposure match documented policies; no unsupported combination is advertised.
 
 ### Phase 7 — Cloudflare integration and operational workflows
+**State:** In progress — read-only inventory, protected inventory/plan routes, deterministic dry-run planning and operating-mode gating are implemented with mocked tests. Real account verification, write workflows, explicit approval, idempotency and rollback remain.
+
 Deliver:
 - Provider adapter with mocked tests before live access.
 - Resource/settings discovery, validation, safe previews/diffs, explicit confirmation for writes, least-privilege credentials, audit trail, retries/idempotency, and rollback/recovery plan.

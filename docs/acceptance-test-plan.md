@@ -6,6 +6,13 @@ For each scenario record: reference release/commit, environment, request/action,
 
 ## Initial scenarios
 
+- Cloudflare client sends GET only, paginates within a bound, sanitizes provider errors and never echoes credentials.
+- Protected inventory and dry-run plan routes require an authenticated principal; unauthenticated calls never reach the provider client.
+- Dry-run plans mark operations for explicit approval, omit deletions, sanitize resource fields and perform no writes.
+- panel-only, cloudflare-only and combined modes are validated; unrelated route families are disabled.
+- Tests use mocked provider responses only. Real account read-scope validation, D1/config integration and recovery are still required.
+
+
 - VLESS WebSocket, Trojan gRPC, Shadowsocks, IPv6 authority formatting, and a conservative Clash YAML subset have unit tests.
 - Invalid UUIDs, ports, ciphers, unsafe names, duplicate Clash names and unsupported XHTTP Clash output are rejected.
 - These generated outputs are clean-room provisional behavior. REF-009–013 and target-client import/connection tests are still required for parity.
