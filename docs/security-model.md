@@ -28,10 +28,10 @@
 
 ## Threats requiring implementation and testing
 
-- Login attempts now use a persistent fixed-window counter keyed by a caller-supplied opaque hash; HTTP-derived IP/account keying is not wired yet. Brute-force and distributed credential-stuffing defenses still need route-level validation.
-- Session issue/resolve/revoke primitives exist in the auth service, but HTTP login/logout endpoints, secure cookie flags, CSRF, origin validation and request token extraction are not implemented.
+- Login attempts use persistent fixed-window counters keyed by HMAC-derived IP and username hashes. Distributed credential stuffing, lockout usability and operational tuning still need abuse testing.
+- Session issue/resolve/revoke primitives and HTTP login/logout/me routes are implemented. Browser sessions use Secure, HttpOnly, SameSite=Strict __Host cookies; cookie-authenticated mutations require same-origin Origin, and bearer-token clients use Authorization. Browser security still needs independent review and deployment testing.
 - Initial role-based access checks and one-time bootstrap-owner service exist; route-level enforcement, recovery, MFA policy and session rotation are not implemented.
-- Secret redaction, structured audit write path, log retention, abuse throttles and security headers are not yet wired into HTTP routes.
+- JSON routes now return no-store, nosniff, referrer and restrictive CSP headers; account/session mutations are batched with audit events. Secret-redaction verification, audit retention and production abuse monitoring remain.
 - D1 migration execution, transaction boundaries, concurrency, backup/restore and recovery have not been tested.
 - Telegram identity linking, callback replay protection, Android secure storage and client compromise scenarios remain open.
 - Cloudflare preview/confirmation, idempotency, least-privilege scopes and rollback remain open.

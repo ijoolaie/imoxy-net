@@ -54,18 +54,18 @@ export function createAuthService({
   }
 
   async function consumeAttempt(rateLimitKeyHash, timestamp) {
-    if (typeof rateLimitKeyHash !== "string" || rateLimitKeyHash.length < 32) {
-      throw new TypeError("A server-derived opaque rate-limit key hash is required.");
+    const keyHashes = Array.isArray(rateLimitKeyHash) ? rateLimitKeyHash : [rateLimitKeyHash];
+    if (keyHashes.length < 1 || keyHashes.length > 4 ||
+        keyHashes.some((key) => typeof key !== "string" || key.length < 32 || key.length > 256)) {
+      throw new TypeError("Server-derived opaque rate-limit key hashes are required.");
     }
     const ms = Date.parse(timestamp);
     if (!Number.isFinite(ms)) throw new TypeError("The clock must return a valid UTC timestamp.");
     const windowStartedAt = new Date(Math.floor(ms / rateLimitWindowMs) * rateLimitWindowMs).toISOString();
-    const attempts = await store.consumeAuthAttempt({
-      keyHash: rateLimitKeyHash,
-      windowStartedAt,
-      now: timestamp
-    });
-    if (attempts > maxAttempts) throw rateLimited();
+    const attempts = await Promise.all(keyHashes.map((keyHash) => store.consumeAuthAttempt({
+      keyHash, windowStartedAt, now: timestamp
+    })));
+    if (attempts.some((count) => count > maxAttempts)) throw rateLimited();
   }
 
   function audit(action, resourceId, actorPrincipalId = null, timestamp = now()) {
@@ -117,7 +117,7 @@ export function createAuthService({
       if (!created) {
         throw new AuthError("bootstrap_closed", "Initial owner setup has already been completed.", 409);
       }
-      await store.clearAuthAttempts(rateLimitKeyHash);
+      await Promise.all((Array.isArray(rateLimitKeyHash) ? rateLimitKeyHash : [rateLimitKeyHash]).map((keyHash) => store.clearAuthAttempts(keyHash)));
       return withoutPasswordHash(principal);
     },
 

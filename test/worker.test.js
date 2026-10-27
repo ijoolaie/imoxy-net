@@ -7,7 +7,7 @@ const request = (path, method = "GET") => new Request(`https://imoxy.test${path}
 test("GET /health returns a healthy service response", async () => {
   const response = await worker.fetch(request("/health"));
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { status: "ok", service: "imoxy-net" });
+  assert.deepEqual(Object.fromEntries(Object.entries(await response.json()).filter(([key]) => key !== "requestId")), { status: "ok", service: "imoxy-net" });
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
@@ -15,14 +15,18 @@ test("capabilities explicitly distinguish implemented and pending features", asy
   const response = await worker.fetch(request("/api/v1/capabilities"));
   assert.equal(response.status, 200);
   const body = await response.json();
-  assert.deepEqual(body.implemented, ["health"]);
+  assert.ok(body.implemented.includes("health"));
+  assert.ok(body.implemented.includes("authentication-and-session-routes"));
+  assert.ok(body.implemented.includes("account-management-routes"));
   assert.ok(body.pending.includes("proxy-protocols-and-transports"));
 });
 
 test("unknown paths return JSON 404", async () => {
   const response = await worker.fetch(request("/missing"));
   assert.equal(response.status, 404);
-  assert.deepEqual(await response.json(), { error: "not_found" });
+  const body = await response.json();
+  assert.equal(body.error.code, "not_found");
+  assert.ok(body.error.requestId);
 });
 
 test("unsupported methods do not accidentally serve the health endpoint", async () => {

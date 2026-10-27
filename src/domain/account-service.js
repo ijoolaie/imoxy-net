@@ -1,4 +1,4 @@
-import { validateAccountInput } from "./validation.js";
+import { validateAccountInput, ValidationError } from "./validation.js";
 
 export class DomainError extends Error {
   constructor(code, message, status) {
@@ -50,6 +50,12 @@ export function createAccountService({
 
   return {
     async list({ limit = 50, afterId = null } = {}) {
+      if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+        throw new ValidationError({ limit: "must_be_an_integer_from_1_to_100" });
+      }
+      if (afterId !== null && (typeof afterId !== "string" || afterId.length > 128)) {
+        throw new ValidationError({ afterId: "must_be_a_string_up_to_128_characters" });
+      }
       await principalFor("account.list");
       return store.listAccounts({ limit, afterId });
     },

@@ -87,3 +87,13 @@ test("update persists only validated mutable fields", async () => {
   assert.deepEqual(mutation.changes, { notes: "renewed" });
   assert.equal(mutation.audit.action, "account.updated");
 });
+
+test("list pagination validation returns a client error before persistence", async () => {
+  const { service, calls } = fixture();
+  await assert.rejects(() => service.list({ limit: 1000 }), (error) => {
+    assert.equal(error.code, "validation_failed");
+    assert.equal(error.fields.limit, "must_be_an_integer_from_1_to_100");
+    return true;
+  });
+  assert.equal(calls.some((call) => call.method === "listAccounts"), false);
+});

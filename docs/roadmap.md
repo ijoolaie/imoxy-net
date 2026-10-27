@@ -70,7 +70,7 @@ Exit gate:
 - No client duplicates authorization or quota business rules.
 
 ### Phase 3 — Security and identity foundation
-**State:** In progress — password/session crypto, one-time owner-bootstrap service, store-backed login rate limiting, session resolution/revocation and initial RBAC policy have unit tests. HTTP endpoints, request-derived rate-limit keys, cookie/CSRF controls and full security review remain.
+**State:** In progress — password/session crypto, one-time owner bootstrap, HMAC-derived IP/account rate-limit keys, login/logout/me routes, secure HttpOnly cookie transport, same-origin mutation checks, session lifecycle and initial RBAC are implemented with tests. Real D1 integration, deployment configuration, deeper abuse testing and security review remain.
 
 Deliver:
 - Authentication, secure sessions/token lifecycle, logout/revocation, role/permission checks.
@@ -92,7 +92,7 @@ Exit gate:
 - Migration, interrupted-write, duplicate-request, backup/restore, and rollback tests pass.
 
 ### Phase 5 — Core management behavior
-**State:** In progress — an authorization-gated account domain service is implemented with unit tests for validation, deny-by-default dependency requirements, audit metadata and CRUD outcomes; HTTP routes, real D1 integration and quota enforcement remain.
+**State:** In progress — authorization-gated account domain service and HTTP CRUD routes are implemented with validation, audit metadata and route tests; real D1 integration, quota enforcement and usage accounting remain.
 
 Deliver:
 - First-run/bootstrap and configuration editing.
