@@ -11,6 +11,7 @@ function databaseWithMigrations() {
   db.exec(migration("0001_initial.sql"));
   db.exec(migration("0002_auth_rate_limits.sql"));
   db.exec(migration("0003_telegram_webhook_updates.sql"));
+  db.exec(migration("0004_usage_daily_safe_integer_guards.sql"));
   return db;
 }
 
@@ -71,6 +72,28 @@ test("schema constraints reject invalid roles, negative quotas and orphan usage 
   assert.throws(() => db.prepare(`INSERT INTO usage_daily
     (account_id, usage_date, upload_bytes, download_bytes, request_count, updated_at)
     VALUES (?, ?, ?, ?, ?, ?)`).run("missing", "2026-10-27", 0, 0, 0, timestamp));
+  db.close();
+});
+
+test("usage schema triggers reject unsafe daily counters on insert and update", () => {
+  const db = databaseWithMigrations();
+  db.prepare(`INSERT INTO proxy_accounts (id, username, status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?)`).run("a1", "customer_01", "active", timestamp, timestamp);
+  const insert = db.prepare(`INSERT INTO usage_daily
+    (account_id, usage_date, upload_bytes, download_bytes, request_count, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)`);
+  assert.throws(() => insert.run("a1", "2026-10-27", Number.MAX_SAFE_INTEGER + 1, 0, 1, timestamp),
+    /usage_daily counter exceeds safe-integer range/);
+  assert.throws(() => insert.run("a1", "2026-10-27", Number.MAX_SAFE_INTEGER, 1, 1, timestamp),
+    /usage_daily counter exceeds safe-integer range/);
+  assert.throws(() => insert.run("a1", "2026-10-27", 0, 0, Number.MAX_SAFE_INTEGER + 1, timestamp),
+    /usage_daily counter exceeds safe-integer range/);
+  insert.run("a1", "2026-10-27", 10, 20, 1, timestamp);
+  assert.throws(() => db.prepare(`UPDATE usage_daily SET download_bytes = ?
+    WHERE account_id = ? AND usage_date = ?`).run(Number.MAX_SAFE_INTEGER, "a1", "2026-10-27"),
+    /usage_daily counter exceeds safe-integer range/);
+  const row = db.prepare("SELECT upload_bytes, download_bytes, request_count FROM usage_daily WHERE account_id = ?").get("a1");
+  assert.deepEqual(row, { upload_bytes: 10, download_bytes: 20, request_count: 1 });
   db.close();
 });
 
