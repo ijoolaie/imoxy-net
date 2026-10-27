@@ -94,7 +94,7 @@ class MainActivity : Activity() {
 
     private fun loadAccounts(token: String) {
         val endpoint = baseUrl.text.toString().trim()
-        setBusy(true, "Loading accounts…")
+        runOnUiThread { setBusy(true, "Loading accounts…") }
         executor.execute {
             try {
                 val items = ApiClient(endpoint).accounts(token)
