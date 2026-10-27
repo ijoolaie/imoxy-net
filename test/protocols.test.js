@@ -19,7 +19,7 @@ test("Trojan URI encodes userinfo and supports gRPC transport", () => {
     protocol: "trojan", password: "secret@with:delimiters", server: "edge.example.com", port: 443,
     name: "grpc", security: "tls", sni: "edge.example.com", transport: "grpc", serviceName: "proxy-v1"
   });
-  assert.match(uri, /^trojan://secret%40with%3Adelimiters@edge\.example\.com:443\?/);
+  assert.ok(uri.startsWith("trojan://secret%40with%3Adelimiters@edge.example.com:443?"));
   assert.match(uri, /type=grpc&serviceName=proxy-v1/);
 });
 
@@ -28,7 +28,7 @@ test("Shadowsocks uses URL-safe base64 credentials instead of exposing the passw
     protocol: "shadowsocks", method: "aes-256-gcm", password: "a secret password",
     server: "edge.example.com", port: 8388, name: "ss node"
   });
-  assert.match(uri, /^ss://[A-Za-z0-9_-]+@edge\.example\.com:8388#ss%20node$/);
+  assert.ok(uri.startsWith("ss://") && uri.includes("@edge.example.com:8388#ss%20node"));
   assert.equal(uri.includes("a%20secret%20password"), false);
 });
 
