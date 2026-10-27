@@ -4,9 +4,9 @@ import { createTelegramWebhookHandler } from "../src/integrations/telegram-webho
 
 const secret = "test-webhook-secret-that-is-long-enough-123456";
 const token = "123456789:telegram-bot-test-token";
-const update = (text = "/help", userId = 12345) => ({
+const update = (text = "/help", userId = 12345, chatType = "private") => ({
   update_id: 1,
-  message: { message_id: 1, from: { id: userId }, chat: { id: userId, type: "private" }, text }
+  message: { message_id: 1, from: { id: userId }, chat: { id: chatType === "private" ? userId : -1001234567890, type: chatType }, text }
 });
 const request = (body, { method = "POST", providedSecret = secret, contentType = "application/json" } = {}) =>
   new Request("https://imoxy.test/api/v1/integrations/telegram/webhook", {
@@ -97,6 +97,15 @@ test("ignores non-allowlisted users without sending a Telegram message", async (
   const response = await handler.fetch(request(update("/status", 99999)), env);
   assert.equal(response.status, 200);
   assert.equal(calls.length, 0);
+});
+
+test("ignores commands in group chats even when the sender is allowlisted", async () => {
+  const { handler, calls, env, db } = fixture();
+  const response = await handler.fetch(request(update("/accounts", 12345, "supergroup")), env);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { ok: true, ignored: true });
+  assert.equal(calls.length, 0, "group chat must not receive account metadata");
+  assert.equal(db.updates.size, 0, "ignored group commands must not claim a replay ID");
 });
 
 test("answers /status only for allowlisted users", async () => {
