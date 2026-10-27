@@ -30,7 +30,7 @@ function parseExpiry(value, errors) {
     return undefined;
   }
   const parsed = Date.parse(value);
-  if (!Number.isFinite(parsed) || new Date(parsed).toISOString() !== new Date(value).toISOString()) {
+  if (!Number.isFinite(parsed) || new Date(parsed).toISOString().slice(0, 10) !== value.slice(0, 10) || new Date(parsed).toISOString() !== new Date(value).toISOString()) {
     errors.expiresAt = "must_be_a_valid_utc_timestamp";
     return undefined;
   }
