@@ -5,6 +5,7 @@ import { createD1Store } from "../storage/d1-store.js";
 import { createCloudflareClient } from "../providers/cloudflare-client.js";
 import { buildCloudflarePlan } from "../providers/cloudflare-plan.js";
 import { getOperatingMode, OPERATING_MODES } from "../domain/operating-mode.js";
+import { createTelegramWebhookHandler } from "../integrations/telegram-webhook.js";
 
 const COOKIE_NAME = "__Host-imoxy_session";
 const MAX_BODY_BYTES = 16 * 1024;
@@ -137,13 +138,18 @@ export function createApiHandler({
   authFactory = (store) => createAuthService({ store }),
   accountServiceFactory = (store, authorize) => createAccountService({ store, authorize }),
   cloudflareFactory = (env) => createCloudflareClient(env),
-  cloudflarePlanFactory = buildCloudflarePlan
+  cloudflarePlanFactory = buildCloudflarePlan,
+  telegramFactory = () => createTelegramWebhookHandler()
 } = {}) {
+  const telegramHandler = telegramFactory();
   return {
     async fetch(request, env = {}) {
       const requestId = globalThis.crypto.randomUUID();
       const url = new URL(request.url);
       try {
+        if (url.pathname === "/api/v1/integrations/telegram/webhook") {
+          return telegramHandler.fetch(request, env);
+        }
         if (request.method === "GET" && url.pathname === "/health") {
           return response({ status: "ok", service: "imoxy-net", requestId });
         }
@@ -154,7 +160,7 @@ export function createApiHandler({
             service: "imoxy-net",
             mode,
             supportedModes: OPERATING_MODES,
-            implemented: ["health", "capability-reporting", "authentication-and-session-routes", "account-management-routes", "cloudflare-read-only-inventory-and-dry-run-plans"],
+            implemented: ["health", "capability-reporting", "authentication-and-session-routes", "account-management-routes", "cloudflare-read-only-inventory-and-dry-run-plans", "telegram-read-only-webhook"],
             requiresConfiguration: ["D1 binding", "AUTH_RATE_LIMIT_SECRET", "BOOTSTRAP_OWNER_SECRET for initial setup", "CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID for provider reads"],
             pending: [
               "cloudflare-resource-mutation-and-recovery",
@@ -162,7 +168,7 @@ export function createApiHandler({
               "subscription-formats",
               "proxy-protocols-and-transports",
               "cloudflare-write-operations-and-recovery",
-              "telegram-bot",
+              "telegram-bot-full-workflows",
               "web-panel",
               "android-client"
             ],
