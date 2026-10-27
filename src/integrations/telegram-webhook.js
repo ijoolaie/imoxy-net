@@ -46,6 +46,36 @@ function telegramChatId(update) {
   return Number.isSafeInteger(value) ? String(value) : null;
 }
 
+async function claimUpdate(db, updateId) {
+  if (!db || typeof db.prepare !== "function") {
+    throw new Error("Telegram replay protection storage is not configured.");
+  }
+  await db.prepare(
+    "DELETE FROM telegram_webhook_updates WHERE received_at < datetime('now', '-7 days')"
+  ).run();
+  const result = await db.prepare(
+    "INSERT INTO telegram_webhook_updates (update_id, status, received_at, processed_at) " +
+    "VALUES (?, 'processing', datetime('now'), NULL) ON CONFLICT(update_id) DO NOTHING"
+  ).bind(String(updateId)).run();
+  const changes = result?.meta?.changes;
+  if (!Number.isInteger(changes)) {
+    throw new Error("Telegram replay protection storage returned an invalid result.");
+  }
+  return changes === 1;
+}
+
+async function markUpdateProcessed(db, updateId) {
+  await db.prepare(
+    "UPDATE telegram_webhook_updates SET status = 'processed', processed_at = datetime('now') WHERE update_id = ?"
+  ).bind(String(updateId)).run();
+}
+
+async function releaseUpdateClaim(db, updateId) {
+  await db.prepare(
+    "DELETE FROM telegram_webhook_updates WHERE update_id = ? AND status = 'processing'"
+  ).bind(String(updateId)).run();
+}
+
 function commandName(text) {
   if (typeof text !== "string" || text.length > 4096) return null;
   const first = text.trim().split(/\s+/, 1)[0] ?? "";
@@ -104,8 +134,15 @@ export function createTelegramWebhookHandler({
       const command = commandName(update?.message?.text);
       if (!chatId || !userId || !command) return json({ ok: true, ignored: true });
       if (!allowedIds(env).has(userId)) return json({ ok: true, ignored: true });
+      if (!Number.isSafeInteger(update.update_id) || update.update_id < 0) {
+        return json({ error: "invalid_update" }, 400);
+      }
 
+      let claimed = false;
+      let delivered = false;
       try {
+        claimed = await claimUpdate(env.DB, update.update_id);
+        if (!claimed) return json({ ok: true, duplicate: true });
         let message;
         if (command === "start" || command === "help") {
           message = "imoxy.net read-only operations bot\nCommands: /status, /accounts\nOnly configured Telegram user IDs are authorized. Account changes are not available in this bot yet.";
@@ -133,8 +170,17 @@ export function createTelegramWebhookHandler({
           if (result?.nextCursor) message += "\nShowing the first page only.";
         }
         await sendMessage(botToken, chatId, message, fetchImpl);
+        delivered = true;
+        try {
+          await markUpdateProcessed(env.DB, update.update_id);
+        } catch {
+          // The durable claim remains present; replay is still suppressed after successful delivery.
+        }
         return json({ ok: true });
       } catch {
+        if (claimed && !delivered) {
+          try { await releaseUpdateClaim(env.DB, update.update_id); } catch { /* retain generic error */ }
+        }
         // Avoid returning provider, database or token details to Telegram or the webhook caller.
         return json({ error: "integration_failed" }, 502);
       }
