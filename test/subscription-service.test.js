@@ -65,7 +65,7 @@ test("subscription creation returns the raw token once and stores only its hash"
 
 test("subscription creation rejects unsupported formats and inactive accounts", async () => {
   const { service } = fixture();
-  await assert.rejects(() => service.create("acct-1", { formats: ["clash"] }),
+  await assert.rejects(() => service.create("acct-1", { formats: ["unknown"] }),
     (error) => error.code === "validation_failed");
   const inactive = fixture({ account: { status: "disabled" } });
   await assert.rejects(() => inactive.service.create("acct-1"),
