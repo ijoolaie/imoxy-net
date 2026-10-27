@@ -43,3 +43,8 @@ Imoxy now has initial API/domain foundations and early web, Telegram, and Androi
 ## Additional imoxy security regression (2026-10-27)
 
 The authentication implementation now clears every HMAC-derived rate-limit key (IP and normalized username) after successful login. A regression test asserts that both counters are cleared. This is an imoxy correctness fix, not evidence of Nova parity; REF-003–004 remain unrun against the pinned runtime.
+
+
+## Additional imoxy quota safety regression (2026-10-27)
+
+The quota service now rejects a usage report when individually safe upload/download byte counts sum outside JavaScript's safe-integer range, before calling storage. A regression test asserts no usage write occurs. This is implementation hardening only; REF-007–008 remain unrun against Nova.
