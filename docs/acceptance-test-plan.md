@@ -6,6 +6,12 @@ For each scenario record: reference release/commit, environment, request/action,
 
 ## Initial scenarios
 
+- Subscription creation returns a random raw token once and stores only the token hash; management listings never return raw tokens or token hashes.
+- Subscription expiry is capped by account expiry; inactive accounts cannot receive links; unsupported formats are rejected.
+- Revocation is idempotent; revoked, expired and unavailable links fail closed; Auto and Base64 produce equivalent URI content.
+- These Auto/Base64 rules are provisional imoxy behavior. REF-009–010 must verify actual Nova token and format semantics before parity is claimed.
+
+
 - Both SQL migrations execute in Node SQLite with foreign keys enabled; tests assert expected tables, role/quota/FK constraints, additive usage upserts, auth rate-limit window reset, and cascade behavior while preserving audit history.
 - This validates SQLite syntax and schema behavior locally in CI, but does not replace a deployed Cloudflare D1 migration/batch/recovery test.
 

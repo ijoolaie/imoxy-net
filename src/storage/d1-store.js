@@ -292,8 +292,7 @@ export function createD1Store(db) {
 
     async recordUsage({ accountId, usageDate, uploadBytes, downloadBytes, requestCount = 1, updatedAt }) {
       if (typeof accountId !== "string" || !accountId ||
-          typeof usageDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(usageDate) ||
-          new Date(usageDate).toISOString().slice(0, 10) !== usageDate ||
+          !isValidUsageDate(usageDate) ||
           ![uploadBytes, downloadBytes, requestCount].every((value) => Number.isSafeInteger(value) && value >= 0) ||
           typeof updatedAt !== "string" || !Number.isFinite(Date.parse(updatedAt))) {
         throw new TypeError("Usage record fields are invalid.");
@@ -308,6 +307,91 @@ export function createD1Store(db) {
           updated_at = excluded.updated_at`).bind(
         accountId, usageDate, uploadBytes, downloadBytes, requestCount, updatedAt
       ).run();
+    },
+
+    async getSubscriptionById(id) {
+      if (typeof id !== "string" || !id) return null;
+      const row = await db.prepare(`SELECT id, account_id, token_hash, formats_json, created_at,
+        expires_at, revoked_at, last_accessed_at FROM subscriptions WHERE id = ? LIMIT 1`).bind(id).first();
+      if (!row) return null;
+      let formats = [];
+      try { formats = JSON.parse(row.formats_json); } catch { formats = []; }
+      return {
+        id: row.id, accountId: row.account_id, tokenHash: row.token_hash,
+        formats: Array.isArray(formats) ? formats : [],
+        createdAt: row.created_at, expiresAt: row.expires_at,
+        revokedAt: row.revoked_at, lastAccessedAt: row.last_accessed_at
+      };
+    },
+
+    async listSubscriptions(accountId) {
+      const result = await db.prepare(`SELECT id, account_id, formats_json, created_at,
+        expires_at, revoked_at, last_accessed_at FROM subscriptions
+        WHERE account_id = ? ORDER BY created_at DESC, id DESC LIMIT 100`).bind(accountId).all();
+      return (result?.results ?? []).map((row) => {
+        let formats = [];
+        try { formats = JSON.parse(row.formats_json); } catch { formats = []; }
+        return {
+          id: row.id, accountId: row.account_id, formats: Array.isArray(formats) ? formats : [],
+          createdAt: row.created_at, expiresAt: row.expires_at,
+          revokedAt: row.revoked_at, lastAccessedAt: row.last_accessed_at
+        };
+      });
+    },
+
+    async createSubscription(subscription, auditEvent) {
+      const insert = db.prepare(`INSERT INTO subscriptions
+        (id, account_id, token_hash, formats_json, created_at, expires_at)
+        VALUES (?, ?, ?, ?, ?, ?)`).bind(
+        subscription.id, subscription.accountId, subscription.tokenHash,
+        JSON.stringify(subscription.formats), subscription.createdAt, subscription.expiresAt ?? null
+      );
+      const audit = principalAuditInsert(
+        auditEvent, "subscription", subscription.id,
+        "EXISTS (SELECT 1 FROM subscriptions WHERE id = ?)", [subscription.id]
+      );
+      await db.batch([insert, db.prepare(audit.statement).bind(...audit.values)]);
+      return this.getSubscriptionById(subscription.id);
+    },
+
+    async findSubscriptionByTokenHash(tokenHash) {
+      const row = await db.prepare(`SELECT
+        s.id AS subscription_id, s.account_id, s.token_hash, s.formats_json,
+        s.created_at AS subscription_created_at, s.expires_at AS subscription_expires_at,
+        s.revoked_at, s.last_accessed_at,
+        a.username AS account_username, a.status AS account_status, a.expires_at AS account_expires_at,
+        a.quota_bytes, a.daily_quota_bytes
+        FROM subscriptions s JOIN proxy_accounts a ON a.id = s.account_id
+        WHERE s.token_hash = ? LIMIT 1`).bind(tokenHash).first();
+      if (!row) return null;
+      let formats = [];
+      try { formats = JSON.parse(row.formats_json); } catch { formats = []; }
+      return {
+        id: row.subscription_id, accountId: row.account_id, tokenHash: row.token_hash,
+        formats: Array.isArray(formats) ? formats : [],
+        createdAt: row.subscription_created_at, expiresAt: row.subscription_expires_at,
+        revokedAt: row.revoked_at, lastAccessedAt: row.last_accessed_at,
+        account: {
+          id: row.account_id, username: row.account_username, status: row.account_status,
+          expiresAt: row.account_expires_at, quotaBytes: row.quota_bytes, dailyQuotaBytes: row.daily_quota_bytes
+        }
+      };
+    },
+
+    async touchSubscription(id, lastAccessedAt) {
+      await db.prepare("UPDATE subscriptions SET last_accessed_at = ? WHERE id = ? AND revoked_at IS NULL")
+        .bind(lastAccessedAt, id).run();
+    },
+
+    async revokeSubscription(id, revokedAt, auditEvent) {
+      const update = db.prepare("UPDATE subscriptions SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL")
+        .bind(revokedAt, id);
+      const audit = principalAuditInsert(
+        auditEvent, "subscription", id,
+        "EXISTS (SELECT 1 FROM subscriptions WHERE id = ? AND revoked_at = ?)", [id, revokedAt]
+      );
+      const results = await db.batch([update, db.prepare(audit.statement).bind(...audit.values)]);
+      return (results?.[0]?.meta?.changes ?? 0) > 0;
     },
   };
 }
