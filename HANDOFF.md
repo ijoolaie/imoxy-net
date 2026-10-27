@@ -5,43 +5,41 @@
 ## Current state — 2026-10-27
 
 - Repository: https://github.com/ijoolaie/imoxy-net (private).
-- Product goal: independently implement behaviorally compatible features against pinned Nova Proxy 5.0.0 commit `ad2116aa89f8c7db8248f8142c1432900d835eb7`, then add separately approved imoxy differentiators.
-- Three target interfaces: web panel, Telegram bot, Android APK. They must share API/domain services and authorization/quota rules.
+- Product target: independently implement behaviorally compatible behavior against Nova Proxy 5.0.0, pinned commit `ad2116aa89f8c7db8248f8142c1432900d835eb7`, then add separately approved imoxy improvements.
+- Interfaces: web panel, Telegram bot, Android APK. Shared API/domain services and authorization/quota policy are required.
 - Required modes: panel only; Cloudflare resources/settings only; panel + Cloudflare resources/settings.
-- Merged PRs #1–#20 include the initial foundation, API/domain/security/persistence work, account/quota/subscription/protocol foundations, read-only Cloudflare inventory/dry-run plans, early web panel, read-only Telegram webhook, Android login/account-list debug client, pinned-reference evidence register and cross-interface contract tests.
-- Most recent merged code/test PR: #20, commit `ff0de52785baadc5d87bbfb2ccc2f9256a5cccc4`. Exact PR-head CI passed on `ab06dfc9c76ce39b2817adad425a7902984c9431`, run 40476873922.
-- Android debug APK was produced by workflow run 40475130813 as artifact `imoxy-android-debug` (SHA-256 digest recorded by GitHub as `ca898eefefb2dda20f79f799a0d8c18b20b3945d11b5552645e045461dea0912`). It is an unsigned debug artifact, not a production release.
-- Current branch in this session: `docs/phase11-13-gates`. Its changes are not merged yet; exact-head CI must be checked after all edits.
-- No production deployment, live Cloudflare write, live Telegram bot request or Nova runtime test has occurred.
+- PR #21 release/cross-interface gate docs merged as `0fcf083af6a56cb11e2f8ce96f13f14113836194`; exact-head CI passed on `2bbc73cf9929b1165e1d0b9a046ab947e80b9cab` (run 40477158901).
+- PR #22 Telegram replay protection merged as `06abb6208b5abedce6fb629d95f3428ceeb50e34`; exact-head CI passed on `b06239c1cc3e89e51b59aa8ea837745977f0302e` (run 40477478274 pull_request; 40477446750 push).
+- PR #20 cross-interface contract tests merged as `ff0de52785baadc5d87bbfb2ccc2f9256a5cccc4`; exact-head CI passed on `ab06dfc9c76ce39b2817adad425a7902984c9431` (run 40476873922).
+- Android debug APK artifact from run 40475130813: `imoxy-android-debug`; GitHub reports SHA-256 digest `ca898eefefb2dda20f79f799a0d8c18b20b3945d11b5552645e045461dea0912`. Unsigned debug artifact only, not a production release.
+- Current branch: `docs/telegram-replay-handoff`; this branch contains operations/roadmap/handoff documentation updates and must pass exact-head CI before merge.
+- No production deployment, real Cloudflare write, live Telegram API call, or Nova runtime comparison has occurred.
 
 ## Implementation summary
 
-- Worker API: health/capability reporting, authentication/session routes, account CRUD foundations, usage/quota foundations, subscription lifecycle, provisional URI/Clash generators, read-only Cloudflare inventory and dry-run planning.
-- Web: same-origin login/session, account list/create, usage summary and Cloudflare inventory/preview; edit/delete, subscription/node UI, audit view, browser E2E and accessibility review remain.
-- Telegram: secret-validated webhook and allowlisted read-only `/start`, `/help`, `/status`, `/accounts`; durable account linking, replay/idempotency and mutating workflows remain.
-- Android: HTTPS-only API configuration, login, encrypted session token using Android Keystore/AES-GCM, account list/refresh and logout; no device test, account mutations, signing or release provenance.
-- Cloudflare: read-only inventory and deterministic dry-run planning only. No apply/delete/write endpoint is enabled.
-- Nova parity: no runtime behavior has been verified. Documentation is treated as a source of hypotheses, not runtime proof.
+- Worker API: health/capability reporting, authentication/session routes, account CRUD foundations, quota/usage foundations, subscription lifecycle, provisional protocol/Clash generators, read-only Cloudflare inventory and deterministic dry-run plans.
+- Web panel: same-origin login/session, account list/create, usage summary, Cloudflare inventory/preview. Editing/deletion, subscriptions/nodes UI, audit UI, browser E2E and accessibility review remain.
+- Telegram: secret-validated allowlisted read-only `/start`, `/help`, `/status`, `/accounts`; D1 update-ID deduplication, seven-day cleanup and retry claim release on delivery failure. Durable account linking, real D1 tests, and full workflows remain.
+- Android: HTTPS-only API login, account list/refresh/logout and Android Keystore AES-GCM session storage; debug APK CI passes, but device install, E2E, signing and provenance remain.
+- Cloudflare: read-only inventory and dry-run planning only; no apply/delete/write route.
+- Reference parity: no runtime behavior has been verified. Documentation claims are hypotheses, not black-box proof.
 
-## Latest work — cross-interface and release gates
+## Phase 11–13
 
-- Added `test/cross-interface.test.js` comparing API account listing with Telegram read-only output and verifying truthful capability reporting.
-- Added `docs/cross-interface-contracts.md`, `docs/release-certification.md`, and `docs/imoxy-improvements.md`.
-- Updated `docs/roadmap.md` with evidence-backed Phase 0/1/11/12/13 status and linked the supporting artifacts from README.
-- Phase 11 is in progress; only the first API/Telegram contract and capability tests are proven.
-- Phase 12 is blocked by legal/license approval, missing reference runtime evidence, real D1 recovery proof, staging/client E2E and release provenance.
-- Phase 13 is intentionally not started. Candidate improvements are documented but not implemented before the parity/legal gates.
+- Phase 11 is in progress: initial API/Telegram account list contract tests pass; full web/Android E2E, failure injection, SLOs and cross-interface mutation parity remain.
+- Phase 12 is blocked: no legal/distribution approval, reference runtime evidence, real D1 backup/restore proof, staging deployment or production release artifact.
+- Phase 13 is not started: candidates are documented in `docs/imoxy-improvements.md`; implementation remains gated until reference parity and legal review are complete.
 
-## Highest-priority next actions
+## Next actions
 
-1. Query exact head SHA and CI for `docs/phase11-13-gates`; repair any failures and merge only after review and exact-head CI success.
+1. Verify exact-head CI for `docs/telegram-replay-handoff`, then merge only if green and mergeable.
 2. Execute REF-001–REF-032 against an authorized disposable instance of the pinned Nova commit; preserve sanitized input/output/state evidence.
-3. Obtain qualified license/distribution review for the observed PolyForm Noncommercial 1.0.0 terms before distribution or monetization.
+3. Obtain qualified license/distribution review for observed PolyForm Noncommercial 1.0.0 terms.
 4. Add real D1 migration, backup/restore, concurrency and failure-injection tests.
-5. Add browser E2E/accessibility checks, Android emulator/device smoke tests, Telegram replay protection and durable account linking.
-6. Keep Cloudflare write operations disabled until least privilege, preview approval, idempotency and rollback are tested.
-7. Only after measured parity and legal review, select and implement a Phase 13 candidate from `docs/imoxy-improvements.md`.
+5. Add browser E2E/accessibility checks, Android emulator/device tests, Telegram account linking and real webhook validation.
+6. Keep Cloudflare writes disabled until least privilege, preview approval, idempotency and rollback are tested.
+7. Implement Phase 13 candidates only after parity and legal gates pass.
 
 ## Mandatory progress reporting
 
-Every user-facing response about this repository ends with an evidence-based schematic report for every roadmap phase 0–13. Use only **Not started**, **In progress**, **Blocked**, or **Complete**; do not claim completion without the relevant exit gate.
+Every user-facing response about this repository ends with an evidence-based schematic report for every roadmap phase 0–13. Use only **Not started**, **In progress**, **Blocked**, or **Complete**. Never claim completion without the exit gate.
