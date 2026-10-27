@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createSubscriptionService } from "../src/domain/subscription-service.js";
 
-function fixture({ account = {}, entries = ["vless://example.test:443?security=tls", "trojan://example.test:443"] } = {}) {
+function fixture({ account = {}, entries = ["vless://example.test:443?security=tls", "trojan://example.test:443"], nodes = [{ protocol: "vless", uuid: "123e4567-e89b-42d3-a456-426614174000", server: "edge.example.com", port: 443, name: "node", security: "tls" }] } = {}) {
   const state = {
     account: {
       id: "acct-1", username: "customer_01", status: "active",
@@ -44,6 +44,7 @@ function fixture({ account = {}, entries = ["vless://example.test:443?security=t
     store,
     authorize: async () => ({ id: "owner-1", role: "owner", status: "active" }),
     getEntries: async () => entries,
+    getNodes: async () => nodes,
     idFactory: () => `generated-${++state.counter}`,
     now: () => state.clock
   });
@@ -111,4 +112,13 @@ test("revoked, expired and unsupported subscription links fail closed", async ()
   const formatFixture = fixture();
   const autoOnly = await formatFixture.service.create("acct-1");
   await assert.rejects(() => formatFixture.service.serve(autoOnly.token, "base64"), (error) => error.status === 406);
+});
+
+test("Clash format uses the structured node renderer", async () => {
+  const { service } = fixture();
+  const created = await service.create("acct-1", { formats: ["clash"] });
+  const result = await service.serve(created.token, "clash");
+  assert.equal(result.format, "clash");
+  assert.match(result.body, /type: vless/);
+  assert.match(result.body, /MATCH,Proxy/);
 });
