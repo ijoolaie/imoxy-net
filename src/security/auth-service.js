@@ -190,11 +190,13 @@ const ROLE_PERMISSIONS = Object.freeze({
   admin: new Set([
     "account.list", "account.read", "account.create", "account.update", "account.delete",
     "usage.read", "settings.read", "settings.update", "provider.read", "provider.preview",
-    "provider.apply", "audit.read", "principal.read"
+    "provider.apply", "audit.read", "principal.read",
+    "subscription.read", "subscription.create", "subscription.revoke"
   ]),
   operator: new Set([
     "account.list", "account.read", "account.create", "account.update",
-    "usage.read", "provider.read", "provider.preview"
+    "usage.read", "provider.read", "provider.preview",
+    "subscription.read", "subscription.create", "subscription.revoke"
   ]),
   viewer: new Set(["account.list", "account.read", "usage.read", "audit.read"])
 });
