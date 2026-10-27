@@ -7,21 +7,24 @@
 - **Repository:** https://github.com/ijoolaie/imoxy-net (private)
 - **Working branch:** `chore/rebuild-foundation`
 - **Pull request:** https://github.com/ijoolaie/imoxy-net/pull/1
-- **PR state at last check:** open, not merged; reported mergeable.
-- **Latest known branch commit:** `1abda54e8015677b111316749c1ff1dbcea59f8e`
+- **PR state at last check:** open, not merged; GitHub reports mergeable.
+- **Branch head at last check:** `db4ad93aa31a25ad0cc8e621e01fc85397de33c7`
+- **CI for that head:** queued when last checked; not yet a pass/fail result.
 - **Product status:** foundation only; not Nova Proxy parity and not production deployed.
 
 ## Goal
 Build an independently implemented product with behavior matching a pinned Nova Proxy reference before adding imoxy-specific changes. The web panel, Telegram bot and Android APK must share domain services. Required workflows: panel only; Cloudflare resources/settings only; panel plus Cloudflare resources/settings.
 
-## Completed in the current session
+## Completed
 - Rebuilt a minimal Worker foundation with `GET /health` and `GET /api/v1/capabilities`.
 - Added Node built-in tests for health, capability reporting, unknown routes and unsupported methods.
 - Added GitHub Actions CI workflow and initial project documentation.
-- Added `docs/reference-baseline.md` with the Nova Proxy 5.0.0 baseline, release commit and published worker checksum.
+- Added `docs/reference-baseline.md` with the Nova Proxy 5.0.0 baseline, release commit, published worker checksum and documented release behavior hypotheses.
+- Added `AGENTS.md` with mandatory engineering, compatibility, security, licensing, and documentation rules.
+- Added this living hand-off document.
 - Initial CI run for commit `7c6383ae8bfc4f2f32ef2f86605e07328fcd9191` completed successfully.
 - CI run for commit `216790977ca6917adac707b765deb7feafcd0db2` completed successfully.
-- A later documentation commit `1abda54e8015677b111316749c1ff1dbcea59f8e` was confirmed present on the PR branch; a workflow result for that exact SHA was not returned at last check.
+- CI for the most recent head was queued at the last check; do not infer success until the exact commit's run completes.
 
 ## Reference baseline and licensing
 - Upstream: https://github.com/IRNova/Nova-Proxy
@@ -38,8 +41,8 @@ Build an independently implemented product with behavior matching a pinned Nova 
 - Do not merge PR #1 until the latest head commit's checks and diff are reviewed.
 
 ## Next actions
-1. Recheck PR #1 state, branch head SHA, changed files and CI for the exact current head.
-2. Ensure `AGENTS.md`, this hand-off and the docs are included in the PR.
+1. Recheck PR #1, current branch head, changed files and CI for the exact current head.
+2. Review the complete PR diff, including `AGENTS.md` and this hand-off; fix any issues and ensure CI passes on the final head.
 3. Pin and document the source of each 5.0.0 behavior requirement; turn documented behavior into black-box acceptance cases without copying upstream implementation.
 4. Prioritize baseline characterization of install/bootstrap, authentication, account model, subscription formats, and core protocol/transports.
 5. Implement one small slice at a time, test it, update the parity matrix and acceptance plan, and update this hand-off.
