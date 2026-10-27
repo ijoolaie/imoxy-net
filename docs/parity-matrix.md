@@ -19,10 +19,16 @@ Status vocabulary: **Not assessed**, **In progress**, **Verified**, **Blocked**,
 | Telegram bot | Commands, authentication, account operations, error handling | Not assessed | REF-020; runtime not run |
 | Deployment | Cloudflare bindings, KV/D1 schema, upgrades, rollback | Not assessed | REF-021; initial D1 schema draft added; migration/recovery not yet tested |
 | Observability | Usage, audit logs, connection records, privacy controls | Not assessed | REF-025; initial audit/usage tables drafted; behavior and retention unverified |
-| Interfaces | Web panel, Telegram bot, Android APK | Not assessed | REF-020 and phase 8–10 tests; implementation not started |
+| Interfaces | Web panel, Telegram bot, Android APK | Not assessed | Initial web panel and read-only Telegram/Android slices exist; Nova parity and end-to-end workflows are unverified |
 | Workflows | Panel only; Cloudflare only; panel + Cloudflare | Not assessed | REF-022–024; not implemented or runtime-tested |
+| Mixed protocol | One link combining VLESS and Trojan; fallback when one is blocked | Not assessed | REF-029; generator and real client fallback unverified |
+| Risk and endpoint headers | Host risk classification, custom-domain warning, subscription response headers, ECH/SNI options | Not assessed | REF-030; version-specific 5.0.0 claims are documented hypotheses |
+| Installation/update automation | One-click, Telegram installer, Wrangler deployment, update PR and rollback | Not assessed | REF-031; no reference deployment or update workflow was run |
+| Client import behavior | Auto/Base64/Clash import in representative clients | Not assessed | REF-032; generated outputs are provisional and not runtime-compared |
 
-Detailed prioritized cases and evidence requirements: [reference-scenarios.md](reference-scenarios.md). All cases currently remain unrun against the pinned runtime.\n\n## Verification protocol
+Detailed prioritized cases and evidence requirements: [reference-scenarios.md](reference-scenarios.md). All cases currently remain unrun against the pinned runtime.
+
+## Verification protocol
 
 For each row:
 1. Pin the exact reference release and document the legal basis for use.
@@ -31,4 +37,4 @@ For each row:
 4. Implement independently and run the same cases against the reference and imoxy.
 5. Record differences and resolve them before marking **Verified**.
 
-The health endpoint is the only currently implemented capability. This matrix is not a claim of parity.
+Imoxy now has initial API/domain foundations and early web, Telegram, and Android slices. This implementation status is separate from Nova compatibility: no parity row is verified until repeatable black-box tests pass against the pinned runtime.
