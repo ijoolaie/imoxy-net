@@ -23,3 +23,10 @@
 - Add CLOUDFLARE_API_TOKEN as a platform secret with read-only least-privilege scopes, and set CLOUDFLARE_ACCOUNT_ID as the 32-character account ID. Set CLOUDFLARE_ZONE_ID only when DNS/Worker-route inventory is needed.
 - The current provider client performs GET requests only. GET /api/v1/cloudflare/inventory and POST /api/v1/cloudflare/plan are read-only; no apply or delete endpoint exists.
 - No Cloudflare credentials or live API access were used in tests. Validate against a dedicated test account before considering write support.
+
+
+## Web panel assets
+
+- The example Wrangler configuration binds the `public/` directory as Workers Assets and routes `/api/*` and `/health` through the Worker first.
+- Static asset security headers and CSP are declared in `public/_headers`; keep scripts/styles same-origin and avoid third-party script sources.
+- The web panel is an initial slice. No deployment, browser E2E run, custom-domain verification or real account-data test has been performed.
