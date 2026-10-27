@@ -50,3 +50,6 @@
 ## Mandatory progress reporting
 
 Every user-facing response about this repository ends with an evidence-based schematic report for every roadmap phase 0–13. Use only **Not started**, **In progress**, **Blocked**, or **Complete**. Never claim completion without the exit gate.
+
+
+- Active change on branch `fix/quota-byte-overflow`: quota recording rejects a combined upload/download delta outside the safe-integer range before persistence; regression test asserts storage receives no write. The code/test commits are `bde57af4699ef05e97a4bf224a8acd318f7768bb` and `9233c899efd33b71340ef1d5a74dc476ad916980`; PR and CI outcome are pending. This is not Nova parity evidence.

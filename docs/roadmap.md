@@ -232,3 +232,8 @@ Exit gate:
 ### Security maintenance note — 2026-10-27
 
 Fixed successful-login rate-limit cleanup to clear each HMAC-derived IP and normalized-username key individually. Added a regression assertion for multi-key cleanup. This strengthens the current imoxy auth implementation but does not close Phase 1 reference characterization or prove Nova parity.
+
+
+### Quota data-integrity maintenance — 2026-10-27
+
+The quota service rejects combined upload/download byte deltas outside the JavaScript safe-integer range before persistence, with a regression test asserting no write occurs. This does not complete Phase 5: atomic quota enforcement, idempotent reporting, data-plane integration, real D1 tests and Nova comparison remain open.
