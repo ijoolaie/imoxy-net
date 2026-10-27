@@ -55,7 +55,10 @@ async function claimUpdate(db, updateId) {
   ).run();
   const result = await db.prepare(
     "INSERT INTO telegram_webhook_updates (update_id, status, received_at, processed_at) " +
-    "VALUES (?, 'processing', datetime('now'), NULL) ON CONFLICT(update_id) DO NOTHING"
+    "VALUES (?, 'processing', datetime('now'), NULL) " +
+    "ON CONFLICT(update_id) DO UPDATE SET status = 'processing', received_at = datetime('now'), processed_at = NULL " +
+    "WHERE telegram_webhook_updates.status = 'processing' " +
+    "AND telegram_webhook_updates.received_at < datetime('now', '-2 minutes')"
   ).bind(String(updateId)).run();
   const changes = result?.meta?.changes;
   if (!Number.isInteger(changes)) {
