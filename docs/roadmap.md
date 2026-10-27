@@ -92,7 +92,7 @@ Exit gate:
 - Migration, interrupted-write, duplicate-request, backup/restore, and rollback tests pass.
 
 ### Phase 5 — Core management behavior
-**State:** In progress — authorization-gated account domain service and HTTP CRUD routes are implemented with validation, audit metadata and route tests; real D1 integration, quota enforcement and usage accounting remain.
+**State:** In progress — authorization-gated account CRUD routes, shared quota evaluation, D1 usage counters and authorized usage-summary reads are implemented with tests. Proxy data-plane enforcement, atomic quota reservations, idempotent usage reporting and real D1 integration remain.
 
 Deliver:
 - First-run/bootstrap and configuration editing.
