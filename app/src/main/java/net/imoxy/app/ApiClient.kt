@@ -88,7 +88,7 @@ class ApiClient(baseUrl: String) {
         val url = try { URL(candidate) } catch (_: Exception) {
             throw ApiException("Enter a valid HTTPS API base URL.")
         }
-        if (url.protocol != "https" || url.host.isBlank() || url.userInfo != null ||
+        if (url.protocol != "https" || url.host.isBlank() || url.path !in listOf("", "/") || url.userInfo != null ||
             url.query != null || url.ref != null) {
             throw ApiException("The API base URL must be HTTPS and must not contain credentials, a query or a fragment.")
         }
