@@ -10,6 +10,9 @@ For each scenario record: reference release/commit, environment, request/action,
 - Telegram commands are ignored for users outside the explicit numeric allowlist; tests use mocked Telegram delivery only.
 - Telegram `/accounts` invokes the shared account service with viewer-level permission and exposes only username/status; mutations and secret material are not exposed.
 - Telegram API route wiring is tested independently from the provider network.
+- Android accepts HTTPS API URLs only, disables redirects for authenticated requests, and does not log or bundle bearer tokens.
+- Android session tokens are encrypted with an Android Keystore key; local logout clears encrypted state even when server revocation cannot be confirmed.
+- Android debug APK builds under JDK 17/Gradle 8.9 and is uploaded as a CI artifact; device/E2E verification remains pending.
 
 - Static panel assets are served through the Workers Assets binding while /api/* and /health remain routed through the Worker.
 - Browser UI uses same-origin cookie sessions, renders untrusted API values with textContent, and exposes no Cloudflare apply action.
