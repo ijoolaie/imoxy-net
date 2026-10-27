@@ -158,7 +158,7 @@ export function createD1Store(db) {
         db.prepare("DELETE FROM proxy_accounts WHERE id = ?").bind(id)
       ]);
       return (results?.[1]?.meta?.changes ?? 0) > 0;
-    }
+    },
 
     async findPrincipalByUsername(username) {
       if (typeof username !== "string" || !username) return null;
