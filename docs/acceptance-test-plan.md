@@ -85,4 +85,4 @@ For each scenario record: reference release/commit, environment, request/action,
 - Bot, web and Android interfaces invoke the same domain rules.
 - Failure injection covers unavailable storage, provider errors, timeouts and partial provisioning.
 
-Only health/not-found cases are currently executable. All other scenarios are pending.
+Executable repository tests currently cover API/auth/session behavior, account-domain authorization and audit metadata, quota-policy boundaries, subscription lifecycle, protocol formatting, Cloudflare read-only inventory/dry-run planning, operating-mode gating, Telegram webhook security/replay handling, cross-interface account-list contracts, SQLite migration constraints, and Android build configuration. The CI suite is an imoxy implementation test suite, not proof of Nova parity. All REF-001–REF-032 scenarios remain unrun against the pinned reference; real D1 integration/recovery, deployed Worker, browser/device E2E, and live Telegram webhook validation remain pending.
