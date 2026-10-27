@@ -217,6 +217,28 @@ export function createApiHandler({
         }
 
         if (accountPath) {
+          const usageMatch = /^\\/api\\/v1\\/accounts\\/([^/]+)\\/usage$/.exec(url.pathname);
+          if (usageMatch && request.method === "GET") {
+            assertSameOrigin(request, false);
+            const credential = requestToken(request);
+            if (!credential) throw new AuthError("unauthorized", "Authentication failed.", 401);
+            const principal = await auth.resolveSession(credential.token);
+            authorizeAction(principal, "usage.read");
+            let accountId;
+            try { accountId = decodeURIComponent(usageMatch[1]); } catch {
+              throw makeError("validation_failed", "The account identifier is invalid.", 400);
+            }
+            if (!accountId || accountId.length > 128) throw makeError("validation_failed", "The account identifier is invalid.", 400);
+            if (!(await store.getAccount(accountId))) throw makeError("not_found", "The requested account was not found.", 404);
+            const usageDate = url.searchParams.get("date") ?? new Date().toISOString().slice(0, 10);
+            if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(usageDate) ||
+                !Number.isFinite(Date.parse(usageDate)) ||
+                new Date(usageDate).toISOString().slice(0, 10) !== usageDate) {
+              throw makeError("validation_failed", "The usage date must be a valid UTC calendar date.", 400);
+            }
+            const usage = await store.getUsageSummary(accountId, usageDate);
+            return response({ usage, requestId });
+          }
           const credential = requestToken(request);
           if (credential?.source === "cookie" && request.method !== "GET") assertSameOrigin(request, true);
           else assertSameOrigin(request, false);
