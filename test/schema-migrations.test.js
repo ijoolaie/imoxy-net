@@ -93,7 +93,7 @@ test("usage schema triggers reject unsafe daily counters on insert and update", 
     WHERE account_id = ? AND usage_date = ?`).run(Number.MAX_SAFE_INTEGER, "a1", "2026-10-27"),
     /usage_daily counter exceeds safe-integer range/);
   const row = db.prepare("SELECT upload_bytes, download_bytes, request_count FROM usage_daily WHERE account_id = ?").get("a1");
-  assert.deepEqual(row, { upload_bytes: 10, download_bytes: 20, request_count: 1 });
+  assert.deepEqual({ ...row }, { upload_bytes: 10, download_bytes: 20, request_count: 1 });
   db.close();
 });
 
