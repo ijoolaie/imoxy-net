@@ -10,6 +10,7 @@ function databaseWithMigrations() {
   db.exec("PRAGMA foreign_keys = ON");
   db.exec(migration("0001_initial.sql"));
   db.exec(migration("0002_auth_rate_limits.sql"));
+  db.exec(migration("0003_telegram_webhook_updates.sql"));
   return db;
 }
 
@@ -20,9 +21,22 @@ test("all D1 migrations execute in SQLite and create the expected tables", () =>
   const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((row) => row.name);
   for (const name of [
     "principals", "sessions", "proxy_accounts", "subscriptions", "usage_daily",
-    "installation_settings", "provider_resources", "audit_events", "auth_rate_limits"
+    "installation_settings", "provider_resources", "audit_events", "auth_rate_limits", "telegram_webhook_updates"
   ]) assert.ok(tables.includes(name), `missing table ${name}`);
   assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
+  db.close();
+});
+
+test("Telegram webhook update IDs are unique and processing claims can be released for retry", () => {
+  const db = databaseWithMigrations();
+  const insert = db.prepare("INSERT INTO telegram_webhook_updates (update_id, status) VALUES (?, 'processing') ON CONFLICT(update_id) DO NOTHING");
+  assert.equal(insert.run("123").changes, 1);
+  assert.equal(insert.run("123").changes, 0);
+  db.prepare("DELETE FROM telegram_webhook_updates WHERE update_id = ? AND status = 'processing'").run("123");
+  assert.equal(insert.run("123").changes, 1);
+  db.prepare("UPDATE telegram_webhook_updates SET status = 'processed', processed_at = datetime('now') WHERE update_id = ?").run("123");
+  assert.equal(insert.run("123").changes, 0);
+  assert.equal(db.prepare("SELECT status FROM telegram_webhook_updates WHERE update_id = ?").get("123").status, "processed");
   db.close();
 });
 
