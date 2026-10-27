@@ -61,6 +61,9 @@ export function createQuotaService({
     async record(accountId, { uploadBytes, downloadBytes, requestCount = 1, at = now() }) {
       validateBytes(uploadBytes, "uploadBytes");
       validateBytes(downloadBytes, "downloadBytes");
+      if (!Number.isSafeInteger(uploadBytes + downloadBytes)) {
+        throw new TypeError("The combined usage byte delta must be a non-negative safe integer.");
+      }
       validateBytes(requestCount, "requestCount");
       const timestamp = parseNow(at);
       const account = await store.getAccount(accountId);
