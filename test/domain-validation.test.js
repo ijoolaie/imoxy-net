@@ -52,7 +52,10 @@ test("rejects invalid timestamps and non-safe integers", () => {
   });
 });
 
-test("partial updates may omit username but still reject empty objects only when malformed fields exist", () => {
-  assert.deepEqual(validateAccountInput({}, { partial: true }), {});
+test("partial updates may omit username but reject empty patches", () => {
+  assert.throws(() => validateAccountInput({}, { partial: true }), (error) => {
+    assert.equal(error.fields.body, "must_contain_at_least_one_field");
+    return true;
+  });
   assert.deepEqual(validateAccountInput({ status: "disabled" }, { partial: true }), { status: "disabled" });
 });
