@@ -161,7 +161,7 @@ export function createApiHandler({
               "quota-enforcement-and-usage-accounting",
               "subscription-formats",
               "proxy-protocols-and-transports",
-              "cloudflare-resource-management",
+              "cloudflare-write-operations-and-recovery",
               "telegram-bot",
               "web-panel",
               "android-client"
