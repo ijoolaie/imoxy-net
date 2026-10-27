@@ -58,3 +58,8 @@ Login attempts are counted against separate HMAC-derived IP and normalized-usern
 ## 2026-10-27 — reject overflowing combined usage deltas before persistence
 
 Usage reporting validates that upload and download byte deltas individually are non-negative safe integers and that their sum is also a safe integer. Overflow is rejected before storage to avoid precision loss or invalid accounting. This is an imoxy data-integrity safeguard; quota/reporting behavior still requires reference characterization and data-plane integration.
+
+
+## 2026-10-27 — guard daily usage upserts against counter overflow
+
+The D1 usage adapter validates the combined upload/download delta and uses a conditional atomic upsert so a daily row is not incremented beyond the JavaScript safe-integer range. A zero-row result is surfaced as a range error rather than silently accepted. This protects daily counters but does not make quota enforcement atomic across check-and-forward operations and does not deduplicate retried reports. Idempotency requires a stable caller-provided event ID and an event ledger/unique constraint; inventing one at the service boundary would not deduplicate real retries. Real D1 validation remains required.
