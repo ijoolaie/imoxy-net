@@ -34,7 +34,7 @@ Behavioral compatibility with the pinned reference is the first product mileston
 ## Phases
 
 ### Phase 0 — Repository governance and delivery baseline
-**State:** In progress; foundation PR exists.
+**State:** In progress — baseline governance, CI, capability reporting, and phase tracking are in place. Final repository-wide audit and all exit checks are not yet certified.
 
 Deliver:
 - CI and reproducible local verification.
@@ -48,6 +48,8 @@ Exit gate:
 - Roadmap and hand-off link to current repository state.
 
 ### Phase 1 — Reference characterization and requirements freeze
+**State:** In progress — pinned source evidence and prioritized REF-001–REF-032 scenarios are documented. None has been executed against an authorized Nova runtime; distribution-license review remains a blocker.
+
 Deliver:
 - Observable behavior inventory for setup/bootstrap, settings, users, limits, subscriptions, protocols, transports, network options, routing/fallback, diagnostics, and errors.
 - Per-feature evidence record: reference version/commit, scenario, input, output, state change, side effect, and result.
@@ -167,6 +169,8 @@ Exit gate:
 - Critical user journeys, session expiry, API compatibility, and secure local storage checks pass.
 
 ### Phase 11 — Cross-interface parity and reliability
+**State:** In progress — an API/Telegram account-list contract test and capability-reporting test pass on exact PR head `ab06dfc9c76ce39b2817adad425a7902984c9431` (CI run 40476873922); merged as `ff0de52785baadc5d87bbfb2ccc2f9256a5cccc4`. Browser/device E2E, full operation parity, failure injection and SLOs remain.
+
 Deliver:
 - Same scenario suite executed through API, web, Telegram, and Android where applicable.
 - Consistent permissions, state transitions, quota enforcement, errors, and audit records.
@@ -178,6 +182,8 @@ Exit gate:
 - Critical reliability/security findings are closed; SLOs and operational alerts are defined.
 
 ### Phase 12 — Release certification and controlled rollout
+**State:** Blocked — release checklist is documented, but license/distribution approval, reference parity evidence, real D1 recovery, staging deployment, client E2E, threat-model sign-off and production artifact provenance are not complete. No release candidate exists.
+
 Deliver:
 - License/distribution approval, threat-model sign-off, deployment runbook, secrets setup, backup/restore proof, rollback plan, support diagnostics, and release notes.
 - Staging certification followed by a controlled production rollout.
@@ -188,12 +194,21 @@ Exit gate:
 - Deployment and rollback are rehearsed; no unapproved Cloudflare mutation or commercial-license assumption remains.
 
 ### Phase 13 — Imoxy-specific improvements
+**State:** Not started — a separate candidate backlog is documented in [imoxy-improvements.md](imoxy-improvements.md), but feature implementation is intentionally gated until Phase 1 evidence and release/legal blockers are resolved.
+
 Deliver:
 - Product differentiators chosen from user evidence and operational needs, tracked separately from parity requirements.
 - Independent acceptance criteria, privacy/security review, and release notes for each addition.
 
 Exit gate:
 - Additions do not regress the reference-compatible behaviors or the three operating modes.
+
+## Supporting phase artifacts
+
+- [Pinned reference evidence register](reference-evidence.md)
+- [Cross-interface contract and reliability matrix](cross-interface-contracts.md)
+- [Release certification and controlled rollout checklist](release-certification.md)
+- [Post-parity imoxy-specific improvement backlog](imoxy-improvements.md)
 
 ## Priority order
 
