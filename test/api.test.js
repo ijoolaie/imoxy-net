@@ -14,6 +14,7 @@ function fixture() {
   const store = {
     async getAccount(id) { return state.accounts.get(id) ?? null; },
     async listAccounts() { return { items: [...state.accounts.values()], nextCursor: null }; },
+    async getUsageSummary(accountId, usageDate) { return { accountId, usageDate, totalBytes: 123, dailyBytes: 23, requestCount: 4 }; },
     async createAccount(account, audit) {
       state.accounts.set(account.id, account);
       state.mutations.push({ type: "create", account, audit });
@@ -158,4 +159,20 @@ test("logout clears the browser session cookie and is idempotent", async () => {
   }), env);
   assert.equal(response.status, 200);
   assert.match(response.headers.get("set-cookie"), /Max-Age=0/);
+});
+
+test("usage summaries require a session and validate the UTC date", async () => {
+  const { api, env, state } = fixture();
+  state.accounts.set("acct-1", { id: "acct-1", username: "customer_01", status: "active" });
+  const unauthorized = await api.fetch(new Request("https://imoxy.test/api/v1/accounts/acct-1/usage"));
+  assert.equal(unauthorized.status, 503); // database binding is required before route services initialize
+  const response = await api.fetch(new Request("https://imoxy.test/api/v1/accounts/acct-1/usage?date=2026-10-27", {
+    headers: { authorization: `Bearer ${bearer}` }
+  }), env);
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).usage.totalBytes, 123);
+  const invalid = await api.fetch(new Request("https://imoxy.test/api/v1/accounts/acct-1/usage?date=2026-02-30", {
+    headers: { authorization: `Bearer ${bearer}` }
+  }), env);
+  assert.equal(invalid.status, 400);
 });
