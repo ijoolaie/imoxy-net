@@ -42,7 +42,7 @@
         <div class="button-row"><button id="reloadAccounts" class="secondary" type="button">Refresh</button><button id="logout" class="quiet" type="button">Sign out</button></div>
       </div>
 
-      <section class="panel">
+      <section id="accountsPanel" class="panel">
         <div class="section-heading"><div><p class="eyebrow">ACCOUNT DIRECTORY</p><h3>Proxy accounts</h3></div><span id="accountCount" class="count-badge">0</span></div>
         <div class="table-wrap">
           <table>
@@ -52,7 +52,7 @@
         </div>
       </section>
 
-      <section class="panel">
+      <section id="createAccountPanel" class="panel">
         <div class="section-heading"><div><p class="eyebrow">ACCOUNT LIFECYCLE</p><h3>Create account</h3></div><span class="step-number">01</span></div>
         <form id="createAccountForm" class="account-form">
           <div class="field"><label for="newUsername">Username</label><input id="newUsername" name="username" required minlength="3" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" placeholder="customer_01"></div>
