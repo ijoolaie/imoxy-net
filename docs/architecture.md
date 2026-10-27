@@ -17,3 +17,10 @@
 - Clients: web panel, bot and Android APK.
 
 These boundaries are proposals and must be reconciled with the reference behavior before the implementation expands.
+
+
+## Current implementation slice
+
+- `src/domain/account-service.js` is the shared account lifecycle boundary and requires an injected authorization policy; it validates payloads before persistence and passes audit metadata to the D1 adapter.
+- `src/storage/d1-store.js` contains the provider-specific D1 query adapter. Clients and HTTP routes must call the domain service, not the storage adapter directly.
+- These are initial components only. Authentication/session resolution, quota enforcement, actual D1 integration, and HTTP routing are still required before the account workflow is usable end to end.
