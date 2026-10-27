@@ -6,6 +6,11 @@ For each scenario record: reference release/commit, environment, request/action,
 
 ## Initial scenarios
 
+- VLESS WebSocket, Trojan gRPC, Shadowsocks, IPv6 authority formatting, and a conservative Clash YAML subset have unit tests.
+- Invalid UUIDs, ports, ciphers, unsafe names, duplicate Clash names and unsupported XHTTP Clash output are rejected.
+- These generated outputs are clean-room provisional behavior. REF-009–013 and target-client import/connection tests are still required for parity.
+
+
 - Subscription creation returns a random raw token once and stores only the token hash; management listings never return raw tokens or token hashes.
 - Subscription expiry is capped by account expiry; inactive accounts cannot receive links; unsupported formats are rejected.
 - Revocation is idempotent; revoked, expired and unavailable links fail closed; Auto and Base64 produce equivalent URI content.
