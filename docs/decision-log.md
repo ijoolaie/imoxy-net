@@ -11,3 +11,5 @@ The Telegram bot, web panel and Android client must share domain services and au
 ## 2026-10-27 — honest capability reporting
 
 Unimplemented endpoints must not return fake success. Current implementation is intentionally limited to health and capability reporting.
+
+\n## 2026-10-27 — schema separates admin principals from proxy accounts\n\nThe initial D1 schema separates control-plane principals/sessions from end-user proxy accounts. Subscription tokens are represented by hashes; provider resource metadata excludes provider credentials. This is a proposed imoxy data model pending migration, threat-model, and reference-compatibility validation.\n\n## 2026-10-27 — documented feature list is not runtime evidence\n\nA prioritized black-box scenario inventory was added from the pinned README feature claims. These are hypotheses only until executed against an authorized instance of the pinned release. No reference behavior is marked verified.\n
