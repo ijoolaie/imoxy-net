@@ -17,16 +17,50 @@ const request = (body, { method = "POST", providedSecret = secret, contentType =
     },
     body: method === "GET" ? undefined : typeof body === "string" ? body : JSON.stringify(body)
   });
-const env = {
-  TELEGRAM_WEBHOOK_SECRET: secret,
-  TELEGRAM_BOT_TOKEN: token,
-  TELEGRAM_ALLOWED_USER_IDS: "12345, 67890",
-  IMOXY_MODE: "panel-only",
-  DB: {}
-};
+function makeD1Mock() {
+  const updates = new Map();
+  return {
+    updates,
+    prepare(sql) {
+      return {
+        args: [],
+        bind(...args) { this.args = args; return this; },
+        async run() {
+          const id = this.args[0] == null ? null : String(this.args[0]);
+          if (sql.startsWith("DELETE FROM telegram_webhook_updates WHERE received_at")) {
+            return { meta: { changes: 0 } };
+          }
+          if (sql.startsWith("INSERT INTO telegram_webhook_updates")) {
+            if (updates.has(id)) return { meta: { changes: 0 } };
+            updates.set(id, "processing");
+            return { meta: { changes: 1 } };
+          }
+          if (sql.startsWith("UPDATE telegram_webhook_updates")) {
+            if (updates.has(id)) updates.set(id, "processed");
+            return { meta: { changes: updates.has(id) ? 1 : 0 } };
+          }
+          if (sql.startsWith("DELETE FROM telegram_webhook_updates WHERE update_id")) {
+            const changed = updates.get(id) === "processing";
+            if (changed) updates.delete(id);
+            return { meta: { changes: changed ? 1 : 0 } };
+          }
+          throw new Error("Unexpected SQL in test D1 mock.");
+        }
+      };
+    }
+  };
+}
 
 function fixture({ storeFactory, fetchImpl } = {}) {
   const calls = [];
+  const db = makeD1Mock();
+  const env = {
+    TELEGRAM_WEBHOOK_SECRET: secret,
+    TELEGRAM_BOT_TOKEN: token,
+    TELEGRAM_ALLOWED_USER_IDS: "12345, 67890",
+    IMOXY_MODE: "panel-only",
+    DB: db
+  };
   const handler = createTelegramWebhookHandler({
     storeFactory: storeFactory ?? (() => ({
       async getAccount() { return null; },
@@ -42,31 +76,31 @@ function fixture({ storeFactory, fetchImpl } = {}) {
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     })
   });
-  return { handler, calls };
+  return { handler, calls, env, db };
 }
 
 test("rejects non-POST methods", async () => {
-  const { handler } = fixture();
+  const { handler, env } = fixture();
   const response = await handler.fetch(request(null, { method: "GET" }), env);
   assert.equal(response.status, 405);
 });
 
 test("rejects an invalid webhook secret without contacting Telegram", async () => {
-  const { handler, calls } = fixture();
+  const { handler, calls, env } = fixture();
   const response = await handler.fetch(request(update(), { providedSecret: "wrong" }), env);
   assert.equal(response.status, 401);
   assert.equal(calls.length, 0);
 });
 
 test("ignores non-allowlisted users without sending a Telegram message", async () => {
-  const { handler, calls } = fixture();
+  const { handler, calls, env } = fixture();
   const response = await handler.fetch(request(update("/status", 99999)), env);
   assert.equal(response.status, 200);
   assert.equal(calls.length, 0);
 });
 
 test("answers /status only for allowlisted users", async () => {
-  const { handler, calls } = fixture();
+  const { handler, calls, env } = fixture();
   const response = await handler.fetch(request(update("/status")), env);
   assert.equal(response.status, 200);
   assert.equal(calls.length, 1);
@@ -75,7 +109,7 @@ test("answers /status only for allowlisted users", async () => {
 });
 
 test("uses the shared account service and viewer authorization for /accounts", async () => {
-  const { handler, calls } = fixture();
+  const { handler, calls, env } = fixture();
   const response = await handler.fetch(request(update("/accounts")), env);
   assert.equal(response.status, 200);
   assert.equal(calls.length, 1);
@@ -85,7 +119,7 @@ test("uses the shared account service and viewer authorization for /accounts", a
 });
 
 test("rejects oversized and non-JSON updates", async () => {
-  const { handler } = fixture();
+  const { handler, env } = fixture();
   const oversized = await handler.fetch(request("x".repeat(17 * 1024)), env);
   assert.equal(oversized.status, 413);
   const nonJson = await handler.fetch(request("not-json", { contentType: "text/plain" }), env);
@@ -93,8 +127,39 @@ test("rejects oversized and non-JSON updates", async () => {
 });
 
 test("returns a generic failure if Telegram delivery fails", async () => {
-  const { handler } = fixture({ fetchImpl: async () => new Response("private provider detail", { status: 500 }) });
+  const { handler, env } = fixture({ fetchImpl: async () => new Response("private provider detail", { status: 500 }) });
   const response = await handler.fetch(request(update("/help")), env);
   assert.equal(response.status, 502);
   assert.deepEqual(await response.json(), { error: "integration_failed" });
+});
+
+test("suppresses duplicate update IDs after successful delivery", async () => {
+  const { handler, calls, env, db } = fixture();
+  const body = update("/status");
+  const first = await handler.fetch(request(body), env);
+  const replay = await handler.fetch(request(body), env);
+  assert.equal(first.status, 200);
+  assert.equal(replay.status, 200);
+  assert.deepEqual(await replay.json(), { ok: true, duplicate: true });
+  assert.equal(calls.length, 1);
+  assert.equal(db.updates.get("1"), "processed");
+});
+
+test("releases a pending update claim when delivery fails so Telegram can retry", async () => {
+  let fail = true;
+  const { handler, calls, env, db } = fixture({
+    fetchImpl: async (url, init) => {
+      calls.push({ url, init, body: JSON.parse(init.body) });
+      if (fail) return new Response("temporary failure", { status: 500 });
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }
+  });
+  const body = update("/help");
+  const first = await handler.fetch(request(body), env);
+  assert.equal(first.status, 502);
+  assert.equal(db.updates.has("1"), false);
+  fail = false;
+  const retry = await handler.fetch(request(body), env);
+  assert.equal(retry.status, 200);
+  assert.equal(calls.length, 2);
 });
