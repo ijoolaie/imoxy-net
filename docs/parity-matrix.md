@@ -16,7 +16,7 @@ Status vocabulary: **Not assessed**, **In progress**, **Verified**, **Blocked**,
 | Routing and resilience | Fallbacks, self-healing links, mirror failover, resistance policy | Not assessed | REF-015, REF-018–019; runtime not run |
 | IP/domain tooling | Clean-IP selection, custom domains, Radar, node naming | Not assessed | REF-014, REF-017, REF-027; runtime not run |
 | Content policies | Ads/porn controls and SNI audit, where applicable | Not assessed | REF-026; runtime not run |
-| Telegram bot | Commands, authentication, account operations, error handling | Not assessed | REF-020; runtime not run |
+| Telegram bot | Commands, authentication, account operations, error handling | Not assessed | Imoxy hardening: private-chat-only handling, allowlist, secret validation and replay suppression have unit/contract coverage; main CI passed on `12cfb9f7e8c3f01a07346165bfdeb28c684893da` (run 40495393858). REF-020 remains unrun against Nova; no parity is verified. |
 | Deployment | Cloudflare bindings, KV/D1 schema, upgrades, rollback | Not assessed | REF-021; initial D1 schema draft added; migration/recovery not yet tested |
 | Observability | Usage, audit logs, connection records, privacy controls | Not assessed | REF-025; initial audit/usage tables drafted; behavior and retention unverified |
 | Interfaces | Web panel, Telegram bot, Android APK | Not assessed | Initial web panel and read-only Telegram/Android slices exist; Nova parity and end-to-end workflows are unverified |
