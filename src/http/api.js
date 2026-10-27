@@ -5,6 +5,7 @@ import { createD1Store } from "../storage/d1-store.js";
 import { createCloudflareClient } from "../providers/cloudflare-client.js";
 import { buildCloudflarePlan } from "../providers/cloudflare-plan.js";
 import { getOperatingMode, OPERATING_MODES } from "../domain/operating-mode.js";
+import { createTelegramWebhookHandler } from "../telegram/webhook.js";
 
 const COOKIE_NAME = "__Host-imoxy_session";
 const MAX_BODY_BYTES = 16 * 1024;
@@ -137,7 +138,8 @@ export function createApiHandler({
   authFactory = (store) => createAuthService({ store }),
   accountServiceFactory = (store, authorize) => createAccountService({ store, authorize }),
   cloudflareFactory = (env) => createCloudflareClient(env),
-  cloudflarePlanFactory = buildCloudflarePlan
+  cloudflarePlanFactory = buildCloudflarePlan,
+  telegramFactory = (env) => createTelegramWebhookHandler({ env })
 } = {}) {
   return {
     async fetch(request, env = {}) {
@@ -154,21 +156,23 @@ export function createApiHandler({
             service: "imoxy-net",
             mode,
             supportedModes: OPERATING_MODES,
-            implemented: ["health", "capability-reporting", "authentication-and-session-routes", "account-management-routes", "cloudflare-read-only-inventory-and-dry-run-plans"],
-            requiresConfiguration: ["D1 binding", "AUTH_RATE_LIMIT_SECRET", "BOOTSTRAP_OWNER_SECRET for initial setup", "CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID for provider reads"],
+            implemented: ["health", "capability-reporting", "authentication-and-session-routes", "account-management-routes", "cloudflare-read-only-inventory-and-dry-run-plans", "telegram-read-only-webhook"],
+            requiresConfiguration: ["D1 binding", "AUTH_RATE_LIMIT_SECRET", "BOOTSTRAP_OWNER_SECRET for initial setup", "CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID for provider reads", "TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET and TELEGRAM_ALLOWED_USER_IDS for bot access"],
             pending: [
               "cloudflare-resource-mutation-and-recovery",
               "quota-enforcement-and-usage-accounting",
               "subscription-formats",
               "proxy-protocols-and-transports",
               "cloudflare-write-operations-and-recovery",
-              "telegram-bot",
+              "telegram-account-mutations-and-subscription-workflows",
               "web-panel",
               "android-client"
             ],
             requestId
           });
         }
+
+        if (url.pathname === "/api/v1/telegram/webhook") return telegramFactory(env).fetch(request);
 
         const authPath = url.pathname.startsWith("/api/v1/auth/");
         const accountPath = url.pathname === "/api/v1/accounts" || url.pathname.startsWith("/api/v1/accounts/");
