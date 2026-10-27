@@ -155,6 +155,8 @@ Exit gate:
 - Unauthorized users, replayed callbacks, provider failures, and expired credentials are tested.
 
 ### Phase 10 — Android APK
+**State:** In progress — a native Kotlin/XML client supports HTTPS-only API configuration, login, encrypted session persistence using Android Keystore, account-list refresh and logout. A Gradle/GitHub Actions debug-APK build is configured. Build CI, device installation, session/security tests, account mutation workflows, signing and release provenance remain.
+
 Deliver:
 - Android client connected to the shared versioned API.
 - Secure token/session storage, login/logout, key management and the agreed core workflows.
