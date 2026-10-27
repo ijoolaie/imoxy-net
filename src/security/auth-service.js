@@ -98,6 +98,9 @@ export function createAuthService({
         throw new AuthError("bootstrap_closed", "Initial owner setup has already been completed.", 409);
       }
 
+      if (typeof password !== "string" || password.length < 12 || password.length > 1024) {
+        throw new AuthError("validation_failed", "The password must contain 12 to 1024 characters.", 400);
+      }
       const principal = {
         id: idFactory(),
         username,
@@ -156,7 +159,9 @@ export function createAuthService({
         throw unauthorized();
       }
       const session = await store.findSessionByTokenHash(tokenHash);
-      const timestamp = Date.parse(now());
+      const currentTime = now();
+      const timestamp = Date.parse(currentTime);
+      if (!Number.isFinite(timestamp)) throw new TypeError("The clock must return a valid UTC timestamp.");
       if (!session || session.revokedAt || Date.parse(session.expiresAt) <= timestamp ||
           session.principal?.status !== "active") {
         throw unauthorized();
