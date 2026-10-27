@@ -141,6 +141,8 @@ Exit gate:
 - UI uses shared API/domain behavior; no security-critical business rule exists only in the browser.
 
 ### Phase 9 — Telegram bot
+**State:** In progress — a secret-validated webhook and allowlisted read-only `/start`, `/help`, `/status`, and `/accounts` commands are wired through the shared Worker API. The account list uses the shared domain service and viewer permission. Secure account linking, per-principal mapping, audited mutations, replay idempotency, live webhook validation and reference comparison remain.
+
 Deliver:
 - Secure account linking/authorization and command/menu flows.
 - Supported management and status operations, understandable errors, abuse/rate protection, and audit events.
