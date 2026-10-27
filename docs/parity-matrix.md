@@ -4,25 +4,25 @@ Status vocabulary: **Not assessed**, **In progress**, **Verified**, **Blocked**,
 
 | Domain | Required behavior to characterize | Status | Evidence / acceptance tests |
 |---|---|---|---|
-| Install and bootstrap | First-run setup, status, configuration changes, recovery | Not assessed | Pending |
-| Authentication | Login, session lifecycle, logout, authorization boundaries | Not assessed | Pending |
+| Install and bootstrap | First-run setup, status, configuration changes, recovery | Not assessed | REF-001–002; runtime not run |
+| Authentication | Login, session lifecycle, logout, authorization boundaries | Not assessed | REF-003–004; runtime not run |
 | Admin panel | Navigation, forms, validation, errors, state transitions | Not assessed | Pending |
-| Accounts | Create/edit/disable/delete, keys, ports, expiry, notes | Not assessed | Pending |
-| Quotas | Total and daily traffic, request limits, speed and connection limits | Not assessed | Pending |
-| Subscriptions | Token/key access, Auto/Base64/Clash formats, invalid/expired cases | Not assessed | Pending |
-| Protocols | VLESS, Trojan, Shadowsocks and supported transports | Not assessed | Pending |
-| Transports | WebSocket, gRPC, XHTTP, TLS/ECH and negotiation behavior | Not assessed | Pending |
-| Network options | WARP/WireGuard, chaining, backend mode, IPv4/IPv6, DNS | Not assessed | Pending |
-| Routing and resilience | Fallbacks, self-healing links, mirror failover, resistance policy | Not assessed | Pending |
-| IP/domain tooling | Clean-IP selection, custom domains, Radar, node naming | Not assessed | Pending |
-| Content policies | Ads/porn controls and SNI audit, where applicable | Not assessed | Pending |
-| Telegram bot | Commands, authentication, account operations, error handling | Not assessed | Pending |
-| Deployment | Cloudflare bindings, KV/D1 schema, upgrades, rollback | Not assessed | Pending |
-| Observability | Usage, audit logs, connection records, privacy controls | Not assessed | Pending |
-| Interfaces | Web panel, Telegram bot, Android APK | Not assessed | Pending |
-| Workflows | Panel only; Cloudflare only; panel + Cloudflare | Not assessed | Pending |
+| Accounts | Create/edit/disable/delete, keys, ports, expiry, notes | Not assessed | REF-005–006; schema/input-validation foundation exists but reference behavior is unverified |
+| Quotas | Total and daily traffic, request limits, speed and connection limits | Not assessed | REF-007–008; schema fields exist; enforcement and reference behavior unverified |
+| Subscriptions | Token/key access, Auto/Base64/Clash formats, invalid/expired cases | Not assessed | REF-009–010; runtime not run |
+| Protocols | VLESS, Trojan, Shadowsocks and supported transports | Not assessed | REF-011–013; runtime not run |
+| Transports | WebSocket, gRPC, XHTTP, TLS/ECH and negotiation behavior | Not assessed | REF-013; runtime not run |
+| Network options | WARP/WireGuard, chaining, backend mode, IPv4/IPv6, DNS | Not assessed | REF-014–017; runtime not run |
+| Routing and resilience | Fallbacks, self-healing links, mirror failover, resistance policy | Not assessed | REF-015, REF-018–019; runtime not run |
+| IP/domain tooling | Clean-IP selection, custom domains, Radar, node naming | Not assessed | REF-014, REF-017, REF-027; runtime not run |
+| Content policies | Ads/porn controls and SNI audit, where applicable | Not assessed | REF-026; runtime not run |
+| Telegram bot | Commands, authentication, account operations, error handling | Not assessed | REF-020; runtime not run |
+| Deployment | Cloudflare bindings, KV/D1 schema, upgrades, rollback | Not assessed | REF-021; initial D1 schema draft added; migration/recovery not yet tested |
+| Observability | Usage, audit logs, connection records, privacy controls | Not assessed | REF-025; initial audit/usage tables drafted; behavior and retention unverified |
+| Interfaces | Web panel, Telegram bot, Android APK | Not assessed | REF-020 and phase 8–10 tests; implementation not started |
+| Workflows | Panel only; Cloudflare only; panel + Cloudflare | Not assessed | REF-022–024; not implemented or runtime-tested |
 
-## Verification protocol
+Detailed prioritized cases and evidence requirements: [reference-scenarios.md](reference-scenarios.md). All cases currently remain unrun against the pinned runtime.\n\n## Verification protocol
 
 For each row:
 1. Pin the exact reference release and document the legal basis for use.
