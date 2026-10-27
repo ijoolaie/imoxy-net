@@ -145,7 +145,7 @@ Exit gate:
 - UI uses shared API/domain behavior; no security-critical business rule exists only in the browser.
 
 ### Phase 9 — Telegram bot
-**State:** In progress — a secret-validated webhook, allowlisted read-only `/start`, `/help`, `/status`, and `/accounts`, and D1-backed seven-day `update_id` replay suppression with retry release on delivery failure are implemented with mocked tests. PR #22 merged as `06abb6208b5abedce6fb629d95f3428ceeb50e34`; exact-head CI passed on `b06239c1cc3e89e51b59aa8ea837745977f0302e` (run 40477478274, pull_request; run 40477446750, push). Secure account linking, per-principal mapping, audited mutations, real D1 validation, live webhook validation and reference comparison remain.
+**State:** In progress — a secret-validated webhook, allowlisted read-only `/start`, `/help`, `/status`, and `/accounts`, and D1-backed seven-day `update_id` replay suppression, retry release on delivery failure, and two-minute recovery of abandoned processing claims are implemented with mocked/SQLite tests. PR #22 merged as `06abb6208b5abedce6fb629d95f3428ceeb50e34`; exact-head CI passed on `b06239c1cc3e89e51b59aa8ea837745977f0302e` (run 40477478274, pull_request; run 40477446750, push). PR #24 stale-claim recovery merged as `0a83419fd2d4a85c0f755f96d7a145fb7832a815`; exact-head CI passed on `fd9d54c8cf666dc2955348cdd6a7cb39edea0bf7` (run 40477847177). Secure account linking, per-principal mapping, audited mutations, real D1 validation, live webhook validation and reference comparison remain.
 
 Deliver:
 - Secure account linking/authorization and command/menu flows.
