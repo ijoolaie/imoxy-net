@@ -11,6 +11,8 @@
 - Supports `/start`, `/help`, `/status` and `/accounts`; account listing uses the shared account domain service and viewer permission.
 - Account output is intentionally limited to username/status and the first 20 results. No credentials, notes, subscription tokens or mutation controls are exposed.
 - Input is JSON-only and bounded to 16 KiB. Provider/database failures are returned as generic errors and do not expose secrets.
+- Telegram `update_id` values are claimed in D1 before processing; duplicate deliveries are suppressed. Failed outbound delivery releases the pending claim so Telegram can retry. Processed claims are retained for seven days before cleanup.
+- Apply migration `0003_telegram_webhook_updates.sql` before enabling the webhook; replay protection fails closed when the D1 binding is missing or returns an invalid result.
 
 ## Configuration
 
