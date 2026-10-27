@@ -87,3 +87,15 @@ test("Cloudflare plan route rejects unexpected request fields", async () => {
   assert.equal(response.status, 400);
   assert.equal(state.providerCalls, 0);
 });
+
+test("operating modes disable unrelated route families", async () => {
+  const { api } = fixture();
+  const cloudflareDisabled = await api.fetch(new Request("https://imoxy.test/api/v1/cloudflare/inventory"), {
+    IMOXY_MODE: "panel-only"
+  });
+  assert.equal(cloudflareDisabled.status, 404);
+  const accountDisabled = await api.fetch(new Request("https://imoxy.test/api/v1/accounts"), {
+    IMOXY_MODE: "cloudflare-only"
+  });
+  assert.equal(accountDisabled.status, 404);
+});
