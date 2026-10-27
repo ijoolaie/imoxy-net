@@ -4,3 +4,11 @@ compatibility_date = "2026-10-01"
 
 # Configure separate development/staging/production environments.
 # Add KV/D1 bindings only after the data model and migration strategy are reviewed.
+
+# Configure a real database before exposing auth/account routes.
+# Create it with Wrangler, then replace the placeholder ID and uncomment:
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "imoxy-net-db"
+# database_id = "replace-with-your-d1-database-id"
+# migrations_dir = "migrations"
