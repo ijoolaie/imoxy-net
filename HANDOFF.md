@@ -7,8 +7,8 @@
 - Merged PRs #1–#9: repository foundation, API/domain contract, security primitives, D1 account adapter, account service, auth/session service, HTTP auth/account routes, quota/usage foundations, and SQLite migration tests.
 - Current PR #10: https://github.com/ijoolaie/imoxy-net/pull/10 — subscription lifecycle, protocol URI and Clash generators, and tests; still open and must not be merged until exact-head CI passes.
 - Current work branch: feat/subscriptions.
-- Branch head before this hand-off edit: cfd90c8e70a31149b7670639770d2348714b6397.
-- Current feature work: subscription token lifecycle and clean-room VLESS/Trojan/Shadowsocks URI plus Clash YAML generation. Exact-head CI must be checked after this edit.
+- Branch head before this hand-off edit: 50d352ccffa93e031174001984a2ec4296599404.
+- Current feature work: subscription token lifecycle and clean-room VLESS/Trojan/Shadowsocks URI plus Clash YAML generation. CI run 40469984483 passed on this branch head with all tests. An earlier run failed on malformed regex test syntax and a test that still treated Clash as unsupported; both were fixed before the passing run. Re-check after this hand-off commit.
 - Product status: no Nova runtime parity claim, no production deployment, no live Cloudflare writes.
 
 ## Product target
@@ -32,7 +32,7 @@ Independently implement behavior matching Nova Proxy 5.0.0 (pinned commit ad2116
 - Commercial distribution requires separate review of the observed PolyForm Noncommercial 1.0.0 terms.
 
 ## Next actions
-1. Query exact branch SHA and CI after this hand-off edit; fix failures before merge.
+1. Query exact branch SHA and CI after this hand-off edit; confirm docs-only commit passes and review PR #10 before merge.
 2. Implement encrypted proxy-node configuration and its D1 migration; never persist plaintext proxy credentials.
 3. Wire subscription management/public delivery to persistent node descriptors and the protocol generator.
 4. Execute REF-009–013 against an authorized Nova 5.0.0 runtime and import generated configs into target clients.
