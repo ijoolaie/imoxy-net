@@ -6,8 +6,8 @@
 - **Repository:** https://github.com/ijoolaie/imoxy-net (private)
 - **Merged foundation PR:** [#1](https://github.com/ijoolaie/imoxy-net/pull/1), squash merge commit `2142591abdc863d7f7ab85f36a395fd7a8bc82a1`.
 - **Current work branch:** `feat/domain-contract-and-schema`.
-- **Branch head before this hand-off edit:** `e13525d5d8062b01982ef85b1bb92efc038aecae`.
-- **CI:** PR #1 head `995fd4e7dd941502e9ab84ab9fc6719be10e736e` passed CI (run 40465498032). Main merge commit `2142591abdc863d7f7ab85f36a395fd7a8bc82a1` passed CI (run 40466075513). Feature branch run 40466348656 was still in progress on earlier SHA `1e13c25ef316849830d08ec7bc232b9d5157868d`; later commits include validation and migration fixes and require exact-head CI.
+- **Branch head before this hand-off edit:** `ff635be3837eb09c4d5229e67e2a324149d8f1dc`.
+- **CI:** PR #1 head `995fd4e7dd941502e9ab84ab9fc6719be10e736e` passed CI (run 40465498032). Main merge commit `2142591abdc863d7f7ab85f36a395fd7a8bc82a1` passed CI (run 40466075513). Feature branch run 40466483118 targets `ff635be3837eb09c4d5229e67e2a324149d8f1dc`; its `npm run verify` step passed, but the overall job was still in cleanup at last query. The branch has since received fixes for literal-newline formatting and empty PATCH validation; re-check CI on the new exact head.
 - **Product status:** still a foundation; no behavioral parity claim, no production deployment, no live Cloudflare writes.
 
 ## Product target
@@ -28,6 +28,9 @@ Independently implement behavior matching Nova Proxy 5.0.0 (pinned commit `ad211
 - Reference black-box scenarios have not been run against a live authorized Nova 5.0.0 instance.
 - No legal opinion has been obtained about commercial distribution under the observed PolyForm Noncommercial 1.0.0 license.
 - No production deployment or live Cloudflare mutation has occurred.
+
+## Pull request
+- PR #2: https://github.com/ijoolaie/imoxy-net/pull/2, open and not merged. The PR head is updated with the branch. Do not merge until CI finishes successfully on the exact latest head and the patch is reviewed.
 
 ## Next actions
 1. Re-query the exact feature branch SHA and CI status after this hand-off commit.
