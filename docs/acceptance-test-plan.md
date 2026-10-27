@@ -6,6 +6,11 @@ For each scenario record: reference release/commit, environment, request/action,
 
 ## Initial scenarios
 
+- Account domain service refuses construction without an explicit authorization policy.
+- Denied account operations do not reach persistence; create/update/delete mutations include actor, action and request audit metadata.
+- Account creation sets server-controlled IDs/timestamps and defaults; update rejects unknown or empty fields; missing reads/deletes return not-found.
+
+
 - D1 adapter reads use bound parameters and map persisted account fields consistently.
 - Account listing bounds page size and returns a stable ID cursor.
 - Account create/update/delete operations are coupled to an audit insert through D1 batch statements; mocked adapter tests cover the query contract. A real D1 integration test is still required.

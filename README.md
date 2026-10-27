@@ -4,7 +4,7 @@ An independently implemented, behavior-compatible proxy management platform.
 
 ## Current status
 
-This repository is a foundation, not a feature-complete replacement yet. Only the health and capability-reporting endpoints are implemented. The account validation helper, initial D1 schema, and D1 adapter are internal foundations, not a publicly wired or authenticated account API. Proxy protocols, authentication, subscriptions, Cloudflare provisioning, bot, website and APK are not implemented until they have passing acceptance tests.
+This repository is a foundation, not a feature-complete replacement yet. Only the health and capability-reporting endpoints are implemented. The account validation helper, initial D1 schema/adapter, and authorization-gated account service are internal foundations, not a publicly wired or end-to-end authenticated account API. Proxy protocols, authentication, subscriptions, Cloudflare provisioning, bot, website and APK are not implemented until they have passing acceptance tests.
 
 ## Roadmap and engineering records
 

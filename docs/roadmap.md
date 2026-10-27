@@ -92,6 +92,8 @@ Exit gate:
 - Migration, interrupted-write, duplicate-request, backup/restore, and rollback tests pass.
 
 ### Phase 5 — Core management behavior
+**State:** In progress — an authorization-gated account domain service is implemented with unit tests for validation, deny-by-default dependency requirements, audit metadata and CRUD outcomes; HTTP routes, real D1 integration and quota enforcement remain.
+
 Deliver:
 - First-run/bootstrap and configuration editing.
 - Account lifecycle, credentials/keys, ports, expiry, notes, enabled/disabled state.
