@@ -19,7 +19,7 @@ Status vocabulary: **Not assessed**, **In progress**, **Verified**, **Blocked**,
 | Telegram bot | Commands, authentication, account operations, error handling | Not assessed | REF-020; runtime not run |
 | Deployment | Cloudflare bindings, KV/D1 schema, upgrades, rollback | Not assessed | REF-021; initial D1 schema draft added; migration/recovery not yet tested |
 | Observability | Usage, audit logs, connection records, privacy controls | Not assessed | REF-025; initial audit/usage tables drafted; behavior and retention unverified |
-| Interfaces | Web panel, Telegram bot, Android APK | Not assessed | REF-020 and phase 8–10 tests; implementation not started |
+| Interfaces | Web panel, Telegram bot, Android APK | Not assessed | Initial web panel and read-only Telegram/Android slices exist; Nova parity and end-to-end workflows are unverified |
 | Workflows | Panel only; Cloudflare only; panel + Cloudflare | Not assessed | REF-022–024; not implemented or runtime-tested |
 
 Detailed prioritized cases and evidence requirements: [reference-scenarios.md](reference-scenarios.md). All cases currently remain unrun against the pinned runtime.\n\n## Verification protocol
@@ -31,4 +31,4 @@ For each row:
 4. Implement independently and run the same cases against the reference and imoxy.
 5. Record differences and resolve them before marking **Verified**.
 
-The health endpoint is the only currently implemented capability. This matrix is not a claim of parity.
+Imoxy now has initial API/domain foundations and early web, Telegram, and Android slices. This implementation status is separate from Nova compatibility: no parity row is verified until repeatable black-box tests pass against the pinned runtime.
