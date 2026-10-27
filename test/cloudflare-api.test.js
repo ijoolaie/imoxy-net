@@ -40,7 +40,7 @@ function fixture({ authenticated = true } = {}) {
     }),
     cloudflarePlanFactory: buildCloudflarePlan
   });
-  return { api, state, inventory, env: { DB: {} } };
+  return { api, state, inventory, env: { DB: {}, IMOXY_MODE: "combined" } };
 }
 
 test("Cloudflare inventory requires a session and calls only the read-only client", async () => {
