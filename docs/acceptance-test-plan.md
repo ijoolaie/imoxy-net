@@ -6,6 +6,12 @@ For each scenario record: reference release/commit, environment, request/action,
 
 ## Initial scenarios
 
+- D1 adapter reads use bound parameters and map persisted account fields consistently.
+- Account listing bounds page size and returns a stable ID cursor.
+- Account create/update/delete operations are coupled to an audit insert through D1 batch statements; mocked adapter tests cover the query contract. A real D1 integration test is still required.
+- Adapter rejects unsupported update fields, empty changes, missing audit metadata and invalid page sizes.
+
+
 - Password hashes use salted PBKDF2-SHA-256; correct passwords verify, incorrect passwords and malformed hashes fail closed.
 - Session credentials use cryptographically random tokens; persistence stores a token hash rather than the raw bearer token.
 - Weak password input, invalid iteration settings, and malformed/short session tokens are rejected.
