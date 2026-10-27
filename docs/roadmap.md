@@ -94,7 +94,7 @@ Exit gate:
 - Migration, interrupted-write, duplicate-request, backup/restore, and rollback tests pass.
 
 ### Phase 5 — Core management behavior
-**State:** In progress — authorization-gated account CRUD routes, shared quota evaluation, D1 usage counters and authorized usage-summary reads are implemented with tests. Proxy data-plane enforcement, atomic quota reservations, idempotent usage reporting and real D1 integration remain.
+**State:** In progress — authorization-gated account CRUD routes, shared quota evaluation, D1 usage counters and authorized usage-summary reads are implemented with tests. A conditional D1 upsert now rejects per-day counter overflow, with adapter regression coverage. Proxy data-plane enforcement, atomic quota reservations, stable-ID idempotent reporting, lifetime aggregate overflow handling and real D1 integration remain.
 
 Deliver:
 - First-run/bootstrap and configuration editing.
@@ -237,3 +237,8 @@ Fixed successful-login rate-limit cleanup to clear each HMAC-derived IP and norm
 ### Quota data-integrity maintenance — 2026-10-27
 
 The quota service rejects combined upload/download byte deltas outside the JavaScript safe-integer range before persistence, with a regression test asserting no write occurs. This does not complete Phase 5: atomic quota enforcement, idempotent reporting, data-plane integration, real D1 tests and Nova comparison remain open.
+
+
+### Quota accounting follow-up — 2026-10-27
+
+D1 daily-row writes now validate the combined byte delta and conditionally guard upload/download/request counters plus the combined daily byte total against JavaScript safe-integer overflow. Unit tests cover validation and the conditional no-change error path. No stable usage event ID exists in the current contract, so duplicate-report idempotency is explicitly not implemented. Next: define the proxy/data-plane event identity, add a unique usage-event ledger and transaction/reservation design, then verify with actual Cloudflare D1 concurrency tests before claiming hard quota enforcement.
