@@ -30,6 +30,7 @@ These are documented behaviors and test hypotheses, not yet independently verifi
 - The feature inventory and source/evidence distinctions are maintained in [reference-evidence.md](reference-evidence.md).
 - The prioritized executable scenarios now cover bootstrap/auth, accounts/quotas, subscriptions/protocols, network/fallback, bot, install/update, localization and client import. All remain **Not run** against a live pinned runtime.
 - Repository API/domain tests are evidence of imoxy behavior only; they do not establish Nova compatibility.
+- Imoxy's Telegram webhook currently ignores non-private chats before replay-claiming or sending a reply, to reduce accidental disclosure of account metadata. This is an independently chosen security safeguard, not a parity claim; REF-020 remains unrun against Nova.
 
 ## Implementation constraint
 
