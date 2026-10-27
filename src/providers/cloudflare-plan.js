@@ -16,7 +16,7 @@ async function digest(value) {
 }
 
 function cleanText(value, field, max = 253) {
-  if (typeof value !== "string" || !value.trim() || value.length > max || /[\\u0000-\\u001f\\u007f]/.test(value)) {
+  if (typeof value !== "string" || !value.trim() || value.length > max || /[\x00-\x1f\x7f]/.test(value)) {
     throw new TypeError(`${field} is invalid.`);
   }
   return value.trim();
@@ -51,7 +51,6 @@ function normalizeKey(type, item) {
 
 function compareFields(type, current, desired) {
   if (type === "dnsRecords") return ["content", "proxied", "ttl"].some((key) => current[key] !== desired[key]);
-  if (type === "workerScripts") return desired.desiredHash !== undefined && current.etag !== desired.desiredHash;
   return false;
 }
 
@@ -63,14 +62,17 @@ export async function buildCloudflarePlan({ current, desired }) {
   const operations = [];
   const warnings = [
     "This is a dry-run plan; no Cloudflare writes are performed.",
-    "Destructive deletion operations are never generated automatically.",\n    "Worker script content updates are not planned because script source hashes are not available in this inventory."
+    "Destructive deletion operations are never generated automatically.",
+    "Worker script content updates are not planned because script source hashes are not available in this inventory."
   ];
   for (const type of SUPPORTED_TYPES) {
     const wanted = desired[type] ?? [];
     const existing = current[type] ?? [];
     if (!Array.isArray(wanted) || !Array.isArray(existing)) throw new TypeError(`${type} must be an array.`);
-    const currentByKey = new Map(existing.map((item) => [normalizeKey(type, item), item]));
-    for (const item of wanted) {
+    const normalizedCurrent = existing.map((item) => normalizeResource(type, item));
+    const normalizedDesired = wanted.map((item) => normalizeResource(type, item));
+    const currentByKey = new Map(normalizedCurrent.map((item) => [normalizeKey(type, item), item]));
+    for (const item of normalizedDesired) {
       const key = normalizeKey(type, item);
       if (typeof key !== "string" || !key) throw new TypeError(`Each ${type} item needs a stable key.`);
       const before = currentByKey.get(key);
