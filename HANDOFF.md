@@ -3,6 +3,11 @@
 > Living hand-off. Re-query the branch head after editing this file because this edit creates a new commit.
 
 ## Current status (2026-10-27)
+
+- Current work branch: `feat/telegram-readonly-bot`.
+- This branch adds a secret-validated Telegram webhook, numeric user allowlist, read-only `/start`, `/help`, `/status`, and `/accounts` commands, API routing, and mocked tests.
+- No Telegram token, live webhook, live Cloudflare API, deployment or production mutation was used.
+- Exact-head CI is pending until the branch head is finalized.
 - Repository: https://github.com/ijoolaie/imoxy-net (private).
 - Merged PRs #1–#12: foundation, API/domain contract, security, D1 account adapter, account service, auth/session service, auth/account routes, quota/usage foundations, SQLite migration tests, subscription lifecycle, and protocol/Clash generators.
 - Merged PR #12 CI passed on exact head cd70edebf5f8c7c3123581db1a8d418558c7b999.
