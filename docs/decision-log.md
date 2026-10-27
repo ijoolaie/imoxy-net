@@ -43,3 +43,8 @@ The web panel and Android client use the same versioned Worker API. The initial 
 ## 2026-10-27 — Android token storage uses platform Keystore
 
 The initial Android client stores a bearer token encrypted with AES-GCM under a key managed by Android Keystore. It requires HTTPS and disables authenticated redirects, app backup and cleartext traffic. Device-level validation, release signing and threat review remain required.
+
+
+## 2026-10-27 — Telegram commands are private-chat-only
+
+The webhook ignores every non-private chat before claiming the update ID or sending a reply, including when the sender is allowlisted. This is an imoxy security/privacy safeguard to avoid exposing account metadata in group conversations; it is not asserted to match Nova Proxy behavior. A regression test covers an allowlisted sender invoking `/accounts` in a supergroup. Main CI passed on `12cfb9f7e8c3f01a07346165bfdeb28c684893da` (run 40495393858). Live Telegram and pinned-reference tests remain pending.
