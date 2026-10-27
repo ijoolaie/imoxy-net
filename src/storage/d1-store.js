@@ -14,7 +14,7 @@ const ACCOUNT_SELECT = `SELECT id, username, status, expires_at, quota_bytes,
   FROM proxy_accounts`;
 
 function isValidUsageDate(value) {
-  if (typeof value !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const timestamp = Date.parse(value + "T00:00:00.000Z");
   return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value;
 }
@@ -292,7 +292,7 @@ export function createD1Store(db) {
 
     async recordUsage({ accountId, usageDate, uploadBytes, downloadBytes, requestCount = 1, updatedAt }) {
       if (typeof accountId !== "string" || !accountId ||
-          typeof usageDate !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(usageDate) ||
+          typeof usageDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(usageDate) ||
           new Date(usageDate).toISOString().slice(0, 10) !== usageDate ||
           ![uploadBytes, downloadBytes, requestCount].every((value) => Number.isSafeInteger(value) && value >= 0) ||
           typeof updatedAt !== "string" || !Number.isFinite(Date.parse(updatedAt))) {
