@@ -131,6 +131,8 @@ Exit gate:
 - Mock/failure-injection tests pass; live write tests, if approved, use a controlled non-production scope and have verified recovery steps.
 
 ### Phase 8 — Web panel
+**State:** In progress — responsive same-origin login/session shell, account list/create, usage summary, mode-aware Cloudflare inventory and dry-run preview are implemented. Account editing/deletion, subscriptions/nodes, audit UI, browser E2E/accessibility review and deployed-Worker validation remain.
+
 Deliver:
 - Own imoxy.net identity and responsive administration UI.
 - Setup, login/session lifecycle, dashboards, configuration, account/limit management, subscriptions, provider resources, audit and diagnostics views.
