@@ -98,6 +98,6 @@ export function validateAccountInput(input, { partial = false } = {}) {
     }
   }
 
-  if (Object.keys(errors).length) throw new ValidationError(errors);
+  if (partial && Object.keys(input).length === 0) errors.body = "must_contain_at_least_one_field";\n\n  if (Object.keys(errors).length) throw new ValidationError(errors);
   return output;
 }
