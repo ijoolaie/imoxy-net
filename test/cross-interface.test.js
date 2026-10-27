@@ -5,6 +5,14 @@ import { createTelegramWebhookHandler } from "../src/integrations/telegram-webho
 
 const token = "valid-session-token-for-cross-interface-contracts";
 const secret = "cross-interface-webhook-secret-at-least-32-chars";
+const replayDb = {
+  prepare() {
+    return {
+      bind() { return this; },
+      async run() { return { meta: { changes: 1 } }; }
+    };
+  }
+};
 const accountRows = [
   { id: "acct-a", username: "alpha", status: "active", expiresAt: null, quotaBytes: 1024, dailyQuotaBytes: null },
   { id: "acct-b", username: "beta", status: "disabled", expiresAt: null, quotaBytes: null, dailyQuotaBytes: null }
@@ -72,7 +80,7 @@ test("API and Telegram read-only listing expose the same account identities and 
       message: { from: { id: 12345 }, chat: { id: 12345 }, text: "/accounts" }
     })
   }), {
-    DB: {},
+    DB: replayDb,
     TELEGRAM_WEBHOOK_SECRET: secret,
     TELEGRAM_BOT_TOKEN: "123456789:fake-token-used-only-in-tests",
     TELEGRAM_ALLOWED_USER_IDS: "12345",
