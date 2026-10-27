@@ -36,7 +36,7 @@ The `fields` member is optional. Error messages are safe for clients and must no
 | Authentication | `POST /auth/bootstrap`, `POST /auth/login`, `GET /auth/me`, `POST /auth/logout` | One-time owner setup; rate-limited login; session token hash persistence; expiry/revocation; no password/token hashes in responses. Service and HTTP routes are implemented; deployment still requires configured D1 and secrets. |
 | Principals | `GET/POST /principals`, `PATCH/DELETE /principals/:id` | Owner/admin policy; password/session revocation |
 | Proxy accounts | `GET/POST /accounts`, `GET/PATCH/DELETE /accounts/:id` | Shared expiry/quota rules; audited mutations |
-| Subscriptions | `POST /accounts/:id/subscriptions`, `POST /subscriptions/:id/revoke` | Store token hashes only; never return a stored secret |
+| Subscriptions | `POST/GET /accounts/:id/subscriptions`, `POST /subscriptions/:id/revoke`, public subscription delivery | Domain token lifecycle supports Auto/Base64 provisionally; HTTP management/delivery routes and reference-verified formats are not wired yet. Store token hashes only. |
 | Usage | `GET /accounts/:id/usage?date=YYYY-MM-DD` | Read-only, `usage.read` permission, UTC date validation; write accounting remains internal and proxy enforcement is not yet wired |
 | Cloudflare | `GET /providers/cloudflare/resources`, preview and confirm routes | Read-first; writes require least privilege, preview hash, explicit confirmation and audit |
 | Audit | `GET /audit-events` | Authorized, filtered, bounded retention, secret redaction |
