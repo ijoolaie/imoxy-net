@@ -70,6 +70,15 @@ test("usage recording persists non-negative deltas and returns the updated polic
   assert.equal(result.reason, "total_quota_exceeded");
 });
 
+test("usage recording rejects a combined byte delta beyond the safe integer range before persistence", async () => {
+  const { service, state } = fixture();
+  await assert.rejects(() => service.record("acct-1", {
+    uploadBytes: Number.MAX_SAFE_INTEGER,
+    downloadBytes: 1
+  }), /combined usage byte delta/);
+  assert.equal(state.records.length, 0, "overflow must be rejected before storage is called");
+});
+
 test("usage evaluation rejects invalid byte deltas and missing accounts", async () => {
   const { service } = fixture();
   await assert.rejects(() => service.evaluate("acct-1", { bytesToAdd: -1 }), TypeError);
