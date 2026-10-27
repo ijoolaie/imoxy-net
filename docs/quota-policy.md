@@ -18,7 +18,7 @@ The quota service is a shared policy/evaluation primitive, and the API exposes r
 
 ## Data/API behavior
 
-- Usage is stored in D1's `usage_daily` table with per-account UTC date rows.
+- Usage is stored in D1's `usage_daily` table with per-account UTC date rows. SQLite migration and upsert behavior is exercised in CI; Cloudflare D1-specific behavior still needs integration validation.
 - The initial API read endpoint is `GET /api/v1/accounts/:id/usage?date=YYYY-MM-DD`; access requires the `usage.read` permission.
 - No public usage-write endpoint exists; clients cannot submit arbitrary usage counters.
 - Retention, correction/reconciliation, concurrent quota reservations, and provider/proxy-side measurement are pending.
