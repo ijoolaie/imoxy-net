@@ -8,7 +8,9 @@ An independently implemented proxy-management platform targeting evidence-based 
 - D1-oriented persistence adapters and migrations, with Node/SQLite schema tests. Real Cloudflare D1 deployment, backup/restore and concurrency behavior still require validation.
 - Read-only Cloudflare inventory and dry-run planning; no provider apply/write route is present.
 - Initial responsive web panel for login, account listing/creation, usage summaries and Cloudflare preview. Browser E2E and deployed Worker validation remain pending.
-- Telegram bot and Android APK are not complete. No Nova runtime parity or production deployment is claimed.
+- Initial allowlisted, read-only Telegram webhook commands: `/start`, `/help`, `/status`, `/accounts`. Secure account linking and mutation workflows remain pending.
+- Initial native Android client for HTTPS login, account listing/refresh and logout, with Android Keystore-backed encrypted session storage. Debug APK CI and device verification remain pending.
+- No Nova runtime parity or production deployment is claimed.
 
 ## Roadmap and engineering records
 
@@ -21,6 +23,8 @@ An independently implemented proxy-management platform targeting evidence-based 
 - [Protocol and subscription output compatibility](docs/protocol-compatibility.md)
 - [Cloudflare integration and operating modes](docs/cloudflare-integration.md)
 - [Web panel implementation and limitations](docs/web-panel.md)
+- [Telegram bot implementation and limitations](docs/telegram-bot.md)
+- [Android client implementation and limitations](docs/android-client.md)
 - [Acceptance-test plan](docs/acceptance-test-plan.md)
 - [Architecture](docs/architecture.md)
 - [Reference baseline](docs/reference-baseline.md)
@@ -31,13 +35,14 @@ An independently implemented proxy-management platform targeting evidence-based 
 
 ## Development
 
-Requires Node.js 22 or later.
+Requires Node.js 22 or later for the Worker tests. The Android client uses JDK 17, Gradle 8.9 and Android SDK platform 35.
 
 ```sh
 npm run verify
+gradle --no-daemon :app:assembleDebug
 ```
 
-The verification command runs syntax checks and the Node test suite. The SQLite tests use Node's experimental SQLite support where required.
+The Android workflow builds and uploads a debug APK. It is not a signed production release.
 
 ## Product compatibility target
 
