@@ -90,12 +90,26 @@ export async function verifyPassword(password, encodedHash) {
 }
 
 /** Hash a bearer token before persistence. Never store the returned raw token. */
+export async function sha256Base64Url(value) {
+  if (typeof value !== "string" || value.length === 0 || value.length > 4096) {
+    throw new TypeError("Value to hash has an invalid length.");
+  }
+  const digest = await webCrypto().subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return bytesToBase64Url(new Uint8Array(digest));
+}
+
+export async function verifySharedSecret(candidate, expected) {
+  if (typeof candidate !== "string" || typeof expected !== "string" ||
+      candidate.length < 32 || expected.length < 32 ||
+      candidate.length > 4096 || expected.length > 4096) return false;
+  return equalBytesConstantTime(new TextEncoder().encode(candidate), new TextEncoder().encode(expected));
+}
+
 export async function hashSessionToken(token) {
   if (typeof token !== "string" || token.length < 32 || token.length > 256) {
     throw new TypeError("Session token has an invalid length.");
   }
-  const digest = await webCrypto().subtle.digest("SHA-256", new TextEncoder().encode(token));
-  return bytesToBase64Url(new Uint8Array(digest));
+  return sha256Base64Url(token);
 }
 
 /** Return the raw credential once, alongside the only value intended for storage. */

@@ -28,9 +28,9 @@
 
 ## Threats requiring implementation and testing
 
-- Credential stuffing, brute force and user enumeration; login throttling and uniform failure responses are not implemented.
-- Cookie/session issuance, secure cookie flags, CSRF, origin validation, expiry/revocation enforcement and logout endpoints are not implemented.
-- Role-based access checks, bootstrap-owner provisioning, recovery, MFA policy and session rotation are not implemented.
+- Login attempts now use a persistent fixed-window counter keyed by a caller-supplied opaque hash; HTTP-derived IP/account keying is not wired yet. Brute-force and distributed credential-stuffing defenses still need route-level validation.
+- Session issue/resolve/revoke primitives exist in the auth service, but HTTP login/logout endpoints, secure cookie flags, CSRF, origin validation and request token extraction are not implemented.
+- Initial role-based access checks and one-time bootstrap-owner service exist; route-level enforcement, recovery, MFA policy and session rotation are not implemented.
 - Secret redaction, structured audit write path, log retention, abuse throttles and security headers are not yet wired into HTTP routes.
 - D1 migration execution, transaction boundaries, concurrency, backup/restore and recovery have not been tested.
 - Telegram identity linking, callback replay protection, Android secure storage and client compromise scenarios remain open.

@@ -6,6 +6,12 @@ For each scenario record: reference release/commit, environment, request/action,
 
 ## Initial scenarios
 
+- Initial owner bootstrap requires a configured 32+ character secret and is one-time under the store's conditional insert.
+- Login uses a uniform unauthorized result for missing users, wrong passwords and disabled principals; persistent rate limiting returns 429 after the configured attempt ceiling.
+- Sessions store only token hashes, expire at the configured UTC deadline, reject revoked/expired sessions, and support logout/revocation.
+- RBAC denies inactive principals and role-inappropriate actions. These are initial imoxy policy tests, not verified Nova policy.
+
+
 - Account domain service refuses construction without an explicit authorization policy.
 - Denied account operations do not reach persistence; create/update/delete mutations include actor, action and request audit metadata.
 - Account creation sets server-controlled IDs/timestamps and defaults; update rejects unknown or empty fields; missing reads/deletes return not-found.
