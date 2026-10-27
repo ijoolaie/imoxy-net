@@ -6,6 +6,11 @@ For each scenario record: reference release/commit, environment, request/action,
 
 ## Initial scenarios
 
+- Domain validation rejects unknown fields and internal-role injection.
+- Username constraints, UTC timestamps, quota safe-integer bounds, nullable limits, and notes length have unit tests.
+- The initial D1 schema defines principals/sessions, proxy accounts, subscription-token hashes, daily usage, installation settings, provider-resource metadata and audit events. Migration execution, concurrent writes, backups and restore are not yet verified.
+- Reference scenarios are enumerated in [reference-scenarios.md](reference-scenarios.md); all remain unrun against the pinned reference.
+
 - Health endpoint returns a stable, uncached JSON response.
 - Unknown routes return a structured not-found response.
 - Authentication tests cover valid, invalid, expired and revoked sessions.

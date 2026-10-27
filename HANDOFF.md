@@ -1,53 +1,45 @@
 # imoxy-net — HANDOFF
 
-> Living hand-off. Update every session. The recorded branch SHA is the head observed immediately before this hand-off edit; editing this file creates a new commit, so always re-query GitHub after the edit.
+> Living hand-off. Update every session. Re-query the branch head after editing this file because the edit itself creates a new commit.
 
 ## Current status (2026-10-27)
 - **Repository:** https://github.com/ijoolaie/imoxy-net (private)
-- **Working branch:** `chore/rebuild-foundation`
-- **Pull request:** https://github.com/ijoolaie/imoxy-net/pull/1
-- **PR state at last check:** open, not merged. Latest metadata query after the AGENTS.md update returned `mergeable: false`; re-check why before considering merge.
-- **Branch head observed immediately before this hand-off edit:** `24922bad8804b8caaf2af37eabe6ba7116f2a502`
-- **CI:** CI for `fe696735c4149deab297169d76e62aba09db0bea` completed successfully (run 40464587527). The roadmap and README commits after that SHA still require CI validation; do not infer their status.
-- **Product status:** foundation only; not behaviorally equivalent to the reference and not production deployed.
+- **Merged foundation PR:** [#1](https://github.com/ijoolaie/imoxy-net/pull/1), squash merge commit `2142591abdc863d7f7ab85f36a395fd7a8bc82a1`.
+- **Current work branch:** `feat/domain-contract-and-schema`.
+- **Branch head before this hand-off edit:** `ff635be3837eb09c4d5229e67e2a324149d8f1dc`.
+- **CI:** PR #1 head `995fd4e7dd941502e9ab84ab9fc6719be10e736e` passed CI (run 40465498032). Main merge commit `2142591abdc863d7f7ab85f36a395fd7a8bc82a1` passed CI (run 40466075513). Feature branch run 40466483118 targets `ff635be3837eb09c4d5229e67e2a324149d8f1dc`; its `npm run verify` step passed, but the overall job was still in cleanup at last query. The branch has since received fixes for literal-newline formatting and empty PATCH validation; re-check CI on the new exact head.
+- **Product status:** still a foundation; no behavioral parity claim, no production deployment, no live Cloudflare writes.
 
-## Goal
-Build an independently implemented product with behavior matching a pinned reference release before adding imoxy-specific changes. The web panel, Telegram bot and Android APK must share domain services. Required workflows: panel only; Cloudflare resources/settings only; panel plus Cloudflare resources/settings.
+## Product target
+Independently implement behavior matching Nova Proxy 5.0.0 (pinned commit `ad2116aa89f8c7db8248f8142c1432900d835eb7`) before imoxy-specific improvements. Keep the web panel, Telegram bot and Android APK on shared domain services and the same authorization/quota rules. Support panel-only, Cloudflare-only, and combined modes.
 
-## Completed
-- Minimal Worker foundation with `GET /health` and `GET /api/v1/capabilities`.
-- Node built-in tests for health, capability reporting, unknown routes and unsupported methods.
-- GitHub Actions CI workflow and initial project documentation.
-- `docs/reference-baseline.md`: reference version 5.0.0, pinned commit, published worker checksum and documented behavior hypotheses.
-- `AGENTS.md`: engineering, compatibility, security, licensing and documentation rules.
-- `docs/roadmap.md`: 14 phases from governance and reference characterization through core services, Cloudflare, web, Telegram, Android, certification and imoxy-specific improvements.
-- README links to the roadmap and engineering records.
-- `HANDOFF.md`: restart instructions and evidence-based status.
-- `AGENTS.md`: every response about repository work must end with a schematic overall-progress report and explicit status for all 14 roadmap phases; do not use unsupported percentages.
-- CI for commits `7c6383ae8bfc4f2f32ef2f86605e07328fcd9191`, `216790977ca6917adac707b765deb7feafcd0db2`, and `fe696735c4149deab297169d76e62aba09db0bea` was reported successful. Only the last of these was queried in this session; later commits need their own results.
+## Changes in the current feature branch
+- Added `migrations/0001_initial.sql`: proposed D1 schema for control-plane principals/sessions, proxy accounts, subscription token hashes, daily usage, installation settings, Cloudflare resource metadata and audit events.
+- Added `src/domain/validation.js` and `test/domain-validation.test.js`: shared account input validation with strict field allowlist, username constraints, UTC timestamp validation, non-negative safe integer limits, and tests.
+- Added `docs/api-contract.md`: v1 conventions, error envelope, planned resource endpoints, operating modes, and shared authorization requirements.
+- Added `docs/reference-scenarios.md`: 28 prioritized black-box scenarios based on documented upstream feature claims. They are hypotheses, not runtime verification.
+- Updated parity matrix, acceptance plan, decision log, roadmap and README to link scenarios and reflect actual progress.
+- Validation bugs found by test design and fixed: JavaScript date parsing can normalize invalid calendar days, so the validator compares normalized and submitted calendar dates; empty PATCH payloads are rejected. Removed an unnecessary PRAGMA from the initial D1 migration.
 
-## Reference baseline and licensing
-- Upstream: https://github.com/IRNova/Nova-Proxy
-- Target: version 5.0.0; release date shown as 2026-10-21.
-- Pinned reference commit: `ad2116aa89f8c7db8248f8142c1432900d835eb7`.
-- Published worker SHA-256: `239f1b358c1a511da1bf0103c995d746a55b6d532ed9af1ead1febeac4566935`.
-- Upstream license observed: PolyForm Noncommercial 1.0.0. Upstream README says versions through 4.2.0 were MIT and Nova-authored changes from 4.3.0 onward are PolyForm Noncommercial.
-- Implement behavior independently. Do not copy protected source/assets. Review commercial and distribution rights before release.
+## Still missing
+- The new code has not yet been confirmed by CI on the current final branch SHA at the time of writing.
+- No D1 migration has been executed; no storage adapter or migration/recovery tests exist.
+- Authentication, session endpoints, account CRUD API, quota enforcement, subscriptions, protocol generation, Cloudflare adapter, web panel, Telegram bot and Android APK remain unimplemented.
+- Reference black-box scenarios have not been run against a live authorized Nova 5.0.0 instance.
+- No legal opinion has been obtained about commercial distribution under the observed PolyForm Noncommercial 1.0.0 license.
+- No production deployment or live Cloudflare mutation has occurred.
 
-## Known limitations
-- Authentication/session management, accounts, quotas, subscription generation, proxy protocols/transports, Cloudflare provisioning, Telegram bot, web panel and Android client are not implemented.
-- The parity matrix remains unassessed except for minimal foundation tests; those tests do not establish compatibility.
-- No live Cloudflare mutations or deployment were performed.
-- Do not merge PR #1 until the complete diff is reviewed and checks pass on the exact final head.
+## Pull request
+- PR #2: https://github.com/ijoolaie/imoxy-net/pull/2, open and not merged. The PR head is updated with the branch. Do not merge until CI finishes successfully on the exact latest head and the patch is reviewed.
 
 ## Next actions
-1. Query PR #1 and CI for the exact current head after the latest AGENTS.md and hand-off commits; investigate the renewed `mergeable: false` status before any merge consideration.
-2. In every user-facing response about this repository, append a schematic project progress report covering Phase 0 through Phase 13, as required by `AGENTS.md`.
-3. Review the complete PR diff, especially the roadmap and governance docs; resolve remaining checks or mergeability issues.
-4. Start Phase 1: source each required behavior, turn the parity matrix into prioritized black-box scenarios, and record documented versus independently verified behavior.
-5. Prioritize install/bootstrap, authentication, account model, subscription formats, and core protocol/transports for characterization.
-6. Implement one small slice at a time; test it; update the parity matrix, acceptance plan, decision log, roadmap, and this hand-off.
-7. Report only verified outcomes; never claim parity or production readiness without corresponding tests.
+1. Re-query the exact feature branch SHA and CI status after this hand-off commit.
+2. Run/review the unit tests and SQL migration in an actual SQLite/D1-compatible test environment; fix any failures before opening/merging the next PR.
+3. Continue Phase 1 with runtime evidence for high-priority reference scenarios, while preserving clean-room implementation.
+4. Implement the storage adapter and migrations/recovery tests (Phase 4) and then the security/session layer (Phase 3) with fail-closed behavior.
+5. Implement account CRUD through shared domain services with persistence, authorization, audit events and quota enforcement before building the three clients.
+6. Open a small PR for this slice only after exact-head CI passes; do not merge feature work with unresolved checks.
+7. Update this hand-off and the schematic phase report at the end of every repository-work response.
 
-## Mandatory rule
-At every session end, update this file with date, exact branch/commit state, changed files, test results, PR/CI state, blockers and next action. Never infer CI success from an older SHA.
+## Mandatory progress reporting
+Every user-facing response about repository work ends with a schematic status report for every phase 0–13. Use only evidence-backed statuses and do not claim phase completion without its exit gate.
