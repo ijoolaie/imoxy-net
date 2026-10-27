@@ -17,3 +17,8 @@ Unimplemented endpoints must not return fake success. Current implementation is 
 ## 2026-10-27 — parameterized D1 access and audited mutations
 
 Account persistence uses prepared statements and a fixed field-to-column allowlist. Mutations require an audit event and use D1 batch operations to keep the account write and audit insert together. Current tests use a mocked D1-compatible binding; real D1 migration and concurrency behavior still require integration validation.
+
+
+## 2026-10-27 — provisional UTC quota accounting
+
+The first quota policy evaluates total and daily usage in UTC, treats null limits as unlimited and equality with the quota as allowed. This is an imoxy baseline, not a Nova parity claim. REF-006–008 must establish upstream expiry/quota boundaries, timezone and accounting semantics before compatibility is frozen. Hard enforcement is blocked on data-plane integration and atomic reservation/idempotency design.

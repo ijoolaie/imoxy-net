@@ -5,45 +5,44 @@
 ## Current status (2026-10-27)
 - Repository: https://github.com/ijoolaie/imoxy-net (private).
 - Merged PR #1: repository foundation and CI.
-- Merged PR #2: API/domain contract, D1 schema draft, account validation and 28 reference scenarios.
+- Merged PR #2: API/domain contract, D1 schema draft, validation and 28 reference scenarios.
 - Merged PR #3: password/session crypto and threat model.
 - Merged PR #4: D1 account storage adapter and mocked tests.
 - Merged PR #5: authorization-gated account service.
-- Merged PR #6: auth/session service, one-time owner bootstrap, persistent rate limits and initial RBAC; CI passed on exact final head 5d68d1ec1662a026ed2b8d63b8dde2a4324af709.
-- Current work branch: feat/http-auth-routes.
-- Branch head before this hand-off edit: 5f96e57e468125bc01f035b98bd31571c03487d3.
-- Current feature work: HTTP auth/session and account CRUD routes, cookie/origin protections, route tests, D1 setup docs. The first CI run (40468281503) failed two tests: pagination validation was missing its ValidationError import, and the legacy 404 test expected the old string error. Both are fixed in commits 9090e47b8adaf97f876b626d4194c840a43d9062 and 5f96e57e468125bc01f035b98bd31571c03487d3. Re-check CI on the new exact head.
+- Merged PR #6: auth/session service, one-time owner bootstrap, persistent rate limits and initial RBAC.
+- Merged PR #7: HTTP auth/session and account CRUD routes with secure cookie/origin controls; CI run 40468360634 passed with 47 tests.
+- Current work branch: feat/quota-usage.
+- Branch head before this hand-off edit: ab3529e259f95de342a5e3e8f997c57150b64780.
+- Current feature work: quota policy service, D1 usage counters and authorized usage-summary route. Exact-head CI must be checked after this edit.
 - Product status: no Nova runtime parity claim, no production deployment, no live Cloudflare writes.
 
 ## Product target
 Independently implement behavior matching Nova Proxy 5.0.0 (pinned commit ad2116aa89f8c7db8248f8142c1432900d835eb7) before imoxy-specific improvements. Web panel, Telegram bot and Android APK share domain services and authorization/quota rules. Support panel-only, Cloudflare-only, and combined modes.
 
 ## Current branch work
-- Added src/http/api.js and routed worker.js through it.
-- Routes: GET /health, GET /api/v1/capabilities, POST /api/v1/auth/bootstrap, POST /api/v1/auth/login, GET /api/v1/auth/me, POST /api/v1/auth/logout, and account list/create/read/update/delete routes.
-- Browser login uses Secure, HttpOnly, SameSite=Strict __Host cookie and does not return the raw token in JSON. Requests without Origin receive a bearer token for native/server clients. Cookie-authenticated mutations require a same-origin Origin header.
-- Login/bootstrap rate limits derive HMAC-SHA-256 hashes for both request IP and normalized username; raw IP/username keys are not persisted.
-- JSON parsing enforces content type and a 16 KiB body limit. API responses set no-store, nosniff, referrer and restrictive CSP headers and use structured safe error envelopes.
-- Account routes call the shared account service, which requires authentication and uses the initial RBAC policy before reaching persistence.
-- Updated D1 setup docs with binding and secret requirements. No deployment or migration has been run.
+- Added src/domain/quota-service.js to evaluate active/expired accounts, total and daily quotas, projected byte additions, and measured usage deltas.
+- Added D1 usage-summary queries and atomic per-account/per-UTC-day usage upserts.
+- Added GET /api/v1/accounts/:id/usage?date=YYYY-MM-DD with session authentication, usage.read permission, account existence check and strict UTC calendar-date validation.
+- Added quota service and D1 usage tests for exact-limit/over-limit boundaries, unlimited/zero quotas, expired/disabled accounts, UTC date storage, invalid deltas and impossible calendar dates.
+- Added docs/quota-policy.md. It explicitly says this is a provisional imoxy baseline, not verified Nova behavior, and not hard data-plane enforcement.
+- Updated roadmap, acceptance plan, API contract, decision log and README.
 
 ## Known gaps
-- Exact-head CI has not yet been confirmed for this branch.
-- D1 migrations, session behavior and account persistence are tested with mocks only; actual D1 integration, migration execution, concurrency, backup/restore and rollback are unverified.
-- Auth bootstrap requires careful production exposure policy; remove BOOTSTRAP_OWNER_SECRET after initial setup. The route is protected by a 32+ character secret and HMAC rate limits, but real abuse tests are still required.
-- No quota enforcement/usage accounting, subscriptions, proxy protocol/transport generation, Cloudflare resource workflow, web panel, Telegram bot or Android APK.
+- Exact-head CI is not yet confirmed for this branch.
+- D1 migration/schema and batch semantics are still only mock-tested; no real D1 migration, concurrency, backup/restore or rollback test has run.
+- Quota service is not integrated into a proxy data plane. No atomic quota reservations or idempotent usage event IDs exist, so hard concurrent enforcement is not available.
+- Subscription generation, protocol/transport rendering, Cloudflare workflows, web panel, Telegram bot and Android APK remain unimplemented.
 - Reference scenarios have not been executed against an authorized running Nova 5.0.0 instance.
 - Commercial distribution requires separate review of the observed PolyForm Noncommercial 1.0.0 terms.
 
 ## Next actions
-1. Query exact feature branch SHA and CI after this hand-off edit; confirm both CI fixes pass.
-2. Review all auth routes, particularly browser/native transport behavior, rate limiting, origin checks, error handling and bootstrap lifecycle.
-3. Add real D1 integration tests for migrations, constraints, batch/audit behavior, rate-limit counters, session revocation and backup/restore.
-4. Implement quota/usage services and subscription token lifecycle; then independently implement required proxy protocol/transport output.
-5. Characterize the pinned Nova runtime and execute high-priority black-box scenarios; update parity matrix only with reproducible evidence.
-6. Build Cloudflare integration read-only/mock-first with previews, explicit confirmation, least privilege and rollback.
-7. Build web, Telegram and Android interfaces only over the shared API/domain services.
-8. End every repository-work response with a schematic status report for phases 0–13.
+1. Query exact feature branch SHA and CI after this hand-off edit; fix any failures before merge.
+2. Add real D1 migration and integration tests, then backup/restore and concurrency checks.
+3. Add idempotent usage-event ingestion and atomic reservation semantics before claiming hard quota enforcement.
+4. Characterize reference quota/subscription/protocol behavior and implement those formats independently.
+5. Build the Cloudflare adapter read-only/mock-first, then the web panel, Telegram bot and Android client on shared services.
+6. Execute parity scenarios, security/reliability tests and controlled release gates.
+7. End every repository-work response with a schematic status report for phases 0–13.
 
 ## Mandatory progress reporting
 Every user-facing response about repository work ends with an evidence-based schematic report for every phase 0–13. Never claim completion without the phase exit gate.

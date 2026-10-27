@@ -6,6 +6,12 @@ For each scenario record: reference release/commit, environment, request/action,
 
 ## Initial scenarios
 
+- Total/daily quota equality is allowed; projected overage is denied, with total-quota failure taking precedence when both dimensions exceed.
+- Disabled/expired accounts are denied; null quotas are unlimited and zero quotas deny positive traffic.
+- Usage deltas are non-negative safe integers, stored per UTC day, and usage summaries validate calendar dates.
+- The current quota service is only a policy primitive: concurrent hard enforcement, idempotent reports, and actual proxy data-plane measurement remain unverified. See docs/quota-policy.md.
+
+
 - Initial owner bootstrap requires a configured 32+ character secret and is one-time under the store's conditional insert.
 - Login uses a uniform unauthorized result for missing users, wrong passwords and disabled principals; persistent rate limiting returns 429 after the configured attempt ceiling.
 - Sessions store only token hashes, expire at the configured UTC deadline, reject revoked/expired sessions, and support logout/revocation.

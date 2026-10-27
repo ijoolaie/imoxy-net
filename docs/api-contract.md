@@ -37,7 +37,7 @@ The `fields` member is optional. Error messages are safe for clients and must no
 | Principals | `GET/POST /principals`, `PATCH/DELETE /principals/:id` | Owner/admin policy; password/session revocation |
 | Proxy accounts | `GET/POST /accounts`, `GET/PATCH/DELETE /accounts/:id` | Shared expiry/quota rules; audited mutations |
 | Subscriptions | `POST /accounts/:id/subscriptions`, `POST /subscriptions/:id/revoke` | Store token hashes only; never return a stored secret |
-| Usage | `GET /accounts/:id/usage` | Explicit timezone/day boundary and bounded ranges |
+| Usage | `GET /accounts/:id/usage?date=YYYY-MM-DD` | Read-only, `usage.read` permission, UTC date validation; write accounting remains internal and proxy enforcement is not yet wired |
 | Cloudflare | `GET /providers/cloudflare/resources`, preview and confirm routes | Read-first; writes require least privilege, preview hash, explicit confirmation and audit |
 | Audit | `GET /audit-events` | Authorized, filtered, bounded retention, secret redaction |
 | Capabilities | `GET /capabilities` | Must report implemented features truthfully |

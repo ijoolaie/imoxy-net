@@ -13,6 +13,12 @@ const ACCOUNT_SELECT = `SELECT id, username, status, expires_at, quota_bytes,
   daily_quota_bytes, speed_limit_kbps, max_connections, notes, created_at, updated_at
   FROM proxy_accounts`;
 
+function isValidUsageDate(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const timestamp = Date.parse(value + "T00:00:00.000Z");
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value;
+}
+
 function toAccount(row) {
   if (!row) return null;
   return {
@@ -262,6 +268,46 @@ export function createD1Store(db) {
 
     async clearAuthAttempts(keyHash) {
       await db.prepare("DELETE FROM auth_rate_limits WHERE key_hash = ?").bind(keyHash).run();
+    },
+
+    async getUsageSummary(accountId, usageDate) {
+      if (typeof accountId !== "string" || !accountId ||
+          !isValidUsageDate(usageDate)) {
+        throw new TypeError("A valid account ID and UTC usage date are required.");
+      }
+      const row = await db.prepare(`SELECT
+        COALESCE(SUM(upload_bytes + download_bytes), 0) AS total_bytes,
+        COALESCE(SUM(CASE WHEN usage_date = ? THEN upload_bytes + download_bytes ELSE 0 END), 0) AS daily_bytes,
+        COALESCE(SUM(request_count), 0) AS request_count
+        FROM usage_daily WHERE account_id = ?`).bind(usageDate, accountId).first();
+      const totalBytes = Number(row?.total_bytes ?? 0);
+      const dailyBytes = Number(row?.daily_bytes ?? 0);
+      const requestCount = Number(row?.request_count ?? 0);
+      if (![totalBytes, dailyBytes, requestCount].every(Number.isSafeInteger) ||
+          totalBytes < 0 || dailyBytes < 0 || requestCount < 0) {
+        throw new Error("Usage counters exceed the supported safe-integer range.");
+      }
+      return { accountId, usageDate, totalBytes, dailyBytes, requestCount };
+    },
+
+    async recordUsage({ accountId, usageDate, uploadBytes, downloadBytes, requestCount = 1, updatedAt }) {
+      if (typeof accountId !== "string" || !accountId ||
+          typeof usageDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(usageDate) ||
+          new Date(usageDate).toISOString().slice(0, 10) !== usageDate ||
+          ![uploadBytes, downloadBytes, requestCount].every((value) => Number.isSafeInteger(value) && value >= 0) ||
+          typeof updatedAt !== "string" || !Number.isFinite(Date.parse(updatedAt))) {
+        throw new TypeError("Usage record fields are invalid.");
+      }
+      await db.prepare(`INSERT INTO usage_daily
+        (account_id, usage_date, upload_bytes, download_bytes, request_count, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(account_id, usage_date) DO UPDATE SET
+          upload_bytes = usage_daily.upload_bytes + excluded.upload_bytes,
+          download_bytes = usage_daily.download_bytes + excluded.download_bytes,
+          request_count = usage_daily.request_count + excluded.request_count,
+          updated_at = excluded.updated_at`).bind(
+        accountId, usageDate, uploadBytes, downloadBytes, requestCount, updatedAt
+      ).run();
     },
   };
 }
