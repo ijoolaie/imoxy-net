@@ -136,6 +136,8 @@ export function createTelegramWebhookHandler({
       const userId = telegramUserId(update);
       const command = commandName(update?.message?.text);
       if (!chatId || !userId || !command) return json({ ok: true, ignored: true });
+      // Account metadata must never be posted into group chats, even by an allowlisted user.
+      if (update?.message?.chat?.type !== "private") return json({ ok: true, ignored: true });
       if (!allowedIds(env).has(userId)) return json({ ok: true, ignored: true });
       if (!Number.isSafeInteger(update.update_id) || update.update_id < 0) {
         return json({ error: "invalid_update" }, 400);

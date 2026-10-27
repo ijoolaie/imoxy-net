@@ -77,7 +77,7 @@ test("API and Telegram read-only listing expose the same account identities and 
     },
     body: JSON.stringify({
       update_id: 77,
-      message: { from: { id: 12345 }, chat: { id: 12345 }, text: "/accounts" }
+      message: { from: { id: 12345 }, chat: { id: 12345, type: "private" }, text: "/accounts" }
     })
   }), {
     DB: replayDb,
