@@ -44,3 +44,8 @@ Upstream README's summary and release-notes paragraph have historically shown in
 ## Authentication implementation note — 2026-10-27
 
 An imoxy-only regression fix ensures successful login clears each IP/username rate-limit key separately. It does not establish equivalence with Nova Proxy; REF-003–004 remain pending live black-box characterization.
+
+
+## Usage accounting implementation note — 2026-10-27
+
+Imoxy rejects a combined upload/download delta that exceeds the JavaScript safe-integer range before persistence. This is a defensive implementation choice, not verified Nova behavior; REF-007–008 remain pending.
