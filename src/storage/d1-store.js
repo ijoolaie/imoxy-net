@@ -292,8 +292,7 @@ export function createD1Store(db) {
 
     async recordUsage({ accountId, usageDate, uploadBytes, downloadBytes, requestCount = 1, updatedAt }) {
       if (typeof accountId !== "string" || !accountId ||
-          typeof usageDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(usageDate) ||
-          new Date(usageDate).toISOString().slice(0, 10) !== usageDate ||
+          !isValidUsageDate(usageDate) ||
           ![uploadBytes, downloadBytes, requestCount].every((value) => Number.isSafeInteger(value) && value >= 0) ||
           typeof updatedAt !== "string" || !Number.isFinite(Date.parse(updatedAt))) {
         throw new TypeError("Usage record fields are invalid.");
