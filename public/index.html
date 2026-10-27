@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Imoxy control panel for account and Cloudflare inventory management.">
+  <title>Imoxy · Control Panel</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Imoxy home"><span class="brand-mark">i</span><span>imoxy<span class="muted">.net</span></span></a>
+    <div class="topbar-meta"><span class="eyebrow">CONTROL PANEL</span><span id="modeBadge" class="mode-badge">Checking mode…</span></div>
+  </header>
+
+  <main class="layout">
+    <section class="intro">
+      <p class="eyebrow">PROXY OPERATIONS</p>
+      <h1>One control plane.<br><span>Shared by every client.</span></h1>
+      <p class="lede">Manage accounts and inspect connected Cloudflare resources from the same API-backed workspace.</p>
+    </section>
+
+    <div id="status" class="status" role="status" aria-live="polite">Connecting to the API…</div>
+
+    <section id="loginPanel" class="panel auth-panel" hidden>
+      <div class="section-heading"><div><p class="eyebrow">SECURE ACCESS</p><h2>Sign in</h2></div><span class="lock-mark" aria-hidden="true">⌑</span></div>
+      <p class="muted">Use your administrator account. Browser sessions are held in an HttpOnly secure cookie.</p>
+      <form id="loginForm" class="form-stack">
+        <label for="username">Username</label>
+        <input id="username" name="username" autocomplete="username" required minlength="3" maxlength="64">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required minlength="1" maxlength="1024">
+        <button class="primary" type="submit">Sign in <span aria-hidden="true">→</span></button>
+      </form>
+    </section>
+
+    <section id="appPanel" hidden>
+      <div class="section-heading workspace-heading">
+        <div><p class="eyebrow">WORKSPACE</p><h2 id="welcome">Accounts</h2></div>
+        <div class="button-row"><button id="reloadAccounts" class="secondary" type="button">Refresh</button><button id="logout" class="quiet" type="button">Sign out</button></div>
+      </div>
+
+      <section class="panel">
+        <div class="section-heading"><div><p class="eyebrow">ACCOUNT DIRECTORY</p><h3>Proxy accounts</h3></div><span id="accountCount" class="count-badge">0</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Account</th><th>Status</th><th>Expires</th><th>Total quota</th><th>Daily quota</th><th>Usage</th></tr></thead>
+            <tbody id="accountRows"><tr><td colspan="6" class="empty">Sign in to load accounts.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-heading"><div><p class="eyebrow">ACCOUNT LIFECYCLE</p><h3>Create account</h3></div><span class="step-number">01</span></div>
+        <form id="createAccountForm" class="account-form">
+          <div class="field"><label for="newUsername">Username</label><input id="newUsername" name="username" required minlength="3" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" placeholder="customer_01"></div>
+          <div class="field"><label for="expiresAt">Expiry (optional)</label><input id="expiresAt" name="expiresAt" type="datetime-local"></div>
+          <div class="field"><label for="quotaBytes">Total quota in bytes</label><input id="quotaBytes" name="quotaBytes" type="number" min="0" step="1" placeholder="Unlimited"></div>
+          <div class="field"><label for="dailyQuotaBytes">Daily quota in bytes</label><input id="dailyQuotaBytes" name="dailyQuotaBytes" type="number" min="0" step="1" placeholder="Unlimited"></div>
+          <div class="field field-wide"><label for="notes">Notes</label><input id="notes" name="notes" maxlength="500" placeholder="Optional internal note"></div>
+          <div class="form-actions field-wide"><p class="muted small">Credentials, subscription links and protocol settings are managed in separate workflows.</p><button class="primary" type="submit">Create account <span aria-hidden="true">+</span></button></div>
+        </form>
+      </section>
+
+      <section id="cloudflarePanel" class="panel" hidden>
+        <div class="section-heading"><div><p class="eyebrow">PROVIDER INSPECTION</p><h3>Cloudflare resources</h3></div><span class="read-only-badge">READ ONLY</span></div>
+        <p class="muted">Inspect resources and generate a dry-run plan. This panel cannot apply changes or delete resources.</p>
+        <div class="button-row"><button id="loadCloudflare" class="secondary" type="button">Load inventory</button></div>
+        <pre id="cloudflareInventory" class="code-output" aria-label="Cloudflare inventory output">No inventory loaded.</pre>
+        <form id="cloudflarePlanForm" class="form-stack">
+          <label for="desiredResources">Desired resource declaration (JSON)</label>
+          <textarea id="desiredResources" rows="6" spellcheck="false">{
+  "desired": {
+    "kvNamespaces": [],
+    "d1Databases": [],
+    "dnsRecords": [],
+    "workerScripts": []
+  }
+}</textarea>
+          <button class="secondary" type="submit">Preview plan</button>
+        </form>
+        <pre id="cloudflarePlan" class="code-output" aria-label="Cloudflare dry-run plan output">No plan generated.</pre>
+      </section>
+    </section>
+
+    <section class="footnote">
+      <span class="status-dot" aria-hidden="true"></span>
+      <p>API-backed · Same-origin browser session · No provider writes from this panel</p>
+      <span id="requestMode" class="muted small">Mode: —</span>
+    </section>
+  </main>
+</body>
+</html>
