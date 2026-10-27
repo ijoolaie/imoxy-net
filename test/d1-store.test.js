@@ -129,3 +129,46 @@ test("usage date validation rejects impossible calendar days", async () => {
     downloadBytes: 0, requestCount: 1, updatedAt: "2026-10-27T12:00:00.000Z"
   }), TypeError);
 });
+
+test("subscription creation batches a token-hash record with an audit event", async () => {
+  const db = makeDb({ firstRow: {
+    id: "sub-1", account_id: "acct-1", token_hash: "hashed-token-only",
+    formats_json: '["auto"]', created_at: "2026-10-27T12:00:00.000Z",
+    expires_at: null, revoked_at: null, last_accessed_at: null
+  }});
+  const store = createD1Store(db);
+  const result = await store.createSubscription({
+    id: "sub-1", accountId: "acct-1", tokenHash: "hashed-token-only",
+    formats: ["auto"], createdAt: "2026-10-27T12:00:00.000Z"
+  }, {
+    id: "audit-sub-1", action: "subscription.created", createdAt: "2026-10-27T12:00:00.000Z"
+  });
+  assert.equal(result.id, "sub-1");
+  assert.equal(result.tokenHash, "hashed-token-only");
+  const insert = db.calls.find((call) => call.sql?.includes("INSERT INTO subscriptions"));
+  assert.equal(insert.values.includes("raw-subscription-token"), false);
+  assert.deepEqual(db.calls.find((call) => call.batch), { batch: 2 });
+});
+
+test("subscription token lookup joins account status and parses allowed formats", async () => {
+  const db = makeDb({ firstRow: {
+    subscription_id: "sub-1", account_id: "acct-1", token_hash: "hash",
+    formats_json: '["auto","base64"]', subscription_created_at: "2026-10-27T12:00:00.000Z",
+    subscription_expires_at: null, revoked_at: null, last_accessed_at: null,
+    account_username: "customer_01", account_status: "active", account_expires_at: null,
+    quota_bytes: 1000, daily_quota_bytes: 500
+  }});
+  const result = await createD1Store(db).findSubscriptionByTokenHash("hash");
+  assert.equal(result.account.status, "active");
+  assert.deepEqual(result.formats, ["auto", "base64"]);
+  assert.equal(db.calls[0].values[0], "hash");
+});
+
+test("subscription revocation batches state change and audit", async () => {
+  const db = makeDb({ batchResults: [{ meta: { changes: 1 } }, { meta: { changes: 1 } }] });
+  const result = await createD1Store(db).revokeSubscription("sub-1", "2026-10-27T12:00:00.000Z", {
+    id: "audit-sub-revoke", action: "subscription.revoked", createdAt: "2026-10-27T12:00:00.000Z"
+  });
+  assert.equal(result, true);
+  assert.deepEqual(db.calls.find((call) => call.batch), { batch: 2 });
+});
