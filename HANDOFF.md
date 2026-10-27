@@ -10,8 +10,8 @@
 - Merged PR #4: D1 account storage adapter with mocked tests; exact-head CI passed.
 - Merged PR #5: authorization-gated account service; exact-head CI passed.
 - Current work branch: feat/auth-service.
-- Branch head before this hand-off edit: 51dc2ea960e038b7cb2a342ac4f9622018f24e61.
-- Current feature work: auth/session service, D1 principal/session/rate-limit persistence and tests. Exact-head CI must be checked after this edit.
+- Branch head before this hand-off edit: da0fc3a73c7e91aa627a16926d76474b30f4fb32.
+- Current feature work: auth/session service, D1 principal/session/rate-limit persistence and tests. The first exact-head CI run (40467618747) failed due to a missing comma between D1 store methods; the syntax defect was fixed in commit da0fc3a73c7e91aa627a16926d76474b30f4fb32. Re-check CI after this hand-off commit.
 - Product status: no Nova runtime parity claim, no production deployment, no live Cloudflare writes.
 
 ## Product target
@@ -34,7 +34,7 @@ Independently implement behavior matching Nova Proxy 5.0.0 (pinned commit ad2116
 - Commercial distribution requires separate review of the observed PolyForm Noncommercial 1.0.0 terms.
 
 ## Next actions
-1. Query the exact feature branch SHA and CI after this hand-off edit.
+1. Query the exact feature branch SHA and CI after this hand-off edit; confirm the missing-comma syntax fix passes.
 2. Fix all CI/test findings; merge only after exact-head CI passes and the diff is reviewed.
 3. Add route-level origin/CSRF protections, derive rate-limit keys from request context with server-side secret material, and wire login/bootstrap/logout/me routes.
 4. Wire account HTTP routes through the auth service and account service; never bypass the shared authorization policy.
