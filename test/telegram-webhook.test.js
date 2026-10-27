@@ -29,9 +29,13 @@ function fixture({ storeFactory, fetchImpl } = {}) {
   const calls = [];
   const handler = createTelegramWebhookHandler({
     storeFactory: storeFactory ?? (() => ({
+      async getAccount() { return null; },
       async listAccounts() {
         return { items: [{ username: "alpha", status: "active" }, { username: "beta", status: "disabled" }], nextCursor: null };
-      }
+      },
+      async createAccount() { throw new Error("not used"); },
+      async updateAccount() { throw new Error("not used"); },
+      async deleteAccount() { throw new Error("not used"); }
     })),
     fetchImpl: fetchImpl ?? (async (url, init) => {
       calls.push({ url, init, body: JSON.parse(init.body) });
