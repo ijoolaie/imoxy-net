@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createD1Store } from "../src/storage/d1-store.js";
 
-function makeDb({ firstRow = null, allRows = [], batchResults = [] } = {}) {
+function makeDb({ firstRow = null, allRows = [], batchResults = [], runChanges = 1 } = {}) {
   const calls = [];
   const db = {
     calls,
@@ -16,7 +16,7 @@ function makeDb({ firstRow = null, allRows = [], batchResults = [] } = {}) {
         },
         async first() { return firstRow; },
         async all() { return { results: allRows }; },
-        async run() { return { meta: { changes: 1 } }; }
+        async run() { return { meta: { changes: runChanges } }; }
       };
     },
     async batch(statements) {
@@ -114,11 +114,21 @@ test("usage records use an atomic upsert with bounded non-negative counters", as
     downloadBytes: 30, requestCount: 1, updatedAt: "2026-10-27T12:00:00.000Z"
   });
   assert.match(db.calls[0].sql, /ON CONFLICT\(account_id, usage_date\) DO UPDATE/);
+  assert.match(db.calls[0].sql, /usage_daily\.upload_bytes \+ usage_daily\.download_bytes/);
+  assert.match(db.calls[0].sql, /WHERE usage_daily\.upload_bytes <=/);
   assert.deepEqual(db.calls[0].values, ["acct-1", "2026-10-27", 20, 30, 1, "2026-10-27T12:00:00.000Z"]);
   await assert.rejects(() => createD1Store(db).recordUsage({
     accountId: "acct-1", usageDate: "2026-10-27", uploadBytes: -1,
     downloadBytes: 0, requestCount: 1, updatedAt: "2026-10-27T12:00:00.000Z"
   }), TypeError);
+  await assert.rejects(() => createD1Store(db).recordUsage({
+    accountId: "acct-1", usageDate: "2026-10-27", uploadBytes: Number.MAX_SAFE_INTEGER,
+    downloadBytes: 1, requestCount: 1, updatedAt: "2026-10-27T12:00:00.000Z"
+  }), TypeError);
+  await assert.rejects(() => createD1Store(makeDb({ runChanges: 0 })).recordUsage({
+    accountId: "acct-1", usageDate: "2026-10-27", uploadBytes: 1,
+    downloadBytes: 1, requestCount: 1, updatedAt: "2026-10-27T12:00:00.000Z"
+  }), /Usage counters would exceed/);
 });
 
 test("usage date validation rejects impossible calendar days", async () => {
