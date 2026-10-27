@@ -2,55 +2,46 @@
 
 > Living hand-off. Re-query the branch head after editing this file because this edit creates a new commit.
 
-## Current status (2026-10-27)
+## Current state — 2026-10-27
 
-- Current work branch: `feat/android-client-rebased`.
-- PR #14 web panel merged as `cb2974f100e2b8b7ebabdda0a8be07d93361f032`; exact-head CI passed (run 40473756203).
-- PR #16 Telegram read-only webhook merged as `5614847c97d7060e17b519875e38a34717c9bf0a`; exact-head CI passed (run 40474303173).
-- This branch adds a native Android login/account-list client, Android Keystore-backed AES-GCM token storage, HTTPS-only API client, and a debug APK build workflow. Exact-head Node and Android CI must be checked before merge.
-- No production deployment, live Telegram API call, live Cloudflare mutation or production signing occurred.
-
-- Current work branch: `feat/telegram-readonly-bot-rebased`.
-- PR #14 web panel merged as `cb2974f100e2b8b7ebabdda0a8be07d93361f032`; CI passed on exact head `b88ac70f70b07b7ec8afd9fee3bd2ce4c41b4127` (run 40473756203).
-- Telegram work adds a secret-validated webhook, numeric user allowlist, read-only `/start`, `/help`, `/status`, and `/accounts` commands, shared API routing and mocked tests.
-- No Telegram token, live webhook, live Cloudflare API, deployment or production mutation was used. Exact-head CI for the rebased branch must be checked before merge.
 - Repository: https://github.com/ijoolaie/imoxy-net (private).
-- Merged PRs #1–#13: foundation, API/domain contract, security primitives, D1 account adapter, account service, auth/session service, auth/account routes, quota/usage foundations, SQLite migration tests, subscription lifecycle, protocol/Clash generators, and read-only Cloudflare inventory/planning with operating modes.
-- PR #13 exact-head CI passed on 5e96db6b0ff1d6c927a3426d3a9f8a578b95a3c0.
-- Current work branch: feat/web-panel.
-- Branch head before this hand-off edit: 5c6e52f49616f00fa06ec2accd1f2b8da5ba8862.
-- Current work adds a responsive same-origin browser panel, account listing/create, usage readout, Cloudflare inventory/dry-run preview, Workers Assets routing and static CSP. Exact-head CI must be checked after this edit.
-- Product status: no Nova runtime parity claim, no production deployment, no live Cloudflare writes.
+- Product goal: independently implement behaviorally compatible features against pinned Nova Proxy 5.0.0 commit `ad2116aa89f8c7db8248f8142c1432900d835eb7`, then add separately approved imoxy differentiators.
+- Three target interfaces: web panel, Telegram bot, Android APK. They must share API/domain services and authorization/quota rules.
+- Required modes: panel only; Cloudflare resources/settings only; panel + Cloudflare resources/settings.
+- Merged PRs #1–#20 include the initial foundation, API/domain/security/persistence work, account/quota/subscription/protocol foundations, read-only Cloudflare inventory/dry-run plans, early web panel, read-only Telegram webhook, Android login/account-list debug client, pinned-reference evidence register and cross-interface contract tests.
+- Most recent merged code/test PR: #20, commit `ff0de52785baadc5d87bbfb2ccc2f9256a5cccc4`. Exact PR-head CI passed on `ab06dfc9c76ce39b2817adad425a7902984c9431`, run 40476873922.
+- Android debug APK was produced by workflow run 40475130813 as artifact `imoxy-android-debug` (SHA-256 digest recorded by GitHub as `ca898eefefb2dda20f79f799a0d8c18b20b3945d11b5552645e045461dea0912`). It is an unsigned debug artifact, not a production release.
+- Current branch in this session: `docs/phase11-13-gates`. Its changes are not merged yet; exact-head CI must be checked after all edits.
+- No production deployment, live Cloudflare write, live Telegram bot request or Nova runtime test has occurred.
 
-## Product target
-Independently implement behavior matching Nova Proxy 5.0.0 (pinned commit ad2116aa89f8c7db8248f8142c1432900d835eb7) before imoxy-specific improvements. Web panel, Telegram bot and Android APK share domain services and authorization/quota rules. Support panel-only, cloudflare-only and combined modes.
+## Implementation summary
 
-## Current branch work
-- Added public/index.html, public/styles.css and public/app.js. The UI uses same-origin HttpOnly cookie sessions and textContent-based rendering.
-- Login/session restore/logout, account list/create, read-only usage summaries and mode badge are wired to the shared API.
-- Cloudflare inventory and dry-run plan preview are available in Cloudflare-enabled modes; there is no Apply action.
-- Added public/_headers with CSP and static security headers.
-- Worker routes non-API paths through Workers Assets when configured; wrangler.toml.example now documents the binding.
-- Added docs/web-panel.md and updated operations, roadmap, acceptance plan and README.
+- Worker API: health/capability reporting, authentication/session routes, account CRUD foundations, usage/quota foundations, subscription lifecycle, provisional URI/Clash generators, read-only Cloudflare inventory and dry-run planning.
+- Web: same-origin login/session, account list/create, usage summary and Cloudflare inventory/preview; edit/delete, subscription/node UI, audit view, browser E2E and accessibility review remain.
+- Telegram: secret-validated webhook and allowlisted read-only `/start`, `/help`, `/status`, `/accounts`; durable account linking, replay/idempotency and mutating workflows remain.
+- Android: HTTPS-only API configuration, login, encrypted session token using Android Keystore/AES-GCM, account list/refresh and logout; no device test, account mutations, signing or release provenance.
+- Cloudflare: read-only inventory and deterministic dry-run planning only. No apply/delete/write endpoint is enabled.
+- Nova parity: no runtime behavior has been verified. Documentation is treated as a source of hypotheses, not runtime proof.
 
-## Known gaps
-- Exact-head CI is not yet confirmed for this branch.
-- The web panel is a first slice: account edit/disable/delete, subscriptions, nodes/protocol config, audit viewer, browser E2E and accessibility audit are missing.
-- Subscription public delivery and persistent encrypted proxy-node configuration are not wired.
-- Proxy data-plane quota enforcement, atomic reservations and idempotent usage events are not implemented.
-- Cloudflare inventory/planning has only mocked tests; no real account or provider token was used, and no writes are exposed.
-- Telegram bot and Android APK remain unimplemented.
-- Reference scenarios have not been executed against an authorized Nova 5.0.0 runtime.
-- Commercial distribution requires separate review of the observed PolyForm Noncommercial 1.0.0 terms.
+## Latest work — cross-interface and release gates
 
-## Next actions
-1. Query exact branch SHA and CI after this hand-off edit; fix failures before merge.
-2. Add browser E2E/accessibility checks and validate static asset routing on a test Worker.
-3. Implement encrypted proxy-node storage, node CRUD and subscription delivery.
-4. Implement Telegram bot and Android APK as clients of shared services/API.
-5. Add data-plane quota reservation, idempotent usage reports and D1-specific recovery tests.
-6. Execute Nova reference scenarios and release certification; only then consider phase 13 complete.
-7. End every repository-work response with a schematic status report for phases 0–13.
+- Added `test/cross-interface.test.js` comparing API account listing with Telegram read-only output and verifying truthful capability reporting.
+- Added `docs/cross-interface-contracts.md`, `docs/release-certification.md`, and `docs/imoxy-improvements.md`.
+- Updated `docs/roadmap.md` with evidence-backed Phase 0/1/11/12/13 status and linked the supporting artifacts from README.
+- Phase 11 is in progress; only the first API/Telegram contract and capability tests are proven.
+- Phase 12 is blocked by legal/license approval, missing reference runtime evidence, real D1 recovery proof, staging/client E2E and release provenance.
+- Phase 13 is intentionally not started. Candidate improvements are documented but not implemented before the parity/legal gates.
+
+## Highest-priority next actions
+
+1. Query exact head SHA and CI for `docs/phase11-13-gates`; repair any failures and merge only after review and exact-head CI success.
+2. Execute REF-001–REF-032 against an authorized disposable instance of the pinned Nova commit; preserve sanitized input/output/state evidence.
+3. Obtain qualified license/distribution review for the observed PolyForm Noncommercial 1.0.0 terms before distribution or monetization.
+4. Add real D1 migration, backup/restore, concurrency and failure-injection tests.
+5. Add browser E2E/accessibility checks, Android emulator/device smoke tests, Telegram replay protection and durable account linking.
+6. Keep Cloudflare write operations disabled until least privilege, preview approval, idempotency and rollback are tested.
+7. Only after measured parity and legal review, select and implement a Phase 13 candidate from `docs/imoxy-improvements.md`.
 
 ## Mandatory progress reporting
-Every user-facing response about repository work ends with an evidence-based schematic report for every phase 0–13. Never claim completion without the phase exit gate.
+
+Every user-facing response about this repository ends with an evidence-based schematic report for every roadmap phase 0–13. Use only **Not started**, **In progress**, **Blocked**, or **Complete**; do not claim completion without the relevant exit gate.
