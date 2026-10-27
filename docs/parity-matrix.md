@@ -38,3 +38,8 @@ For each row:
 5. Record differences and resolve them before marking **Verified**.
 
 Imoxy now has initial API/domain foundations and early web, Telegram, and Android slices. This implementation status is separate from Nova compatibility: no parity row is verified until repeatable black-box tests pass against the pinned runtime.
+
+
+## Additional imoxy security regression (2026-10-27)
+
+The authentication implementation now clears every HMAC-derived rate-limit key (IP and normalized username) after successful login. A regression test asserts that both counters are cleared. This is an imoxy correctness fix, not evidence of Nova parity; REF-003–004 remain unrun against the pinned runtime.
