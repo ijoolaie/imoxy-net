@@ -15,6 +15,33 @@ async function digest(value) {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
+function cleanText(value, field, max = 253) {
+  if (typeof value !== "string" || !value.trim() || value.length > max || /[\\u0000-\\u001f\\u007f]/.test(value)) {
+    throw new TypeError(`${field} is invalid.`);
+  }
+  return value.trim();
+}
+
+function normalizeResource(type, item) {
+  if (!item || typeof item !== "object" || Array.isArray(item)) throw new TypeError(`${type} items must be objects.`);
+  if (type === "kvNamespaces") return { title: cleanText(item.title, "KV namespace title", 64) };
+  if (type === "d1Databases") return { name: cleanText(item.name, "D1 database name", 64) };
+  if (type === "workerScripts") return { id: cleanText(item.id, "Worker script ID", 128) };
+  if (type === "dnsRecords") {
+    const recordType = cleanText(item.type, "DNS record type", 8).toUpperCase();
+    if (!["A", "AAAA", "CNAME", "TXT"].includes(recordType)) throw new TypeError("DNS record type is unsupported.");
+    const name = cleanText(item.name, "DNS record name", 253);
+    const content = cleanText(item.content, "DNS record content", 2048);
+    if (item.proxied !== undefined && typeof item.proxied !== "boolean") throw new TypeError("DNS proxied must be boolean.");
+    if (item.ttl !== undefined && item.ttl !== null &&
+        (!Number.isSafeInteger(item.ttl) || item.ttl < 1 || item.ttl > 2_147_483_647)) {
+      throw new TypeError("DNS TTL is invalid.");
+    }
+    return { type: recordType, name, content, proxied: item.proxied ?? false, ttl: item.ttl ?? null };
+  }
+  throw new TypeError("Unsupported Cloudflare resource type.");
+}
+
 function normalizeKey(type, item) {
   if (type === "kvNamespaces") return item.title;
   if (type === "d1Databases") return item.name;
@@ -36,7 +63,7 @@ export async function buildCloudflarePlan({ current, desired }) {
   const operations = [];
   const warnings = [
     "This is a dry-run plan; no Cloudflare writes are performed.",
-    "Destructive deletion operations are never generated automatically."
+    "Destructive deletion operations are never generated automatically.",\n    "Worker script content updates are not planned because script source hashes are not available in this inventory."
   ];
   for (const type of SUPPORTED_TYPES) {
     const wanted = desired[type] ?? [];
