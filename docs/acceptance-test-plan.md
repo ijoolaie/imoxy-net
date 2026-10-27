@@ -6,6 +6,11 @@ For each scenario record: reference release/commit, environment, request/action,
 
 ## Initial scenarios
 
+- Static panel assets are served through the Workers Assets binding while /api/* and /health remain routed through the Worker.
+- Browser UI uses same-origin cookie sessions, renders untrusted API values with textContent, and exposes no Cloudflare apply action.
+- Cloudflare UI visibility follows operating mode; browser E2E, accessibility audit and deployed-Worker tests remain pending.
+
+
 - Cloudflare client sends GET only, paginates within a bound, sanitizes provider errors and never echoes credentials.
 - Protected inventory and dry-run plan routes require an authenticated principal; unauthenticated calls never reach the provider client.
 - Dry-run plans mark operations for explicit approval, omit deletions, sanitize resource fields and perform no writes.
