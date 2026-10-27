@@ -33,6 +33,10 @@
 | REF-026 | P2 | Content policy | Ad/tracker blocking and SNI audit toggles | Scope, defaults, false-positive behavior and exact side effects | README feature hypothesis; runtime unknown |
 | REF-027 | P2 | Node naming | Template variables and locale formatting | Supported placeholders, unknown-placeholder behavior and output | README feature hypothesis; runtime unknown |
 | REF-028 | P2 | Localization | English, Persian/RTL and Russian flows | Layout direction, validation, date/number formats and translation fallback | README documents EN/FA/RU in different areas; exact coverage unknown |
+| REF-029 | P0 | Mixed protocol | Generate and import a combined VLESS + Trojan link; simulate one transport being unavailable | Whether a single subscription includes both, client selection/fallback order and failure recovery | README documents mixed protocol; runtime unknown |
+| REF-030 | P1 | Risk / endpoint audit | Compare raw VLESS/Trojan TLS links against Clash, sing-box, Shadowsocks and plaintext outputs; inspect subscription response headers | ECH defaults/migrations, decoy SNI inclusion/exclusion, exact header names/values, endpoint risk labels and secret exposure | Version 5.0.0 README/baseline hypothesis; runtime unknown |
+| REF-031 | P0 | Install/update | Run one-click deployment, Telegram installer and Wrangler path in separate disposable accounts; then test update PR and rollback | Created resources/bindings, required secrets, setup claim, workflow permissions, diff boundaries and recovery | README/package/deploy guide documents these paths; not exercised |
+| REF-032 | P0 | Client compatibility | Import Auto, Base64 and Clash outputs into representative clients and test connect/disconnect plus expired/revoked links | Import success, protocol selection, actual connectivity, refresh/cache behavior and invalid-link errors | README lists formats and clients; runtime unknown |
 
 ## Execution record template
 
