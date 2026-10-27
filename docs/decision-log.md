@@ -53,3 +53,8 @@ The webhook ignores every non-private chat before claiming the update ID or send
 ## 2026-10-27 — clear all authentication rate-limit dimensions on successful login
 
 Login attempts are counted against separate HMAC-derived IP and normalized-username keys. A successful login must clear each key independently, not pass the key array to storage as a single key. A regression test asserts all counters are removed. This is an imoxy implementation correction; upstream rate-limit semantics remain uncharacterized.
+
+
+## 2026-10-27 — reject overflowing combined usage deltas before persistence
+
+Usage reporting validates that upload and download byte deltas individually are non-negative safe integers and that their sum is also a safe integer. Overflow is rejected before storage to avoid precision loss or invalid accounting. This is an imoxy data-integrity safeguard; quota/reporting behavior still requires reference characterization and data-plane integration.
