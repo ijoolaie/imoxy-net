@@ -142,7 +142,8 @@ export function createAuthService({
         lastSeenAt: timestamp
       };
       await store.createSession(session, audit("auth.login", session.id, principal.id, timestamp));
-      await store.clearAuthAttempts(rateLimitKeyHash);
+      const keyHashes = Array.isArray(rateLimitKeyHash) ? rateLimitKeyHash : [rateLimitKeyHash];
+      await Promise.all(keyHashes.map((keyHash) => store.clearAuthAttempts(keyHash)));
       return {
         principal: withoutPasswordHash(principal),
         token: credential.token,

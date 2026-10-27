@@ -39,3 +39,8 @@ The imoxy goal is behavioral compatibility using an independent implementation. 
 ## Known baseline caveat
 
 Upstream README's summary and release-notes paragraph have historically shown inconsistent version text. For this baseline, use the pinned commit, `version.json`, and `package.json` version as the release identifier; re-check before beginning the detailed parity phase.
+
+
+## Authentication implementation note — 2026-10-27
+
+An imoxy-only regression fix ensures successful login clears each IP/username rate-limit key separately. It does not establish equivalence with Nova Proxy; REF-003–004 remain pending live black-box characterization.

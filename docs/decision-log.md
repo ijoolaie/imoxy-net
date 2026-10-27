@@ -48,3 +48,8 @@ The initial Android client stores a bearer token encrypted with AES-GCM under a 
 ## 2026-10-27 — Telegram commands are private-chat-only
 
 The webhook ignores every non-private chat before claiming the update ID or sending a reply, including when the sender is allowlisted. This is an imoxy security/privacy safeguard to avoid exposing account metadata in group conversations; it is not asserted to match Nova Proxy behavior. A regression test covers an allowlisted sender invoking `/accounts` in a supergroup. Main CI passed on `12cfb9f7e8c3f01a07346165bfdeb28c684893da` (run 40495393858). Live Telegram and pinned-reference tests remain pending.
+
+
+## 2026-10-27 — clear all authentication rate-limit dimensions on successful login
+
+Login attempts are counted against separate HMAC-derived IP and normalized-username keys. A successful login must clear each key independently, not pass the key array to storage as a single key. A regression test asserts all counters are removed. This is an imoxy implementation correction; upstream rate-limit semantics remain uncharacterized.

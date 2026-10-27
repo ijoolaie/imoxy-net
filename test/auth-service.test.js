@@ -95,7 +95,9 @@ test("login creates a hashed-token session and returns the raw token only once",
     id: "principal-1", username: "owner_01", passwordHash, role: "owner",
     status: "active", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z"
   });
-  const result = await service.login({ username: "owner_01", password: "correct horse battery staple", rateLimitKeyHash: rateKey });
+  const rateKeys = [rateKey, "second-opaque-rate-limit-key-hash-0123456789"];
+  const result = await service.login({ username: "owner_01", password: "correct horse battery staple", rateLimitKeyHash: rateKeys });
+  assert.equal(state.attempts.size, 0, "successful login clears every IP/username rate-limit counter");
   assert.ok(result.token.length >= 40);
   assert.equal("passwordHash" in result.principal, false);
   assert.notEqual(state.sessions[0].tokenHash, result.token);
