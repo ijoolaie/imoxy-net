@@ -10,7 +10,8 @@ This repository is a foundation, not a feature-complete replacement yet. Only th
 
 - [Phased product roadmap and exit gates](docs/roadmap.md)
 - [Behavioral parity matrix](docs/parity-matrix.md)\n- [Versioned API contract](docs/api-contract.md)
-- [Initial security model and threat assessment](docs/security-model.md)\n- [Prioritized black-box reference scenarios](docs/reference-scenarios.md)
+- [Initial security model and threat assessment](docs/security-model.md)
+- [Quota policy and usage accounting limits](docs/quota-policy.md)\n- [Prioritized black-box reference scenarios](docs/reference-scenarios.md)
 - [Acceptance-test plan](docs/acceptance-test-plan.md)
 - [Architecture](docs/architecture.md)
 - [Reference baseline](docs/reference-baseline.md)
