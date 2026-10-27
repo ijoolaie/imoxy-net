@@ -22,7 +22,9 @@ Status vocabulary: **Not assessed**, **In progress**, **Verified**, **Blocked**,
 | Interfaces | Web panel, Telegram bot, Android APK | Not assessed | Initial web panel and read-only Telegram/Android slices exist; Nova parity and end-to-end workflows are unverified |
 | Workflows | Panel only; Cloudflare only; panel + Cloudflare | Not assessed | REF-022–024; not implemented or runtime-tested |
 
-Detailed prioritized cases and evidence requirements: [reference-scenarios.md](reference-scenarios.md). All cases currently remain unrun against the pinned runtime.\n\n## Verification protocol
+Detailed prioritized cases and evidence requirements: [reference-scenarios.md](reference-scenarios.md). All cases currently remain unrun against the pinned runtime.
+
+## Verification protocol
 
 For each row:
 1. Pin the exact reference release and document the legal basis for use.
