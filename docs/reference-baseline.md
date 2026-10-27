@@ -54,3 +54,8 @@ Imoxy rejects a combined upload/download delta that exceeds the JavaScript safe-
 ## Usage counter hardening note — 2026-10-27
 
 The imoxy D1 adapter now rejects combined deltas outside the safe-integer range and guards per-day aggregate updates against safe-integer overflow. This is a defensive storage behavior, not a Nova compatibility finding. REF-006–008 remain unrun against the pinned runtime; real D1 behavior and replay/idempotency semantics remain unverified.
+
+
+## Schema counter guard note — 2026-10-27
+
+Imoxy migration 0004 adds schema-level triggers rejecting daily usage counters or combined daily bytes above JavaScript's safe-integer range. This is an imoxy storage-integrity choice, not a verified Nova behavior. Migration tests use SQLite; Cloudflare D1 compatibility and pinned-reference accounting semantics remain unverified.

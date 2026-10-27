@@ -63,3 +63,8 @@ Usage reporting validates that upload and download byte deltas individually are 
 ## 2026-10-27 — guard daily usage upserts against counter overflow
 
 The D1 usage adapter validates the combined upload/download delta and uses a conditional atomic upsert so a daily row is not incremented beyond the JavaScript safe-integer range. A zero-row result is surfaced as a range error rather than silently accepted. This protects daily counters but does not make quota enforcement atomic across check-and-forward operations and does not deduplicate retried reports. Idempotency requires a stable caller-provided event ID and an event ledger/unique constraint; inventing one at the service boundary would not deduplicate real retries. Real D1 validation remains required.
+
+
+## 2026-10-27 — enforce daily counter bounds at the schema layer
+
+The adapter's conditional upsert is not the only possible writer to `usage_daily`; therefore migration 0004 adds BEFORE INSERT/UPDATE triggers to enforce the supported safe-integer bound independently of application code. SQLite migration tests cover rejected inserts and updates and confirm failed updates leave the row unchanged. This is defense-in-depth, not a substitute for real D1 testing, idempotency, lifetime aggregate guards, or atomic quota reservation.

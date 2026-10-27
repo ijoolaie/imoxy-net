@@ -38,3 +38,8 @@ Run REF-006 through REF-008 against the pinned Nova release and record:
 ## Counter overflow guard update — 2026-10-27
 
 The adapter-level guard reduces risk of daily counter precision loss, but it is not an atomic quota reservation and does not cap the lifetime aggregate across all daily rows. The store API currently has no stable event identifier, so retries can double-count; idempotency must be designed together with the proxy/data-plane reporting contract rather than inferred from account/date/delta values. Mock adapter tests are not real D1 concurrency evidence.
+
+
+## Schema-level counter guard — 2026-10-27
+
+Migration `0004_usage_daily_safe_integer_guards.sql` adds SQLite/D1 triggers that reject inserts and updates where an individual daily counter exceeds `Number.MAX_SAFE_INTEGER` or the daily upload-plus-download total exceeds it. This is defense-in-depth for writers that bypass the JavaScript adapter. SQLite migration tests cover insert and update rejection; actual Cloudflare D1 migration and trigger behavior still require integration verification. The guard does not solve cross-day lifetime-total overflow, replay idempotency, or atomic quota reservation.
