@@ -67,4 +67,4 @@ The pinned reference documentation describes a single Cloudflare Worker serving 
 
 ## Restricted VLESS handler evidence — 2026-10-28
 
-The current feature branch adds a testable VLESS-over-WebSocket TCP prototype at /proxy/vless with hash-based credential lookup, account status/expiry checks, a strict host/port allowlist, and a Cloudflare TCP socket adapter. Tests use injected WebSocket/socket adapters; no live Cloudflare Worker/D1 smoke test or pinned Nova runtime comparison has been performed. Therefore all protocol/transport compatibility rows remain **Not assessed**, and this prototype must not be counted as verified Nova parity.
+Main now contains a testable VLESS-over-WebSocket TCP prototype at /proxy/vless with hash-based credential lookup, account status/expiry checks, a strict host/port allowlist, and a Cloudflare TCP socket adapter. Tests use injected WebSocket/socket adapters; no live Cloudflare Worker/D1 smoke test or pinned Nova runtime comparison has been performed. Therefore all protocol/transport compatibility rows remain **Not assessed**, and this prototype must not be counted as verified Nova parity.

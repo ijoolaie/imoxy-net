@@ -102,3 +102,12 @@ Record database/runtime details, test commands, outcomes, and commit SHA. SQLite
 - Not implemented: stable event identity, event ledger, replay deduplication, atomic reservations, proxy/data-plane integration.
 - Not verified: real Cloudflare D1 transaction/trigger/concurrency behavior, Nova Proxy runtime parity, or production enforcement.
 - Release implication: Phase 5 remains in progress; Phase 12 remains blocked.
+
+
+## Producer boundary update — 2026-10-28
+
+The restricted VLESS-over-WebSocket handler now identifies the trusted measurement boundary, but does not yet persist usage or enforce quotas. Candidate producer identity is a stable per-installation identifier; each connection gets a random connection ID before any forwarding, and each direction uses a monotonically increasing sequence to form an event ID. The event payload must bind account, UTC date, direction/byte delta, sequence, and connection/producer identity. Retries within the session must reuse the same event ID and immutable payload; never mint a new ID for a retry.
+
+For accounting, upload bytes are observable after the client-to-TCP writer accepts a binary chunk; download bytes are observable when the Worker successfully hands a TCP chunk to the WebSocket send path. The exact counting point and control/response bytes must still be characterized against the pinned Nova runtime. These are candidate boundaries, not yet verified parity semantics.
+
+Quota reservations must be created/extended atomically before forwarding each chunk. A successful forwarding chunk then consumes its reservation and records the idempotent event. If the event write has an ambiguous result, retry the same event ID. If the Worker dies after forwarding but before the event is committed, keep the reservation fail-closed until a reconciliation/recovery process can safely resolve it; do not expire/release such reservations blindly and allow over-quota traffic. Per-day reservation identity must handle UTC day rollover. No event ledger or reservation is implemented yet.
