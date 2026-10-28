@@ -90,12 +90,12 @@ async function settle() {
   for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function harness({ lookup, connectTcp, config = {}, clock = () => NOW, timerCallbacks = null, quotaAllowed = true, quotaSettleFails = false } = {}) {
+function harness({ lookup, connectTcp, config = {}, clock = () => NOW, timerCallbacks = null, quotaAllowed = true, quotaSettleFails = false, quotaReserveFails = false } = {}) {
   const client = new FakeWebSocket();
   const server = new FakeWebSocket();
   const connectCalls = [];
   const storeCalls = [];
-  const quotaCalls = { reserve: [], settle: [] };
+  const quotaCalls = { reserve: [], settle: [], release: [] };
   const handler = createVlessWebSocketHandler({
     storeFactory: () => ({
       async findAccountByCredentialHash(hash) {
@@ -108,6 +108,7 @@ function harness({ lookup, connectTcp, config = {}, clock = () => NOW, timerCall
     quotaServiceFactory: () => ({
       async reserve(input) {
         quotaCalls.reserve.push(input);
+        if (quotaReserveFails) throw new Error("injected reserve failure");
         if (!quotaAllowed) return { allowed: false, reason: "quota_exceeded" };
         return { allowed: true, reservation: { ...input, usageDate: input.at.slice(0, 10), status: "active" } };
       },
@@ -115,6 +116,10 @@ function harness({ lookup, connectTcp, config = {}, clock = () => NOW, timerCall
         quotaCalls.settle.push(input);
         if (quotaSettleFails) throw new Error("injected settlement failure");
         return { applied: true };
+      },
+      async release(input) {
+        quotaCalls.release.push(input);
+        return true;
       }
     }),
     connectTcp: async (destination) => {
@@ -279,4 +284,18 @@ test("ambiguous settlement failure closes the session and does not release the r
   assert.equal(h.quotaCalls.reserve.length, 1);
   assert.equal(h.quotaCalls.settle.length, 1);
   assert.ok(h.server.closeCalls.some((item) => item.code === 1011 && item.reason === "usage_settlement_failed"));
+});
+
+
+test("a reservation with an ambiguous response is released only before any forwarding", async () => {
+  const upstream = fakeSocket();
+  const h = harness({ quotaReserveFails: true, connectTcp: async () => upstream.socket });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest());
+  await settle();
+  assert.equal(h.quotaCalls.reserve.length, 1);
+  assert.equal(h.quotaCalls.release.length, 1);
+  assert.equal(h.quotaCalls.release[0].reservationId, h.quotaCalls.reserve[0].reservationId);
+  assert.deepEqual(upstream.writes, []);
+  assert.ok(h.server.closeCalls.some((item) => item.code === 1011 && item.reason === "quota_reservation_failed"));
 });
