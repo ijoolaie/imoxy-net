@@ -5,6 +5,7 @@ import { parseVlessRequest, VlessProtocolError } from "./vless-parser.js";
 
 const DEFAULT_PATH = "/proxy/vless";
 const MAX_INITIAL_BUFFER_BYTES = 64 * 1024;
+const MAX_QUEUED_CLIENT_BYTES = 1024 * 1024;
 const DEFAULT_INITIAL_HANDSHAKE_TIMEOUT_MS = 10_000;
 const DEFAULT_IDLE_TIMEOUT_MS = 120_000;
 
@@ -75,6 +76,13 @@ function accountIsUsable(account, now) {
   if (account.expiresAt === null || account.expiresAt === undefined || account.expiresAt === "") return true;
   const expiresAt = Date.parse(account.expiresAt);
   return Number.isFinite(expiresAt) && expiresAt > now;
+}
+
+function messageByteLength(data) {
+  if (data instanceof ArrayBuffer) return data.byteLength;
+  if (ArrayBuffer.isView(data)) return data.byteLength;
+  if (typeof Blob !== "undefined" && data instanceof Blob) return data.size;
+  return null;
 }
 
 async function toBytes(data) {
@@ -191,6 +199,7 @@ export function createVlessWebSocketHandler({
         reader: null,
         writer: null,
         writeQueue: Promise.resolve(),
+        queuedClientBytes: 0,
         accountId: null,
         requestCountClaimed: false
       };
@@ -406,7 +415,24 @@ export function createVlessWebSocketHandler({
       };
 
       server.addEventListener("message", (event) => {
-        state.writeQueue = state.writeQueue.then(() => handleMessage(event.data)).catch(() => closeSession(1011, "proxy_session_failed"));
+        const messageBytes = messageByteLength(event.data);
+        if (messageBytes === null) {
+          void closeSession(1003, "binary_messages_required");
+          return;
+        }
+        if (messageBytes > MAX_QUEUED_CLIENT_BYTES ||
+            state.queuedClientBytes + messageBytes > MAX_QUEUED_CLIENT_BYTES) {
+          void closeSession(1009, "client_write_queue_full");
+          return;
+        }
+        state.queuedClientBytes += messageBytes;
+        state.writeQueue = state.writeQueue.then(async () => {
+          try {
+            await handleMessage(event.data);
+          } finally {
+            state.queuedClientBytes = Math.max(0, state.queuedClientBytes - messageBytes);
+          }
+        }).catch(() => closeSession(1011, "proxy_session_failed"));
       });
       server.addEventListener("close", () => { void closeSession(1000, "client_closed"); });
       server.addEventListener("error", () => { void closeSession(1011, "websocket_error"); });
