@@ -284,5 +284,5 @@ Every user-facing response about this repository ends with an evidence-based sch
 ## Credential lifecycle CI failure and correction — 2026-10-28
 
 - Initial exact-head workflow run #477 / ID 40635058518 failed: 128 tests passed and 2 tests failed because two read-only service test doubles (cross-interface and Telegram) lacked the newly required rotateCredential storage method. The failure was in test fixture contracts, not in credential hashing or SQL assertions.
-- Updated test/cross-interface.test.js and test/telegram-webhook.test.js to provide an explicit unused rotateCredential stub. The new branch head is b46780ebe76a9cce6cde414eab328593d7d86461; CI for this corrected head has not yet been observed.
-- Do not merge until exact-head CI passes and the complete diff is re-reviewed. If another failure appears, inspect its logs and fix it on this same feature branch before proceeding.
+- Updated test/cross-interface.test.js and test/telegram-webhook.test.js to provide an explicit unused rotateCredential stub. The corrected exact head is 856a00ada6b5cdf9dfc02b7b22e1f3663ab1d98d; CI run #482 / workflow ID 40635123544 passed, including npm run verify.
+- The failure is resolved. Review this exact head and merge only with the CI result above; the main branch has not yet consumed this PR. Real Cloudflare D1 atomicity remains unverified.
