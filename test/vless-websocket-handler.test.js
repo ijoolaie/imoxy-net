@@ -196,6 +196,36 @@ test("valid credential is authenticated before dialing and relays initial and la
   assert.equal(h.quotaCalls.settle[2].requestCount, 0);
 });
 
+
+test("bounds queued client messages and closes before the queue can grow without limit", async () => {
+  const upstream = fakeSocket();
+  const h = harness({ connectTcp: async () => upstream.socket });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  const chunk = new Uint8Array(400 * 1024);
+  h.server.receive(chunk);
+  h.server.receive(chunk);
+  h.server.receive(chunk);
+  await settle();
+
+  assert.ok(h.server.closeCalls.some((item) => item.code === 1009 && item.reason === "client_write_queue_full"));
+  assert.equal(h.quotaCalls.reserve.length, 1, "queued uploads must not reach quota reservation after the queue limit is crossed");
+});
+
+test("rejects text WebSocket messages before queueing or forwarding", async () => {
+  const upstream = fakeSocket();
+  const h = harness({ connectTcp: async () => upstream.socket });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+  h.server.receive("not binary");
+  await settle();
+  assert.ok(h.server.closeCalls.some((item) => item.code === 1003 && item.reason === "binary_messages_required"));
+  assert.equal(h.quotaCalls.reserve.length, 0);
+});
+
 test("buffers a split initial header without dialing early", async () => {
   const upstream = fakeSocket();
   const h = harness({ connectTcp: async () => upstream.socket });
