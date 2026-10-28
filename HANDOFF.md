@@ -448,3 +448,12 @@ This section supersedes stale pending-merge notes above where they conflict with
 - No deployment or live Cloudflare resource changes occurred. Real Worker/D1 validation, relay/backpressure review, quota/data-plane verification, authorized Nova comparison, and license/distribution review remain blockers.
 - Phase audit remains: phases 0–11 **In progress**, phase 12 **Blocked**, phase 13 **Not started**; no phase is Complete.
 - Next technical review: bound the lifetime of an in-flight TCP connect/open operation so a stalled socket-open promise cannot outlive the handshake/session close path. Implement only with deterministic cancellation/cleanup tests and verify exact-head plus post-merge CI; no live deployment.
+
+
+## Verified follow-up — PR #72 (2026-10-28)
+
+- PR #72, [fix(proxy): close pending TCP dials on session timeout](https://github.com/ijoolaie/imoxy-net/pull/72), passed exact-head CI on `cfcac52ca949f5152babafdd693b068d5e128a17`; run [40657561213](https://github.com/ijoolaie/imoxy-net/actions/runs/40657561213).
+- Squash merge commit: `6e3af7b8d0470f64d355fc6afcf81f23b45f0282`. Post-merge main CI run [40658000714](https://github.com/ijoolaie/imoxy-net/actions/runs/40658000714) was queued at the time of this update; do not treat it as passed until it completes successfully on this exact SHA.
+- The handler races TCP connection creation and the socket `opened` promise against session closure, tracks the pending socket for cleanup, and closes a socket that resolves after the session has timed out. Two regression tests cover stalled `opened` and delayed connect resolution.
+- These tests are adapter-based. They do not establish cancellation guarantees or cleanup behavior in the actual Cloudflare runtime; that remains an integration validation item.
+- No deployment or live Cloudflare resource changes occurred.
