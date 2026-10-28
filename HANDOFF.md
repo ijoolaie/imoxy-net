@@ -542,3 +542,13 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - The staging probe in `docs/vless-runtime-backpressure-probe.md` remains a plan only. Its proposed caps (10 seconds, 8 MiB total attempted bytes, 16 KiB frame, two concurrent clients) have not been approved or executed. No Worker deployment, route binding, D1 mutation, or live smoke test occurred.
 - Before a live probe, require explicit owner authorization for a disposable staging Worker/hostname, approved byte/time/frame/concurrency limits, and cleanup procedure. A bounded probe cannot by itself prove internal buffer boundedness.
 - Phase audit unchanged: phases 0–11 **In progress**; phase 12 **Blocked**; phase 13 **Not started**. No phase is Complete.
+
+
+## Verified proxy follow-up — PRs #86–#88 (2026-10-28)
+
+- PR #86 corrected the flow-control handoff evidence and merged as `d381a6fe14d88b27d45ee0f9515a8100b73e8036`; exact-head CI [40718032142](https://github.com/ijoolaie/imoxy-net/actions/runs/40718032142) and post-merge main CI [40718852342](https://github.com/ijoolaie/imoxy-net/actions/runs/40718852342) passed.
+- PR #87 added two DNS-family fallback regression tests: tolerate one failed DoH family query when the other yields a public address, and fail closed when the only successful family returns only a private address. It merged as `0ed3d69bfce75c0be26b2cc47cbbf6fd18ca5de1`; exact-head CI [40720336626](https://github.com/ijoolaie/imoxy-net/actions/runs/40720336626) and post-merge main CI [40720791132](https://github.com/ijoolaie/imoxy-net/actions/runs/40720791132) passed.
+- PR #88 added validation that DoH JSON answer data matches the declared DNS family (A → IPv4, AAAA → IPv6), with regression coverage for mismatched answers. It merged as `0a245d8ee5626e8e54dca02f208627e0b75db6c9`; exact-head CI [40721283734](https://github.com/ijoolaie/imoxy-net/actions/runs/40721283734) passed. Post-merge main CI [40721786728](https://github.com/ijoolaie/imoxy-net/actions/runs/40721786728) is in progress at this update; recheck before claiming it passed.
+- These changes strengthen resolver input validation and regression coverage. They do not establish full SSRF protection, complete special-purpose address coverage, runtime backpressure, Nova parity, or production readiness.
+- Issue [#78](https://github.com/ijoolaie/imoxy-net/issues/78) remains open. The disposable Worker/D1 smoke gate and slow/non-reading downstream probe remain unexecuted; no deployment, route binding, or D1 mutation was performed.
+- Phase audit: phases 0–11 **In progress**; phase 12 **Blocked**; phase 13 **Not started**. No phase is Complete.
