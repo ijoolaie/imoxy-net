@@ -286,3 +286,8 @@ The current feature branch adds a hash-only proxy_credentials table, UUID issuan
 ## Restricted VLESS WebSocket handler prototype — 2026-10-28
 
 The active feature branch adds /proxy/vless (configurable via PROXY_WS_PATH) with VLESS TCP header parsing, hash-based account credential lookup, active/expiry checks, an explicit host/port allowlist, Cloudflare TCP socket adapter, and bidirectional WebSocket/TCP relay tests using injected adapters. This is a restricted prototype, not full Nova parity. Exact-head Node CI run #510 passed; real Cloudflare Worker/D1 smoke, robust DNS/private-network policy, quota enforcement/accounting, speed/concurrency limits and black-box reference comparison remain outstanding. Do not deploy or mark Phase 6 complete.
+
+
+## Post-merge data-plane status — 2026-10-28
+
+PR #51 is merged as 88ddb38f813aa0f4fa4700724972015169749a48. Its exact-head CI passed on cf0b6ceb61f5ee6702275cd8f8cf5d3a9f80af86 in run #515, including npm run verify. Main now contains a restricted VLESS-over-WebSocket TCP prototype with credential lookup, account status/expiry checks, destination allowlist and basic relay cleanup. It is not a production proxy. Next implement stable usage event identity and atomic pre-forward quota reservations, then test concurrency and recovery on disposable real D1; do not use read-only evaluate() as hard enforcement. Phase 5 and Phase 6 remain In progress; Phase 12 remains Blocked.
