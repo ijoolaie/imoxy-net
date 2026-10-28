@@ -48,17 +48,28 @@ function isClearlyPrivateDestination(host) {
     const octets = ipv4.slice(1).map(Number);
     if (octets.some((value) => value > 255)) return true;
     const [a, b] = octets;
+    const [, , c, d] = octets;
     return a === 0 || a === 10 || a === 127 || a >= 224 ||
+      (a === 100 && b >= 64 && b <= 127) ||
       (a === 169 && b === 254) ||
       (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168);
+      (a === 192 && b === 0 && c === 0) ||
+      (a === 192 && b === 0 && c === 2) ||
+      (a === 192 && b === 88 && c === 99) ||
+      (a === 192 && b === 168) ||
+      (a === 198 && (b === 18 || b === 19)) ||
+      (a === 198 && b === 51 && c === 100) ||
+      (a === 203 && b === 0 && c === 113) ||
+      (a === 255 && b === 255 && c === 255 && d === 255);
   }
 
   if (normalized.includes(":")) {
     const groups = normalized.split(":").map((value) => Number.parseInt(value || "0", 16));
     const first = groups[0] ?? 0;
+    const second = groups[1] ?? 0;
     return first === 0 || (first & 0xfe00) === 0xfc00 ||
-      (first & 0xffc0) === 0xfe80 || (first & 0xff00) === 0xff00;
+      (first & 0xffc0) === 0xfe80 || (first & 0xff00) === 0xff00 ||
+      (first === 0x2001 && (second === 0x0002 || second === 0x0db8));
   }
   return false;
 }
