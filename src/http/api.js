@@ -291,10 +291,12 @@ export function createApiHandler({
           else assertSameOrigin(request, false);
 
           const match = /^\/api\/v1\/accounts(?:\/([^/]+))?$/.exec(url.pathname);
-          if (!match) throw makeError("not_found", "The requested route was not found.", 404);
+          const credentialRotateMatch = /^\/api\/v1\/accounts\/([^/]+)\/credential\/rotate$/.exec(url.pathname);
+          if (!match && !credentialRotateMatch) throw makeError("not_found", "The requested route was not found.", 404);
           let accountId = null;
-          if (match[1]) {
-            try { accountId = decodeURIComponent(match[1]); } catch {
+          const rawAccountId = match?.[1] ?? credentialRotateMatch?.[1] ?? null;
+          if (rawAccountId !== null) {
+            try { accountId = decodeURIComponent(rawAccountId); } catch {
               throw makeError("validation_failed", "The account identifier is invalid.", 400);
             }
             if (!accountId || accountId.length > 128) throw makeError("validation_failed", "The account identifier is invalid.", 400);
@@ -311,6 +313,9 @@ export function createApiHandler({
             const limit = limitRaw === null ? 50 : Number(limitRaw);
             const afterId = url.searchParams.get("afterId");
             return response({ ...(await accounts.list({ limit, afterId })), requestId });
+          }
+          if (request.method === "POST" && credentialRotateMatch && accountId) {
+            return response({ result: await accounts.rotateCredential(accountId, { requestId }), requestId });
           }
           if (request.method === "POST" && !accountId) {
             const body = await readJson(request);
