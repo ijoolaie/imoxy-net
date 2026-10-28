@@ -154,6 +154,14 @@ async function cloudflareTcpConnect({ hostname, port }) {
   return connect({ hostname, port });
 }
 
+function normalizeNumericAddress(address) {
+  if (!isValidNumericAddress(address)) return null;
+  const octets = address.split(".");
+  if (octets.length === 4) return octets.map(Number).join(".");
+  const groups = parseIPv6Groups(address);
+  return groups ? groups.map((group) => group.toString(16)).join(":") : null;
+}
+
 function sameNumericAddress(left, right) {
   if (!isValidNumericAddress(left) || !isValidNumericAddress(right)) return false;
   const leftV4 = left.split(".");
@@ -168,8 +176,9 @@ function sameNumericAddress(left, right) {
 
 export async function resolvePublicDestination(host, fetchImpl = globalThis.fetch) {
   if (isValidNumericAddress(host)) {
-    if (isClearlyPrivateDestination(host)) throw new TypeError("Destination address is not public.");
-    return host;
+    const normalized = normalizeNumericAddress(host);
+    if (isClearlyPrivateDestination(normalized)) throw new TypeError("Destination address is not public.");
+    return normalized;
   }
   if (typeof host !== "string") throw new TypeError("Destination hostname is invalid.");
   const normalizedHost = host.replace(/\.$/, "");
@@ -196,8 +205,8 @@ export async function resolvePublicDestination(host, fetchImpl = globalThis.fetc
     if (result.status !== "fulfilled") continue;
     for (const answer of result.value) {
       if (answer?.type !== 1 && answer?.type !== 28) continue;
-      const address = answer.data;
-      if (isValidNumericAddress(address) && !isClearlyPrivateDestination(address)) {
+      const address = normalizeNumericAddress(answer.data);
+      if (address && !isClearlyPrivateDestination(address)) {
         addresses.push(address);
       }
     }
@@ -487,7 +496,8 @@ export function createVlessWebSocketHandler({
               await closeSession(1008, "destination_not_allowed");
               return;
             }
-            if (!isValidNumericAddress(destinationAddress) || isClearlyPrivateDestination(destinationAddress)) {
+            destinationAddress = normalizeNumericAddress(destinationAddress);
+            if (!destinationAddress || isClearlyPrivateDestination(destinationAddress)) {
               await closeSession(1008, "destination_not_allowed");
               return;
             }
