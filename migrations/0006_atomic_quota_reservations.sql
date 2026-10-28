@@ -18,6 +18,20 @@ CREATE TABLE IF NOT EXISTS quota_reservations (
 CREATE INDEX IF NOT EXISTS quota_reservations_account_date_status
   ON quota_reservations(account_id, usage_date, status);
 
+CREATE TRIGGER IF NOT EXISTS quota_reservation_insert_active_only
+BEFORE INSERT ON quota_reservations
+WHEN NEW.status <> 'active' OR NEW.actual_bytes IS NOT NULL
+BEGIN
+  SELECT RAISE(ABORT, 'quota reservations must begin active');
+END;
+
+CREATE TRIGGER IF NOT EXISTS quota_reservation_status_forward_only
+BEFORE UPDATE OF status ON quota_reservations
+WHEN NOT (OLD.status = 'active' AND NEW.status IN ('settled', 'released'))
+BEGIN
+  SELECT RAISE(ABORT, 'quota reservation status transition is invalid');
+END;
+
 CREATE TABLE IF NOT EXISTS usage_events (
   producer_id TEXT NOT NULL,
   event_id TEXT NOT NULL,
@@ -34,6 +48,20 @@ CREATE TABLE IF NOT EXISTS usage_events (
   CHECK (upload_bytes + download_bytes <= 9007199254740991)
 );
 CREATE INDEX IF NOT EXISTS usage_events_account_date ON usage_events(account_id, usage_date);
+
+CREATE TRIGGER IF NOT EXISTS usage_event_insert_claimed_only
+BEFORE INSERT ON usage_events
+WHEN NEW.status <> 'claimed'
+BEGIN
+  SELECT RAISE(ABORT, 'usage events must begin claimed');
+END;
+
+CREATE TRIGGER IF NOT EXISTS usage_event_status_forward_only
+BEFORE UPDATE OF status ON usage_events
+WHEN NOT (OLD.status = 'claimed' AND NEW.status = 'applied')
+BEGIN
+  SELECT RAISE(ABORT, 'usage event status transition is invalid');
+END;
 
 CREATE TRIGGER IF NOT EXISTS usage_event_apply_validate
 BEFORE UPDATE OF status ON usage_events
