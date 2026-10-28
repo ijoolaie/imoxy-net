@@ -73,3 +73,9 @@ The adapter's conditional upsert is not the only possible writer to `usage_daily
 ## 2026-10-28 — usage-event identity and reservation design
 
 A future usage report must carry a stable caller-provided event ID from the trusted proxy/data-plane source. Do not derive IDs from account/date/delta, and do not mint IDs at the receiving API. The same ID plus same immutable payload is a replay no-op; the same ID with changed content is a conflict. Ledger insertion and aggregate mutation must succeed or fail atomically. This is a design decision only: no ledger, idempotency, reservation, or real D1 behavior has been implemented. See [usage-event-atomicity-design.md](usage-event-atomicity-design.md). Cloudflare's current D1 docs describe `batch()` as a SQL transaction with rollback on failure, but this must be confirmed by isolated real-D1 integration tests for the exact implementation.
+
+## 2026-10-28 — prioritize proxy data-plane before usage ledger
+
+Inspection of the pinned Nova Proxy 5.0.0 README/deployment guide and the current imoxy entry point identified an architecture mismatch: the reference documents one Cloudflare Worker serving admin UI, subscription delivery, and proxy traffic, while imoxy's `worker.js` currently dispatches to static assets or the management API. The inspected API has no WebSocket upgrade/proxy protocol handler and does not instantiate the quota service.
+
+Decision: do not implement a disconnected usage ledger/reservation subsystem next. First specify black-box scenarios and implement the smallest independently written end-to-end proxy traffic path; identify the trusted measurement point and its account/subscription identity. Then design event identity and pre-forwarding reservation against that real boundary. This is a priority decision, not a claim that Nova runtime behavior has been verified. Do not copy protected upstream source or assets; licensing/distribution remains a release gate.
