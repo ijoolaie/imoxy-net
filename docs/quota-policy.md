@@ -57,3 +57,10 @@ The next implementation slice is design-gated by [usage-event-atomicity-design.m
 ## VLESS handler integration status — 2026-10-28
 
 The restricted /proxy/vless handler now authenticates credentials and relays bytes, but it does not call createQuotaService, reserve quota, or persist measured usage. The current evaluate() method is a read-only preflight and record() is additive aggregate reporting; neither is safe hard enforcement under concurrent sessions. Do not mark quota enforcement implemented until a trusted event ledger and atomic pre-forward reservation/reconciliation are integrated at the actual byte-forwarding boundary, with concurrent reservation tests and real D1 validation.
+
+
+## Atomic reservation implementation checkpoint — 2026-10-28
+
+Branch `feat/atomic-quota-reservations` adds migration 0006, a conditional pre-forward reservation method, a stable producer/event ledger, and trigger-driven aggregate settlement. The domain service computes a SHA-256 hash over canonical immutable event fields and requires caller-supplied IDs so retries can reuse them. The reservation checks active account status, expiry, total usage plus active reservations, daily usage plus active reservations, and safe-integer boundaries.
+
+This is a storage/domain primitive, **not yet hard quota enforcement**: the VLESS handler does not call it yet. Integrate one stable reservation per bounded forwarding chunk; reserve before writing to TCP, settle the actual accepted byte count afterward, and retain the reservation if settlement outcome is ambiguous. Release only when no bytes could have been forwarded. Never automatically free a reservation merely because its advisory lease timestamp elapsed. Real Cloudflare D1 validation remains mandatory.
