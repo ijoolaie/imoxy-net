@@ -275,6 +275,26 @@ export function createD1Store(db) {
           !isValidUsageDate(usageDate)) {
         throw new TypeError("A valid account ID and UTC usage date are required.");
       }
+      // SQLite SUM(integer) can throw before JavaScript can validate a lifetime
+      // total. First use REAL aggregation only as an overflow detector; only run
+      // exact integer SUMs after proving every aggregate is within safe range.
+      const estimate = await db.prepare(`SELECT
+        COALESCE(SUM(CAST(upload_bytes AS REAL) + CAST(download_bytes AS REAL)), 0) AS total_bytes_approx,
+        COALESCE(SUM(CASE WHEN usage_date = ?
+          THEN CAST(upload_bytes AS REAL) + CAST(download_bytes AS REAL) ELSE 0 END), 0) AS daily_bytes_approx,
+        COALESCE(SUM(CAST(request_count AS REAL)), 0) AS request_count_approx
+        FROM usage_daily WHERE account_id = ?`).bind(usageDate, accountId).first();
+      const estimates = [
+        Number(estimate?.total_bytes_approx ?? 0),
+        Number(estimate?.daily_bytes_approx ?? 0),
+        Number(estimate?.request_count_approx ?? 0)
+      ];
+      if (!estimates.every((value) => Number.isFinite(value) && value >= 0 && value <= Number.MAX_SAFE_INTEGER)) {
+        throw new RangeError("Usage counters exceed the supported safe-integer range.");
+      }
+
+      // Given non-negative integer rows, an aggregate whose REAL estimate is
+      // within MAX_SAFE_INTEGER is also safe to sum exactly as an SQLite integer.
       const row = await db.prepare(`SELECT
         COALESCE(SUM(upload_bytes + download_bytes), 0) AS total_bytes,
         COALESCE(SUM(CASE WHEN usage_date = ? THEN upload_bytes + download_bytes ELSE 0 END), 0) AS daily_bytes,
@@ -285,7 +305,7 @@ export function createD1Store(db) {
       const requestCount = Number(row?.request_count ?? 0);
       if (![totalBytes, dailyBytes, requestCount].every(Number.isSafeInteger) ||
           totalBytes < 0 || dailyBytes < 0 || requestCount < 0) {
-        throw new Error("Usage counters exceed the supported safe-integer range.");
+        throw new RangeError("Usage counters exceed the supported safe-integer range.");
       }
       return { accountId, usageDate, totalBytes, dailyBytes, requestCount };
     },
