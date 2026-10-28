@@ -65,3 +65,8 @@ This remains a restricted prototype. Host allowlists do not by themselves preven
 
 
 Credential rotation currently returns a one-time secret and is not idempotent. Clients must not automatically retry a rotation request after an ambiguous network failure; a production-safe retry/recovery contract is still needed.
+
+
+## Quota reservation primitives — 2026-10-28
+
+The feature branch `feat/atomic-quota-reservations` adds migration 0006, stable-ID usage events, conditional reservations, and trigger-driven aggregate settlement. These are not yet wired into the VLESS handler and do not mean hard quota enforcement is active. Exact-head CI and real Cloudflare D1 concurrency/rollback tests are required before integrating or deploying.
