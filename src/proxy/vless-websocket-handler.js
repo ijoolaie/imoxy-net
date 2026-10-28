@@ -238,10 +238,11 @@ export function createVlessWebSocketHandler({
             return false;
           }
           reservation = result.reservation;
-        } catch {
-          // Reserve may have committed even if its response was lost, but no
-          // bytes have been forwarded yet, so an idempotent release is safe.
-          await releaseBeforeForward(reservationId);
+        } catch (error) {
+          // A true ID/payload conflict may refer to an earlier in-flight
+          // reservation, so never release it. For other ambiguous reserve
+          // outcomes, no bytes have been forwarded by this call yet.
+          if (error?.code !== "reservation_conflict") await releaseBeforeForward(reservationId);
           await closeSession(1011, "quota_reservation_failed");
           return false;
         }
