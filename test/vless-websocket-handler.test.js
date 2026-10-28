@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createVlessWebSocketHandler } from "../src/proxy/vless-websocket-handler.js";
+import { createVlessWebSocketHandler, resolvePublicDestination } from "../src/proxy/vless-websocket-handler.js";
 import { hashProxyCredential } from "../src/security/proxy-credentials.js";
 
 const UUID = "123e4567-e89b-12d3-a456-426614174000";
@@ -91,7 +91,7 @@ async function settle() {
   for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function harness({ lookup, connectTcp, config = {}, clock = () => NOW, timerCallbacks = null, idleTimeoutMs = 120_000, quotaAllowed = true, quotaSettleFails = false, quotaReserveFails = false, quotaReserveConflict = false } = {}) {
+function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = () => NOW, timerCallbacks = null, idleTimeoutMs = 120_000, quotaAllowed = true, quotaSettleFails = false, quotaReserveFails = false, quotaReserveConflict = false } = {}) {
   const client = new FakeWebSocket();
   const server = new FakeWebSocket();
   const connectCalls = [];
@@ -133,6 +133,7 @@ function harness({ lookup, connectTcp, config = {}, clock = () => NOW, timerCall
       if (connectTcp) return connectTcp(destination);
       return fakeSocket().socket;
     },
+    resolveDestination: resolveDestination ?? (async (host) => host === "example.test" ? "93.184.216.34" : host),
     webSocketPairFactory: () => [client, server],
     upgradeResponseFactory: () => new Response("upgraded", { status: 200 }),
     now: clock,
@@ -173,7 +174,7 @@ test("valid credential is authenticated before dialing and relays initial and la
 
   h.server.receive(vlessRequest());
   await settle();
-  assert.deepEqual(h.connectCalls, [{ hostname: "example.test", port: 443 }]);
+  assert.deepEqual(h.connectCalls, [{ hostname: "93.184.216.34", port: 443 }]);
   assert.deepEqual(h.storeCalls, [await hashProxyCredential(UUID)]);
   assert.deepEqual(upstream.writes, [[0x11, 0x22]]);
   assert.ok(h.server.sent.some((message) => message.length === 2 && message[0] === 0 && message[1] === 0));
@@ -294,6 +295,98 @@ test("rejects special-use IPv4 literals even when explicitly allowlisted", async
   }
 });
 
+
+
+test("DNS-over-HTTPS resolution selects only a validated public A or AAAA answer", async () => {
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    const parsed = new URL(url);
+    calls.push({ type: parsed.searchParams.get("type"), accept: options.headers.accept });
+    const type = parsed.searchParams.get("type");
+    return {
+      ok: true,
+      async json() {
+        return type === "A"
+          ? { Status: 0, Answer: [{ type: 1, data: "93.184.216.34" }] }
+          : { Status: 0, Answer: [{ type: 28, data: "fd00::1" }] };
+      }
+    };
+  };
+  assert.equal(await resolvePublicDestination("example.test.", fetchImpl), "93.184.216.34");
+  assert.deepEqual(calls.map((item) => item.type).sort(), ["A", "AAAA"]);
+  assert.ok(calls.every((item) => item.accept === "application/dns-json"));
+});
+
+test("normalizes numeric addresses before they are used as TCP dial targets", async () => {
+  assert.equal(await resolvePublicDestination("093.184.216.034"), "93.184.216.34");
+});
+
+test("DNS-over-HTTPS resolution fails closed when no public answer exists", async () => {
+  const fetchImpl = async () => ({
+    ok: true,
+    async json() {
+      return { Status: 0, Answer: [{ type: 1, data: "10.0.0.4" }] };
+    }
+  });
+  await assert.rejects(() => resolvePublicDestination("private.example", fetchImpl));
+});
+
+test("DNS-over-HTTPS resolution fails closed when both DNS queries fail", async () => {
+  await assert.rejects(() => resolvePublicDestination("example.test", async () => {
+    throw new Error("injected resolver outage");
+  }));
+});
+
+test("resolves hostnames to a public numeric address before dialing and pins the connected peer", async () => {
+  const upstream = fakeSocket("93.184.216.34");
+  const h = harness({
+    connectTcp: async () => upstream.socket,
+    resolveDestination: async (host) => {
+      assert.equal(host, "example.test");
+      return "93.184.216.34";
+    }
+  });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest());
+  await settle();
+  assert.deepEqual(h.connectCalls, [{ hostname: "93.184.216.34", port: 443 }]);
+  assert.ok(h.server.sent.some((item) => item.length === 2 && item[1] === 0));
+});
+
+test("does not dial if the handshake times out while DNS resolution is pending", async () => {
+  const timerCallbacks = [];
+  let finishResolution;
+  const h = harness({
+    timerCallbacks,
+    resolveDestination: () => new Promise((resolve) => { finishResolution = resolve; })
+  });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest());
+  await settle();
+  assert.equal(typeof finishResolution, "function");
+  timerCallbacks[0]();
+  await settle();
+  finishResolution("93.184.216.34");
+  await settle();
+  assert.equal(h.connectCalls.length, 0);
+  assert.ok(h.server.closeCalls.some((item) => item.reason === "initial_request_timeout"));
+});
+
+test("rejects a connected peer that differs from the pinned DNS answer", async () => {
+  const upstream = fakeSocket("10.0.0.8");
+  const h = harness({
+    connectTcp: async () => upstream.socket,
+    resolveDestination: async () => "93.184.216.34"
+  });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest());
+  await settle();
+  assert.equal(upstream.writes.length, 0);
+  assert.equal(h.quotaCalls.reserve.length, 0);
+  assert.ok(h.server.closeCalls.some((item) => item.reason === "destination_not_allowed"));
+  assert.equal(upstream.closed, true);
+});
+
 test("validates the connected peer before forwarding the initial payload", async () => {
   for (const remoteAddress of ["127.0.0.1", "10.0.0.8", null]) {
     const upstream = fakeSocket(remoteAddress);
@@ -334,7 +427,10 @@ test("fails closed when the connected peer address is malformed or unavailable",
 
 test("accepts a valid compressed public IPv6 peer address", async () => {
   const upstream = fakeSocket("2606:4700::1111");
-  const h = harness({ connectTcp: async () => upstream.socket });
+  const h = harness({
+    connectTcp: async () => upstream.socket,
+    resolveDestination: async () => "2606:4700::1111"
+  });
   await h.handler.fetch(request(), h.env);
   h.server.receive(vlessRequest({ payload: [] }));
   await settle();
