@@ -301,7 +301,7 @@ test("DNS-over-HTTPS resolution selects only a validated public A or AAAA answer
   const calls = [];
   const fetchImpl = async (url, options) => {
     const parsed = new URL(url);
-    calls.push({ type: parsed.searchParams.get("type"), accept: options.headers.accept });
+    calls.push({ type: parsed.searchParams.get("type"), accept: options.headers.accept, redirect: options.redirect, origin: parsed.origin });
     const type = parsed.searchParams.get("type");
     return {
       ok: true,
@@ -315,6 +315,8 @@ test("DNS-over-HTTPS resolution selects only a validated public A or AAAA answer
   assert.equal(await resolvePublicDestination("example.test.", fetchImpl), "93.184.216.34");
   assert.deepEqual(calls.map((item) => item.type).sort(), ["A", "AAAA"]);
   assert.ok(calls.every((item) => item.accept === "application/dns-json"));
+  assert.ok(calls.every((item) => item.redirect === "error"), "DoH redirects must be rejected");
+  assert.ok(calls.every((item) => item.origin === "https://cloudflare-dns.com"), "DNS queries must use the configured HTTPS resolver");
 });
 
 test("returns deduplicated validated public A and AAAA candidates for fallback", async () => {
