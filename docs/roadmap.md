@@ -259,3 +259,10 @@ Added [usage-event-atomicity-design.md](usage-event-atomicity-design.md) to spec
 ### Quota producer integration gap — 2026-10-28
 
 A source trace confirms `createQuotaService` is not wired into `src/http/api.js`; the capabilities endpoint still lists quota enforcement/usage accounting as pending, and no trusted proxy/data-plane usage reporter was found in the inspected source tree. The next work is not to expose a raw usage-write endpoint: first establish the trusted producer, authentication, account mapping, stable event IDs, and pre-forwarding reservation contract. Phase 5 remains **In progress** with hard enforcement blocked on this boundary; Phase 12 remains **Blocked**. See [architecture.md](architecture.md), [parity-matrix.md](parity-matrix.md), and [usage-event-atomicity-design.md](usage-event-atomicity-design.md).
+
+
+## Critical-path correction — 2026-10-28
+
+Source inspection against the pinned Nova Proxy 5.0.0 deployment model found a structural gap: Nova's documented single Worker serves the panel, subscriptions and proxy traffic, while the current imoxy `worker.js` routes requests to static assets or a management API. The inspected API contains no WebSocket upgrade/proxy protocol path and does not wire `createQuotaService`. Consequently, protocol URI/YAML generators and quota storage foundations do not constitute a working proxy replacement.
+
+**Priority correction:** before implementing the usage-event ledger or quota reservations, Phase 6 must define and build a minimal end-to-end proxy data-plane vertical slice, with black-box acceptance scenarios first. The slice must identify client handshake/transport, account/subscription authentication, routing/forwarding, error/close behavior, and a trusted measurement point. Only then can usage IDs, pre-forwarding reservations and accounting be attached to the actual traffic lifecycle. Keep Phase 6 **In progress** and Phase 5 **In progress**; neither is complete. Phase 1 runtime characterization and the version-specific license/distribution review remain blockers to compatibility claims and release.
