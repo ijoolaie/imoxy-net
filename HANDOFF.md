@@ -436,3 +436,24 @@ This section supersedes stale pending-merge notes above where they conflict with
 - Remaining blockers are unchanged: selected-range special-purpose IP filtering is not a complete maintained IANA registry; relay/backpressure and quota/data-plane enforcement need further validation; real D1 durability/concurrency/recovery and end-to-end panel/bot/device tests remain outstanding; Nova compatibility and licensing review remain unresolved.
 - Phase audit remains: phases 0–11 In progress, phase 12 Blocked, phase 13 Not started. No phase is declared Complete.
 - Next: continue focused security review of TCP relay lifecycle, queue/resource bounds and quota reservation/settlement failure paths; prepare a controlled disposable Worker/D1 test only after explicit authorization. Do not deploy or mutate live Cloudflare resources without explicit approval.
+
+
+## Verified follow-up — PR #70 (2026-10-28)
+
+- PR #70, [fix(proxy): bound DNS fallback dial attempts](https://github.com/ijoolaie/imoxy-net/pull/70), was squash-merged after review and exact-head CI success.
+- Exact PR head `1b67bc523c8395e516eaa59c05ecb6b77c6ced3e`; CI run [40656529915](https://github.com/ijoolaie/imoxy-net/actions/runs/40656529915) completed **success**.
+- Merge commit on `main`: `45bc193983285dcbafcbeeed709fc5d14a8acd78`; post-merge main CI run [40657000940](https://github.com/ijoolaie/imoxy-net/actions/runs/40657000940) completed **success** on that exact SHA.
+- Change: sequential DNS fallback dials are capped at eight validated candidates per handshake; regression coverage confirms candidate nine is not dialed and total failure closes with `upstream_unavailable`.
+- Evidence boundary: this bounds the number of attempts but does not prove a complete special-purpose IP policy, a bounded TCP connect/open duration, Cloudflare runtime behavior, or production SSRF protection.
+- No deployment or live Cloudflare resource changes occurred. Real Worker/D1 validation, relay/backpressure review, quota/data-plane verification, authorized Nova comparison, and license/distribution review remain blockers.
+- Phase audit remains: phases 0–11 **In progress**, phase 12 **Blocked**, phase 13 **Not started**; no phase is Complete.
+- Next technical review: bound the lifetime of an in-flight TCP connect/open operation so a stalled socket-open promise cannot outlive the handshake/session close path. Implement only with deterministic cancellation/cleanup tests and verify exact-head plus post-merge CI; no live deployment.
+
+
+## Verified follow-up — PR #72 (2026-10-28)
+
+- PR #72, [fix(proxy): close pending TCP dials on session timeout](https://github.com/ijoolaie/imoxy-net/pull/72), passed exact-head CI on `cfcac52ca949f5152babafdd693b068d5e128a17`; run [40657561213](https://github.com/ijoolaie/imoxy-net/actions/runs/40657561213).
+- Squash merge commit: `6e3af7b8d0470f64d355fc6afcf81f23b45f0282`. Post-merge main CI run [40658000714](https://github.com/ijoolaie/imoxy-net/actions/runs/40658000714) was queued at the time of this update; do not treat it as passed until it completes successfully on this exact SHA.
+- The handler races TCP connection creation and the socket `opened` promise against session closure, tracks the pending socket for cleanup, and closes a socket that resolves after the session has timed out. Two regression tests cover stalled `opened` and delayed connect resolution.
+- These tests are adapter-based. They do not establish cancellation guarantees or cleanup behavior in the actual Cloudflare runtime; that remains an integration validation item.
+- No deployment or live Cloudflare resource changes occurred.
