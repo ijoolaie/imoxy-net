@@ -18,7 +18,7 @@ function isWebSocketUpgrade(request) {
   return upgrade === "websocket" &&
     connection.includes("upgrade") &&
     request.headers.get("sec-websocket-version") === "13" &&
-    typeof request.headers.get("sec-websocket-key") === "string";
+    Boolean(request.headers.get("sec-websocket-key"));
 }
 
 function pathFor(env) {
@@ -122,9 +122,13 @@ export function createVlessWebSocketHandler({
 } = {}) {
   return {
     async fetch(request, env = {}) {
-      const path = pathFor(env);
-      if (!path) return jsonError("proxy_path_misconfigured", "The proxy WebSocket path is invalid.", 503);
       const url = new URL(request.url);
+      const path = pathFor(env);
+      if (!path) {
+        return url.pathname === DEFAULT_PATH
+          ? jsonError("proxy_path_misconfigured", "The proxy WebSocket path is invalid.", 503)
+          : null;
+      }
       if (url.pathname !== path) return null;
       if (request.method !== "GET") return jsonError("method_not_allowed", "The method is not allowed for this route.", 405);
       if (!isWebSocketUpgrade(request)) return jsonError("websocket_upgrade_required", "A valid WebSocket upgrade is required.", 426);
