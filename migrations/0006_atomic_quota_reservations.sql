@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS quota_reservations (
   actual_bytes INTEGER CHECK (actual_bytes IS NULL OR (actual_bytes >= 0 AND actual_bytes <= reserved_bytes)),
   status TEXT NOT NULL CHECK (status IN ('active', 'settled', 'released')),
   created_at TEXT NOT NULL,
+  lease_expires_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   CHECK ((status = 'active' AND actual_bytes IS NULL) OR
          (status IN ('settled', 'released') AND actual_bytes IS NOT NULL))
@@ -20,7 +21,7 @@ CREATE INDEX IF NOT EXISTS quota_reservations_account_date_status
 CREATE TABLE IF NOT EXISTS usage_events (
   producer_id TEXT NOT NULL,
   event_id TEXT NOT NULL,
-  reservation_id TEXT NOT NULL UNIQUE REFERENCES quota_reservations(reservation_id) ON DELETE RESTRICT,
+  reservation_id TEXT NOT NULL UNIQUE,
   account_id TEXT NOT NULL REFERENCES proxy_accounts(id) ON DELETE CASCADE,
   usage_date TEXT NOT NULL,
   upload_bytes INTEGER NOT NULL CHECK (upload_bytes >= 0 AND upload_bytes <= 9007199254740991),
@@ -79,7 +80,7 @@ BEGIN
 END;
 
 CREATE TRIGGER IF NOT EXISTS quota_reservation_immutable
-BEFORE UPDATE OF reservation_id, account_id, usage_date, reserved_bytes, created_at ON quota_reservations
+BEFORE UPDATE OF reservation_id, account_id, usage_date, reserved_bytes, created_at, lease_expires_at ON quota_reservations
 BEGIN
   SELECT RAISE(ABORT, 'quota reservation identity is immutable');
 END;
