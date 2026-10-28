@@ -52,3 +52,20 @@ For each scenario, create a dated record containing:
 - outcome: **Verified**, **Mismatch**, **Blocked**, or **Not run**.
 
 Do not use the public README alone to claim runtime verification. Execute the scenarios against an authorized instance of the pinned reference release before freezing compatibility requirements. Implement imoxy behavior independently; do not copy upstream source, bundled UI, or assets.
+
+
+## Proxy data-plane scenarios — added 2026-10-28
+
+The current Worker/API source has no confirmed proxy traffic handler, so add these P0/P1 cases before implementation. The route and protocol defaults must be captured from an authorized pinned-reference instance; do not assume undocumented defaults.
+
+| ID | Priority | Area | Scenario | Required evidence | Current status |
+|---|---|---|---|---|---|
+| REF-033 | P0 | Proxy data plane | Valid VLESS-over-WebSocket TCP session | Upgrade response, protocol handshake, upstream destination, bidirectional payload and close behavior | Not run; no imoxy handler |
+| REF-034 | P0 | Proxy auth | Unknown, disabled, expired or malformed account credential | Rejection behavior and proof no upstream dial occurred | Not run; credential lookup contract missing |
+| REF-035 | P0 | Protocol parser | Truncated header, unsupported command/address type, invalid port or oversized host | Rejection/close behavior and no upstream side effect | Not run |
+| REF-036 | P0 | Worker routing | Wrong endpoint path, method or non-WebSocket request | Stable error behavior and no session/socket allocation | Not run |
+| REF-037 | P0 | Relay reliability | Upstream connect failure, client/upstream close, timeout and cancellation | Both sides cleaned up; no leaked or hanging socket | Not run |
+| REF-038 | P1 | Usage observation | Known bidirectional transfer | Correct measured ingress/egress bytes at the actual forwarding boundary | Not run; no trusted producer |
+| REF-039 | P1 | Resource limits | Slow initial frame, fragmented messages, concurrent sessions and maximum header sizes | Bounded resource use and no parser bypass | Not run |
+
+See [proxy-data-plane-mvp.md](proxy-data-plane-mvp.md) for the acceptance-first MVP boundary and explicit non-goals. These scenarios are requirements to execute, not evidence that Nova behavior has been verified.
