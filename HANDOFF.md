@@ -222,3 +222,11 @@ Every user-facing response about this repository ends with an evidence-based sch
 
 - Merge commit `9cfa5e6f2cc17f659c68767ef87b85926decb8f6` passed main CI run #440 / workflow run ID `40631704573`, including `npm run verify`: https://github.com/ijoolaie/imoxy-net/actions/runs/40631704573.
 - PR #44 exact-head CI passed in run #439 / `40631667645`. The hand-off commit immediately preceding this note is `291e4aa009e16f399a91735ea6767e0a991245c9`; its CI run #441 is queued at this checkpoint and must be checked before claiming this latest hand-off revision passed.
+
+
+## Latest hand-off CI confirmation — 2026-10-28
+
+- The hand-off revision that triggered main workflow run #442 completed successfully: workflow run ID `40631744714`, job `test`, including `npm run verify`: https://github.com/ijoolaie/imoxy-net/actions/runs/40631744714.
+- This verifies repository checks for that hand-off revision only. It does not establish real Cloudflare D1 behavior, quota reservations, trusted proxy traffic metering, Nova runtime parity, or production readiness.
+- Current source review reconfirms `src/domain/quota-service.js` exposes read-only `evaluate()` and additive `record()`; `src/http/api.js` does not instantiate that service. No trusted proxy/data-plane usage reporter has been identified in the inspected source.
+- Next work remains blocked on selecting the actual proxy/data-plane architecture and defining its authenticated usage-event contract. Do not expose client-authoritative byte reporting or build a disconnected ledger/reservation implementation.
