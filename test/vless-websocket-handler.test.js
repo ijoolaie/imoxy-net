@@ -657,3 +657,52 @@ test("bounds sequential DNS fallback attempts to a fixed maximum", async () => {
     item.code === 1011 && item.reason === "upstream_unavailable"
   ));
 });
+
+
+
+test("handshake timeout closes a socket whose opened promise never settles", async () => {
+  const timerCallbacks = [];
+  let resolveOpened;
+  let closed = false;
+  const upstream = fakeSocket();
+  upstream.socket.opened = new Promise((resolve) => { resolveOpened = resolve; });
+  upstream.socket.close = async () => { closed = true; };
+  const h = harness({ timerCallbacks, connectTcp: async () => upstream.socket });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  assert.equal(h.connectCalls.length, 1);
+  assert.equal(closed, false);
+  timerCallbacks[0]();
+  await settle();
+  assert.ok(h.server.closeCalls.some((item) => item.reason === "initial_request_timeout"));
+  assert.equal(closed, true);
+
+  resolveOpened({ remoteAddress: "93.184.216.34" });
+  await settle();
+  assert.equal(h.quotaCalls.reserve.length, 0);
+});
+
+
+test("handshake timeout closes a TCP socket that resolves after session closure", async () => {
+  const timerCallbacks = [];
+  let resolveConnect;
+  let closed = false;
+  const upstream = fakeSocket();
+  upstream.socket.close = async () => { closed = true; };
+  const connectPending = new Promise((resolve) => { resolveConnect = resolve; });
+  const h = harness({ timerCallbacks, connectTcp: async () => connectPending });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  assert.equal(h.connectCalls.length, 1);
+  timerCallbacks[0]();
+  await settle();
+  assert.ok(h.server.closeCalls.some((item) => item.reason === "initial_request_timeout"));
+  resolveConnect(upstream.socket);
+  await settle();
+  assert.equal(closed, true, "late-created TCP socket must be closed");
+  assert.equal(h.quotaCalls.reserve.length, 0);
+});

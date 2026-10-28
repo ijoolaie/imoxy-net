@@ -7,6 +7,7 @@ const DEFAULT_PATH = "/proxy/vless";
 const MAX_INITIAL_BUFFER_BYTES = 64 * 1024;
 const MAX_QUEUED_CLIENT_BYTES = 1024 * 1024;
 const MAX_DIAL_CANDIDATES = 8;
+const SESSION_CLOSED = Symbol("session_closed");
 const DEFAULT_INITIAL_HANDSHAKE_TIMEOUT_MS = 10_000;
 const DEFAULT_IDLE_TIMEOUT_MS = 120_000;
 
@@ -308,11 +309,14 @@ export function createVlessWebSocketHandler({
         return jsonError("websocket_runtime_unavailable", "The WebSocket runtime is unavailable.", 503);
       }
 
+      let resolveSessionClosed;
+      const sessionClosed = new Promise((resolve) => { resolveSessionClosed = resolve; });
       const state = {
         closed: false,
         authenticated: false,
         buffer: new Uint8Array(),
         socket: null,
+        pendingSocket: null,
         reader: null,
         writer: null,
         writeQueue: Promise.resolve(),
@@ -327,6 +331,7 @@ export function createVlessWebSocketHandler({
       const closeSession = async (code = 1000, reason = "closed") => {
         if (state.closed) return;
         state.closed = true;
+        resolveSessionClosed(SESSION_CLOSED);
         if (handshakeTimer !== null) {
           try { clearTimeoutImpl(handshakeTimer); } catch {}
           handshakeTimer = null;
@@ -339,6 +344,8 @@ export function createVlessWebSocketHandler({
         try { server.close(code, reason); } catch {}
         try { await state.reader?.cancel(); } catch {}
         try { await state.writer?.abort(); } catch {}
+        try { await state.pendingSocket?.close(); } catch {}
+        state.pendingSocket = null;
         try { await state.socket?.close(); } catch {}
       };
 
@@ -520,20 +527,37 @@ export function createVlessWebSocketHandler({
               if (state.closed) return;
               let candidateSocket;
               try {
-                candidateSocket = await connectTcp({ hostname: candidate, port: parsed.port }, env);
-                if (state.closed) {
-                  try { await candidateSocket?.close?.(); } catch {}
-                  return;
-                }
+                // Race both connection creation and socket opening against session
+                // closure. The handshake deadline therefore also bounds a stalled
+                // connect/open operation, rather than only closing the WebSocket.
+                const connectPromise = Promise.resolve()
+                  .then(() => connectTcp({ hostname: candidate, port: parsed.port }, env))
+                  .then(async (createdSocket) => {
+                    if (state.closed) {
+                      try { await createdSocket?.close?.(); } catch {}
+                      return SESSION_CLOSED;
+                    }
+                    return createdSocket;
+                  });
+                candidateSocket = await Promise.race([
+                  connectPromise,
+                  sessionClosed.then(() => SESSION_CLOSED)
+                ]);
+                if (candidateSocket === SESSION_CLOSED || state.closed) return;
                 if (!candidateSocket?.readable || !candidateSocket?.writable ||
                     typeof candidateSocket.close !== "function") {
                   try { await candidateSocket?.close?.(); } catch {}
                   await closeSession(1011, "upstream_unavailable");
                   return;
                 }
-                const info = await candidateSocket.opened;
-                if (state.closed) {
+                state.pendingSocket = candidateSocket;
+                const info = await Promise.race([
+                  Promise.resolve(candidateSocket.opened),
+                  sessionClosed.then(() => SESSION_CLOSED)
+                ]);
+                if (info === SESSION_CLOSED || state.closed) {
                   try { await candidateSocket.close(); } catch {}
+                  if (state.pendingSocket === candidateSocket) state.pendingSocket = null;
                   return;
                 }
                 // A peer mismatch is a security failure, not a transport fallback.
@@ -541,15 +565,18 @@ export function createVlessWebSocketHandler({
                     isClearlyPrivateDestination(info.remoteAddress) ||
                     !sameNumericAddress(candidate, info.remoteAddress)) {
                   try { await candidateSocket.close(); } catch {}
+                  if (state.pendingSocket === candidateSocket) state.pendingSocket = null;
                   await closeSession(1008, "destination_not_allowed");
                   return;
                 }
+                if (state.pendingSocket === candidateSocket) state.pendingSocket = null;
                 destinationAddress = candidate;
                 socket = candidateSocket;
                 socketInfo = info;
                 break;
               } catch {
                 try { await candidateSocket?.close?.(); } catch {}
+                if (state.pendingSocket === candidateSocket) state.pendingSocket = null;
                 // A failed connection/open is safe to retry because no payload
                 // has been forwarded and no quota reservation has been made.
               }
