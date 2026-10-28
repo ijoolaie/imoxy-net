@@ -126,3 +126,7 @@ The controlled staging runbook is [nonprod-vless-smoke-gate.md](nonprod-vless-sm
 - Before forwarding a TCP download chunk to WebSocket, require a measurable non-negative integer `bufferedAmount` and keep queued bytes within 1 MiB.
 - If the current buffered amount is unavailable, malformed, or would exceed the bound with the next chunk, close with `downstream_write_queue_full` before quota reservation and before `send()`.
 - Unit tests use an injected WebSocket adapter. This is not proof of Cloudflare Worker buffering semantics or full end-to-end backpressure; validate the property and behavior in the disposable Worker smoke test.
+
+## Correction — Worker WebSocket bufferedAmount assumption
+
+The earlier adapter test for `server.bufferedAmount` is superseded: Cloudflare Workers' official WebSocket API reference lists `readyState` and `binaryType` but does not document `bufferedAmount`. Do not use an adapter-only fake property as evidence of runtime support. A disposable Worker smoke test must first establish supported telemetry and slow-client behavior. Downstream queue bounding/backpressure remains **Not verified**.
