@@ -375,3 +375,12 @@ Every user-facing response about this repository ends with an evidence-based sch
 - Expanded IPv4 special-use literal filtering and documented that hostname allowlisting is not complete DNS-rebinding protection.
 - Evidence boundary: Node CI uses injected socket/WebSocket adapters. No real Cloudflare Worker or D1 smoke test, DNS-rebinding end-to-end test, deployment, or Nova runtime comparison was performed. Do not claim the route is production-ready or Nova-compatible.
 - Next: review the connected-peer address parser for complete IPv4/IPv6 normalization and special-use handling; then obtain an authorized disposable Cloudflare D1/Worker environment for controlled, non-production tests. Do not perform live writes or deploy without explicit approval.
+
+## Verified follow-up — PRs #61–#62 and IPv6 hardening in progress (2026-10-28)
+
+- PR #61 handoff/roadmap evidence update merged as `3feaf05b7c6830b2adec8b0f96bad07134f90358`; exact-head CI run `40642002952` passed on `c2daab158672557d9b52c8156fd1bfd5aeddab11`. Post-merge main CI run `40642926708` passed on the merge commit.
+- PR #62 strict IPv6 numeric parsing merged as `26dba7efa45d58de5982c1ffcdf5c5ff28018c77`; exact-head PR CI run `40642098509` passed on `dc43700ddcdf33d8cd75ffd64150f8b3b6df41bf` (push CI run `40642118251` also passed). Post-merge main CI run `40642950313` passed on the merge commit; `npm run verify` succeeded.
+- PR #62 rejects malformed IPv6 group counts/compression, validates reported connected-peer address syntax before forwarding, and adds regression coverage for compressed public IPv6 and documentation space. This remains conservative syntax validation, not complete special-purpose address coverage.
+- PR #63, https://github.com/ijoolaie/imoxy-net/pull/63, proposes a normalized IPv6 parser and fail-closed policy for non-global and selected special-purpose/transition/documentation ranges. Exact-head CI on `66f2e90fc2ff7dc0b58b17900408bcacfe3a24d2`, run `40643131921`, was **in progress** at this handoff update; do not merge until it passes and the diff is reviewed.
+- Evidence boundary: these are adapter-based Node tests only. No real Cloudflare Worker/D1 test, DNS-answer pinning, deployment, or Nova runtime comparison occurred. Phase 6 remains In progress; Phase 12 remains Blocked.
+- Next: finish PR #63 exact-head CI/review; then address hostname DNS rebinding and bounded relay/backpressure with a controlled, disposable Worker/D1 test plan. No live Cloudflare writes or deployment without explicit approval.
