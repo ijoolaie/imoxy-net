@@ -1,7 +1,7 @@
 # imoxy.net — Product Roadmap and Phase Gates
 
 **Status:** Active execution baseline; foundation merged, core design work started  
-**Last updated:** 2026-10-27  
+**Last updated:** 2026-10-28  
 **Reference target:** Nova Proxy 5.0.0, pinned in [reference-baseline.md](reference-baseline.md)  
 **Rule:** A phase is not complete because code exists; it is complete only when its exit criteria have reproducible evidence.
 
@@ -111,7 +111,7 @@ Exit gate:
 - Every mutation is authorized, validated, auditable, and safe to retry where promised.
 
 ### Phase 6 — Subscription and proxy compatibility
-**State:** In progress — subscription token generation/storage/revocation, account-expiry caps, provisional Auto/Base64/Clash rendering, clean-room URI/YAML generators, and a restricted VLESS-over-WebSocket TCP prototype with credential checks, destination allowlists, reserve-before-forward quota integration, and a default idle-session timeout are implemented with tests. DNS rebinding/private-network resolution, robust backpressure, speed/concurrency limits, real Worker/D1 smoke tests, public delivery, target-client tests, and reference output comparison remain.
+**State:** In progress — subscription token generation/storage/revocation, account-expiry caps, provisional Auto/Base64/Clash rendering, clean-room URI/YAML generators, and a restricted VLESS-over-WebSocket TCP prototype with credential checks, destination allowlists, reserve-before-forward quota integration, and a default idle-session timeout are implemented with tests. DNS pinning and selected private/special-address filtering are implemented with adapter tests; actual Worker/D1 validation, complete special-purpose range coverage, mixed-answer and IPv4/IPv6 fallback behavior, robust backpressure, speed/concurrency limits, public delivery, target-client tests, and reference output comparison remain.
 
 Deliver:
 - Subscription tokens/access rules, expiry/revocation, and supported output formats.
@@ -353,8 +353,8 @@ This is a gate-based status audit, not a percentage estimate. A phase is marked 
 | 2 — Domain/API contract | In progress | Partial API/domain contracts and tests exist; complete schema/versioning/error and shared-rule exit gate is not demonstrated. |
 | 3 — Security and identity | In progress | Auth/session/RBAC tests exist; real D1 integration, deployed configuration, deeper abuse tests and security sign-off remain. |
 | 4 — Persistence and recovery | In progress | Migrations and SQLite tests exist; real D1 durability, backup/restore, interrupted-write, concurrency and rollback evidence is missing. |
-| 5 — Core management | In progress | Account CRUD and quota foundations exist; atomic reservations, stable event identity/idempotency, complete data-plane enforcement and real D1 tests remain. |
-| 6 — Subscription/proxy compatibility | In progress | Restricted VLESS/WS TCP prototype, DNS pinning and adapter tests exist; real Worker/D1, target-client, backpressure/limits and Nova comparison are unverified. |
+| 5 — Core management | In progress | Account CRUD and quota foundations exist; real D1 concurrency/recovery validation, complete data-plane enforcement, lifetime accounting edge cases and end-to-end proof of idempotency remain. |
+| 6 — Subscription/proxy compatibility | In progress | Restricted VLESS/WS TCP prototype, DNS pinning and adapter tests exist; real Worker/D1, complete address-policy/fallback coverage, target-client, backpressure/limits and Nova comparison are unverified. |
 | 7 — Cloudflare operations | In progress | Inventory and dry-run planning are tested; real account verification, approved write workflows, idempotency and rollback are absent. |
 | 8 — Web panel | In progress | Initial login/account/usage/preview screens exist; critical browser E2E, remaining workflows, accessibility and deployed-Worker validation remain. |
 | 9 — Telegram bot | In progress | Initial read-only commands and mocked/SQLite replay tests exist; secure account linking, real D1/webhook validation, audited mutations and parity remain. |
