@@ -251,3 +251,12 @@ Every user-facing response about this repository ends with an evidence-based sch
 - Explicitly defer gRPC, XHTTP, Trojan, Shadowsocks, UDP/WARP, mixed fallback and hard quota claims from this first slice. Usage event identity and reservation must be attached only after the real traffic measurement/forwarding boundary exists.
 - PR #46 docs: identify missing proxy data plane and reprioritize roadmap merged as e73deb13973bbd569580caae7b34118e2e598328. Exact-head CI run #445 / workflow ID 40634462117 passed on a454899d039ad872955dc821c7d8035f536d096b, including npm run verify. Post-merge main CI for e73deb13973bbd569580caae7b34118e2e598328 was not observable through the available workflow-run lookup at this hand-off update.
 - No proxy runtime code, Cloudflare D1 integration, live traffic test, Nova black-box runtime test, deployment or license approval was performed. Phase 5 and Phase 6 remain In progress; Phase 1 characterization and Phase 12 release remain Blocked.
+
+
+## Initial VLESS parser slice — 2026-10-28
+
+- PR #47 added the acceptance-first proxy MVP plan and REF-033–REF-039. It merged as a2caf7eb63728078346744fd85fe6bf936e84dbd; exact-head CI run #447 / workflow ID 40634572250 passed on 022ac944b60a4cb437e20aabc1601c65010c3b06, including npm run verify. Post-merge main CI for a2caf7eb63728078346744fd85fe6bf936e84dbd has not been observed in the available workflow lookup.
+- New focused code slice: src/proxy/vless-parser.js parses VLESS request headers and preserves initial payload; test/vless-parser.test.js covers valid domain/IPv4/IPv6, addons, ArrayBuffer input, unsupported version/command/address type, port zero, malformed/oversized/non-ASCII domains, truncation, and canonical UUID syntax.
+- The parser deliberately does not authenticate the UUID, authorize destinations, dial upstream, accept WebSocket upgrades, relay bytes, or enforce quotas. This is protocol parsing groundwork only, not a working proxy path or Nova parity.
+- Before a handler can use it, design credential provisioning and secure lookup/rotation/revocation; current proxy_accounts.credential_secret_ref is not a complete protocol-credential contract. Then add a Cloudflare TCP socket adapter and WebSocket relay with a controlled Worker smoke test.
+- This feature branch has not yet been CI-verified; inspect the complete diff and require exact-head CI before merge. No live traffic, D1 integration, Nova runtime comparison, deployment, or license approval occurred.
