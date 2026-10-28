@@ -401,3 +401,13 @@ Every user-facing response about this repository ends with an evidence-based sch
 - Merge commit CI and this handoff update's own CI must still be verified after the documentation commit. No deployment or live Cloudflare resource writes occurred.
 - Limitations: this application-level pinning depends on DNS-over-HTTPS availability and the Worker runtime's supported outbound fetch/TCP behavior. The selected-address policy is still not a complete maintained IANA special-purpose registry; mixed answer sets and IPv4/IPv6 fallback behavior require further review. No controlled Worker/D1 smoke test or Nova black-box comparison has been performed. Do not mark Phase 6 complete or claim production readiness.
 - Next: verify main CI for the PR #66 merge commit; finish review of resolver edge cases and destination allowlist semantics; prepare a controlled non-production Worker/D1 smoke-test plan. Do not deploy or write live resources without explicit approval.
+
+
+## Follow-up work session — 2026-10-28 (non-production smoke gate)
+
+- Verified current `main` head: `796be026b8d41960bf77c99b5f48ff39d4d963fa`. Its CI run `40650164988` completed successfully; job `122688130054` reports `npm run verify` succeeded on that exact SHA.
+- Checked repository tree: it contains `wrangler.toml.example`, but no active `wrangler.toml`; the example intentionally leaves the D1 binding commented out. No existing deployed Worker/D1 environment can be inferred from repository configuration.
+- Open PR list was empty at inspection time.
+- Created branch `docs/nonprod-vless-smoke-gate` and added `docs/nonprod-vless-smoke-gate.md`. The runbook covers staging-only preconditions, migrations/persistence, WebSocket/auth paths, DoH/TCP peer pinning, bidirectional relay, accounting/quota checks, cleanup and acceptance evidence.
+- The runbook is **prepared, not executed**. No Cloudflare resources were created or changed, no deployment was performed, and no real D1/Worker or Nova black-box test was run.
+- Next: update the acceptance plan and parity matrix to link this gate; review the PR diff and CI. To execute the gate, first obtain explicit authorization and a dedicated disposable Cloudflare Worker/D1 environment. Separately review DNS mixed-answer and IPv4/IPv6 fallback behavior, special-purpose address coverage, backpressure, and quota enforcement before any production-readiness claim.
