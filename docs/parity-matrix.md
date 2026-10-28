@@ -63,3 +63,8 @@ The current repository exposes account usage summaries and has a quota domain se
 ## Critical architecture finding — 2026-10-28
 
 The pinned reference documentation describes a single Cloudflare Worker serving the panel, subscription links, and proxy traffic. In imoxy, `worker.js` currently dispatches to static assets or the management API; the inspected API has no WebSocket upgrade/proxy protocol handler, and quota service is not wired into the API. Thus no proxy protocol/transport row should be interpreted as implemented merely because URI/YAML generators exist. All proxy traffic and transport rows remain **Not assessed** until a real client-to-Worker traffic path is implemented and repeatably tested against the pinned reference. Source references: [pinned Nova README](https://github.com/IRNova/Nova-Proxy/blob/ad2116aa89f8c7db8248f8142c1432900d835eb7/README.md), [pinned deployment guide](https://github.com/IRNova/Nova-Proxy/blob/ad2116aa89f8c7db8248f8142c1432900d835eb7/DEPLOY.md).
+
+
+## Restricted VLESS handler evidence — 2026-10-28
+
+The current feature branch adds a testable VLESS-over-WebSocket TCP prototype at /proxy/vless with hash-based credential lookup, account status/expiry checks, a strict host/port allowlist, and a Cloudflare TCP socket adapter. Tests use injected WebSocket/socket adapters; no live Cloudflare Worker/D1 smoke test or pinned Nova runtime comparison has been performed. Therefore all protocol/transport compatibility rows remain **Not assessed**, and this prototype must not be counted as verified Nova parity.
