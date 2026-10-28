@@ -174,11 +174,11 @@ function sameNumericAddress(left, right) {
   return Boolean(leftV6 && rightV6 && leftV6.every((group, index) => group === rightV6[index]));
 }
 
-export async function resolvePublicDestination(host, fetchImpl = globalThis.fetch) {
+export async function resolvePublicDestinations(host, fetchImpl = globalThis.fetch) {
   if (isValidNumericAddress(host)) {
     const normalized = normalizeNumericAddress(host);
     if (isClearlyPrivateDestination(normalized)) throw new TypeError("Destination address is not public.");
-    return normalized;
+    return [normalized];
   }
   if (typeof host !== "string") throw new TypeError("Destination hostname is invalid.");
   const normalizedHost = host.replace(/\.$/, "");
@@ -211,8 +211,13 @@ export async function resolvePublicDestination(host, fetchImpl = globalThis.fetc
       }
     }
   }
-  if (addresses.length === 0) throw new TypeError("No public destination address was resolved.");
-  return addresses[0];
+  const uniqueAddresses = [...new Set(addresses)];
+  if (uniqueAddresses.length === 0) throw new TypeError("No public destination address was resolved.");
+  return uniqueAddresses;
+}
+
+export async function resolvePublicDestination(host, fetchImpl = globalThis.fetch) {
+  return (await resolvePublicDestinations(host, fetchImpl))[0];
 }
 
 function createWebSocketPair() {
@@ -241,7 +246,7 @@ export function createVlessWebSocketHandler({
   quotaServiceFactory = ({ store }) => createQuotaReservationService({ store }),
   idFactory = () => globalThis.crypto.randomUUID(),
   connectTcp = cloudflareTcpConnect,
-  resolveDestination = (host) => resolvePublicDestination(host),
+  resolveDestination = (host) => resolvePublicDestinations(host),
   webSocketPairFactory = createWebSocketPair,
   upgradeResponseFactory = createUpgradeResponse,
   now = () => Date.now(),
@@ -489,47 +494,70 @@ export function createVlessWebSocketHandler({
 
             // Resolve hostnames first and connect to the selected numeric address.
             // This pins the dial target so a second DNS lookup cannot rebind it.
-            let destinationAddress;
+            let resolvedAddresses;
             try {
-              destinationAddress = await resolveDestination(parsed.host, env);
+              const resolved = await resolveDestination(parsed.host, env);
+              resolvedAddresses = Array.isArray(resolved) ? resolved : [resolved];
             } catch {
               await closeSession(1008, "destination_not_allowed");
               return;
             }
-            destinationAddress = normalizeNumericAddress(destinationAddress);
-            if (!destinationAddress || isClearlyPrivateDestination(destinationAddress)) {
+            const candidates = [...new Set(resolvedAddresses
+              .map((address) => normalizeNumericAddress(address))
+              .filter((address) => address && !isClearlyPrivateDestination(address)))];
+            if (candidates.length === 0) {
               await closeSession(1008, "destination_not_allowed");
               return;
             }
-            // The handshake timer may close the session while DNS is pending.
-            // Never open an upstream socket after the client session has closed.
-            if (state.closed) return;
-            const socket = await connectTcp({ hostname: destinationAddress, port: parsed.port }, env);
-            if (state.closed) {
-              try { await socket?.close?.(); } catch {}
-              return;
+
+            // DNS may return both IPv4 and IPv6. Try each validated numeric pin
+            // if opening the transport fails; never retry after forwarding data.
+            let destinationAddress = null;
+            let socket = null;
+            let socketInfo = null;
+            for (const candidate of candidates) {
+              if (state.closed) return;
+              let candidateSocket;
+              try {
+                candidateSocket = await connectTcp({ hostname: candidate, port: parsed.port }, env);
+                if (state.closed) {
+                  try { await candidateSocket?.close?.(); } catch {}
+                  return;
+                }
+                if (!candidateSocket?.readable || !candidateSocket?.writable ||
+                    typeof candidateSocket.close !== "function") {
+                  try { await candidateSocket?.close?.(); } catch {}
+                  await closeSession(1011, "upstream_unavailable");
+                  return;
+                }
+                const info = await candidateSocket.opened;
+                if (state.closed) {
+                  try { await candidateSocket.close(); } catch {}
+                  return;
+                }
+                // A peer mismatch is a security failure, not a transport fallback.
+                if (!isValidNumericAddress(info?.remoteAddress) ||
+                    isClearlyPrivateDestination(info.remoteAddress) ||
+                    !sameNumericAddress(candidate, info.remoteAddress)) {
+                  try { await candidateSocket.close(); } catch {}
+                  await closeSession(1008, "destination_not_allowed");
+                  return;
+                }
+                destinationAddress = candidate;
+                socket = candidateSocket;
+                socketInfo = info;
+                break;
+              } catch {
+                try { await candidateSocket?.close?.(); } catch {}
+                // A failed connection/open is safe to retry because no payload
+                // has been forwarded and no quota reservation has been made.
+              }
             }
-            if (!socket?.readable || !socket?.writable || typeof socket.close !== "function") {
-              try { await socket?.close?.(); } catch {}
+            if (!socket || !destinationAddress || !socketInfo) {
               await closeSession(1011, "upstream_unavailable");
               return;
             }
             state.socket = socket;
-            let socketInfo;
-            try {
-              socketInfo = await socket.opened;
-            } catch {
-              await closeSession(1011, "upstream_unavailable");
-              return;
-            }
-            // Fail closed unless the runtime reports a valid public peer address.
-            // This checks the connected peer, not the hostname's prior DNS answer.
-            if (!isValidNumericAddress(socketInfo?.remoteAddress) ||
-                isClearlyPrivateDestination(socketInfo.remoteAddress) ||
-                !sameNumericAddress(destinationAddress, socketInfo.remoteAddress)) {
-              await closeSession(1008, "destination_not_allowed");
-              return;
-            }
             state.writer = socket.writable.getWriter();
             state.accountId = account.id;
             if (parsed.initialPayload.byteLength) {

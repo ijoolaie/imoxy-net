@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createVlessWebSocketHandler, resolvePublicDestination } from "../src/proxy/vless-websocket-handler.js";
+import { createVlessWebSocketHandler, resolvePublicDestination, resolvePublicDestinations } from "../src/proxy/vless-websocket-handler.js";
 import { hashProxyCredential } from "../src/security/proxy-credentials.js";
 
 const UUID = "123e4567-e89b-12d3-a456-426614174000";
@@ -317,6 +317,33 @@ test("DNS-over-HTTPS resolution selects only a validated public A or AAAA answer
   assert.ok(calls.every((item) => item.accept === "application/dns-json"));
 });
 
+test("returns deduplicated validated public A and AAAA candidates for fallback", async () => {
+  const fetchImpl = async (url) => {
+    const type = new URL(url).searchParams.get("type");
+    return {
+      ok: true,
+      async json() {
+        return type === "A"
+          ? { Status: 0, Answer: [
+              { type: 1, data: "93.184.216.34" },
+              { type: 1, data: "93.184.216.34" },
+              { type: 1, data: "10.0.0.1" }
+            ] }
+          : { Status: 0, Answer: [
+              { type: 28, data: "2606:4700:0:0:0:0:0:1111" },
+              { type: 28, data: "fd00::1" }
+            ] };
+      }
+    };
+  };
+  assert.deepEqual(
+    await resolvePublicDestinations("example.test", fetchImpl),
+    ["93.184.216.34", "2606:4700:0:0:0:0:0:1111"]
+  );
+  // Preserve the original single-address helper for existing callers.
+  assert.equal(await resolvePublicDestination("example.test", fetchImpl), "93.184.216.34");
+});
+
 test("normalizes numeric addresses before they are used as TCP dial targets", async () => {
   assert.equal(await resolvePublicDestination("093.184.216.034"), "93.184.216.34");
 });
@@ -350,6 +377,29 @@ test("resolves hostnames to a public numeric address before dialing and pins the
   h.server.receive(vlessRequest());
   await settle();
   assert.deepEqual(h.connectCalls, [{ hostname: "93.184.216.34", port: 443 }]);
+  assert.ok(h.server.sent.some((item) => item.length === 2 && item[1] === 0));
+});
+
+test("falls back to the next validated IP only when the first connection attempt fails", async () => {
+  const upstream = fakeSocket("2606:4700:0:0:0:0:0:1111");
+  const h = harness({
+    resolveDestination: async () => ["93.184.216.34", "2606:4700:0:0:0:0:0:1111"],
+    connectTcp: async (destination) => {
+      if (destination.hostname === "93.184.216.34") throw new Error("IPv4 route unavailable");
+      return upstream.socket;
+    }
+  });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest());
+  await settle();
+
+  assert.deepEqual(h.connectCalls, [
+    { hostname: "93.184.216.34", port: 443 },
+    { hostname: "2606:4700:0:0:0:0:0:1111", port: 443 }
+  ]);
+  assert.deepEqual(upstream.writes, [[0x11, 0x22]]);
+  assert.equal(h.quotaCalls.reserve.length, 1);
+  assert.equal(h.quotaCalls.settle[0].uploadBytes, 2);
   assert.ok(h.server.sent.some((item) => item.length === 2 && item[1] === 0));
 });
 
@@ -426,10 +476,10 @@ test("fails closed when the connected peer address is malformed or unavailable",
 });
 
 test("accepts a valid compressed public IPv6 peer address", async () => {
-  const upstream = fakeSocket("2606:4700::1111");
+  const upstream = fakeSocket("2606:4700:0:0:0:0:0:1111");
   const h = harness({
     connectTcp: async () => upstream.socket,
-    resolveDestination: async () => "2606:4700::1111"
+    resolveDestination: async () => "2606:4700:0:0:0:0:0:1111"
   });
   await h.handler.fetch(request(), h.env);
   h.server.receive(vlessRequest({ payload: [] }));
