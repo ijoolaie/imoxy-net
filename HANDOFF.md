@@ -260,3 +260,13 @@ Every user-facing response about this repository ends with an evidence-based sch
 - The parser deliberately does not authenticate the UUID, authorize destinations, dial upstream, accept WebSocket upgrades, relay bytes, or enforce quotas. This is protocol parsing groundwork only, not a working proxy path or Nova parity.
 - Before a handler can use it, design credential provisioning and secure lookup/rotation/revocation; current proxy_accounts.credential_secret_ref is not a complete protocol-credential contract. Then add a Cloudflare TCP socket adapter and WebSocket relay with a controlled Worker smoke test.
 - This feature branch has not yet been CI-verified; inspect the complete diff and require exact-head CI before merge. No live traffic, D1 integration, Nova runtime comparison, deployment, or license approval occurred.
+
+
+## VLESS parser merge verification — 2026-10-28
+
+- PR #48, clean-room VLESS TCP request parser, merged as 29bf54c78c3c5d5bcfe8eae3d8c8ec98a54ee920.
+- Exact PR-head CI passed on da3259ad4c870388ed418aababf3476680a78bc4: run #455 / workflow ID 40634698040, including npm run verify. The parser tests cover header decoding and malformed inputs.
+- This CI result is not evidence of Cloudflare socket behavior, a working WebSocket proxy route, trusted usage metering, quota enforcement, or Nova parity. The parser does not authenticate the UUID or dial/relay traffic.
+- The earlier statement that the parser feature branch had not yet been CI-verified is a historical checkpoint, superseded by the exact-head success above.
+- Post-merge main CI for merge commit 29bf54c78c3c5d5bcfe8eae3d8c8ec98a54ee920 has not been observed through the available workflow-run lookup.
+- Next implementation prerequisite: define credential provisioning, hash-only storage, account lookup, rotation and revocation; then implement authenticated WebSocket routing and a Cloudflare TCP adapter. Do not open upstream sockets before credential/account and destination policy checks. The controlled Worker smoke test and reference comparison remain mandatory.
