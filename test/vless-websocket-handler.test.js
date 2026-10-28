@@ -89,7 +89,7 @@ async function settle() {
   for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function harness({ lookup, connectTcp, config = {}, clock = () => NOW } = {}) {
+function harness({ lookup, connectTcp, config = {}, clock = () => NOW, timerCallbacks = null } = {}) {
   const client = new FakeWebSocket();
   const server = new FakeWebSocket();
   const connectCalls = [];
@@ -110,7 +110,10 @@ function harness({ lookup, connectTcp, config = {}, clock = () => NOW } = {}) {
     },
     webSocketPairFactory: () => [client, server],
     upgradeResponseFactory: () => new Response("upgraded", { status: 200 }),
-    now: clock
+    now: clock,
+    initialHandshakeTimeoutMs: 10_000,
+    setTimeoutImpl: timerCallbacks ? (callback) => { timerCallbacks.push(callback); return timerCallbacks.length; } : globalThis.setTimeout,
+    clearTimeoutImpl: timerCallbacks ? () => {} : globalThis.clearTimeout
   });
   return { handler, client, server, connectCalls, storeCalls, config, env: env(config) };
 }
@@ -214,4 +217,15 @@ test("upstream connect failure closes the session without leaking details", asyn
   await settle();
   assert.ok(h.server.closeCalls.some((item) => item.code === 1011));
   assert.equal(h.server.closeCalls.some((item) => item.reason.includes("sensitive")), false);
+});
+
+test("incomplete unauthenticated handshakes are closed on timeout", async () => {
+  const timerCallbacks = [];
+  const h = harness({ timerCallbacks });
+  await h.handler.fetch(request(), h.env);
+  assert.equal(timerCallbacks.length, 1);
+  timerCallbacks[0]();
+  await settle();
+  assert.ok(h.server.closeCalls.some((item) => item.code === 1008 && item.reason === "initial_request_timeout"));
+  assert.equal(h.connectCalls.length, 0);
 });
