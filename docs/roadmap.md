@@ -245,3 +245,8 @@ D1 daily-row writes now validate the combined byte delta and conditionally guard
 
 
 Quota schema follow-up (2026-10-27): migration 0004 adds BEFORE INSERT/UPDATE triggers for safe-integer bounds on daily counters and combined daily bytes. SQLite CI tests the guard; Cloudflare D1 integration, lifetime totals, event idempotency and atomic reservation remain pending.
+
+
+### Lifetime usage aggregate overflow guard — 2026-10-28
+
+Phase 5 now includes a two-pass usage-summary query: a floating-point aggregate is used only to detect totals outside the supported safe-integer range, then exact integer sums run only when bounds are safe. Regression tests cover the adapter query path and SQLite's cross-day aggregate behavior. This does not close lifetime accounting correctness generally: real D1 compatibility, stable event IDs/deduplication, atomic quota reservation, and proxy data-plane enforcement remain open.
