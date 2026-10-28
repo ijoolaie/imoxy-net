@@ -423,7 +423,7 @@ export function createD1Store(db) {
         FROM quota_reservations WHERE reservation_id = ? LIMIT 1`).bind(reservationId).first();
       if (row) {
         if (row.account_id !== accountId || row.usage_date !== usageDate || row.reserved_bytes !== reservedBytes ||
-            row.created_at !== createdAt) {
+            row.created_at !== createdAt || row.lease_expires_at !== leaseExpiresAt) {
           return { allowed: false, conflict: true, reason: "reservation_id_conflict" };
         }
         return {
