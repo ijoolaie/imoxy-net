@@ -411,3 +411,12 @@ Every user-facing response about this repository ends with an evidence-based sch
 - Created branch `docs/nonprod-vless-smoke-gate` and added `docs/nonprod-vless-smoke-gate.md`. The runbook covers staging-only preconditions, migrations/persistence, WebSocket/auth paths, DoH/TCP peer pinning, bidirectional relay, accounting/quota checks, cleanup and acceptance evidence.
 - The runbook is **prepared, not executed**. No Cloudflare resources were created or changed, no deployment was performed, and no real D1/Worker or Nova black-box test was run.
 - Next: update the acceptance plan and parity matrix to link this gate; review the PR diff and CI. To execute the gate, first obtain explicit authorization and a dedicated disposable Cloudflare Worker/D1 environment. Separately review DNS mixed-answer and IPv4/IPv6 fallback behavior, special-purpose address coverage, backpressure, and quota enforcement before any production-readiness claim.
+
+
+## Phase completion audit — 2026-10-28
+
+- Re-read `docs/roadmap.md`, acceptance plan, parity matrix, license review and release certification. The exit-gate rule means **no phase is currently Complete**; this is not a statement that no features have been implemented.
+- Audited status: phases 0–11 In progress; phase 12 Blocked; phase 13 Not started. Phase 2 (domain/API contract) and Phase 4 (persistence/recovery) previously lacked explicit State lines in the roadmap; they are now explicitly marked In progress with remaining exit-gate evidence documented.
+- Key cross-phase blockers: no authorized/pinned Nova runtime scenarios or completed distribution-license decision; no real Cloudflare D1 durability/concurrency/restore evidence; no deployed Worker/D1 VLESS smoke test; incomplete quota event identity/idempotency and hard data-plane enforcement; incomplete web/bot/device E2E; no release candidate.
+- PR #67, https://github.com/ijoolaie/imoxy-net/pull/67, contains the non-production VLESS smoke runbook and this phase audit. CI passed on earlier PR head `c3cb92d0c53e891c0c8470fc920705744a07aa3a` (run `40650803938`); the new phase-audit commit `b207855a211db2f3742f7f1fd94e3baec9009e04` still requires its own exact-head CI result before merge.
+- No Cloudflare resource was created or modified, and no deployment or Nova runtime comparison was performed.
