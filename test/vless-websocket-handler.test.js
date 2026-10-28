@@ -785,3 +785,26 @@ test("DNS resolution fails closed when the only successful address-family query 
 
   await assert.rejects(() => resolvePublicDestinations("example.test", fetchImpl), /No public destination address was resolved/);
 });
+
+
+test("DNS resolution rejects address data that conflicts with the DNS record type", async () => {
+  const fetchImpl = async (url) => {
+    const type = new URL(url).searchParams.get("type");
+    return {
+      ok: true,
+      async json() {
+        return {
+          Status: 0,
+          Answer: type === "A"
+            ? [{ type: 1, data: "2606:4700:4700::1111" }]
+            : [{ type: 28, data: "93.184.216.34" }]
+        };
+      }
+    };
+  };
+
+  await assert.rejects(
+    () => resolvePublicDestinations("example.test", fetchImpl),
+    /No public destination address was resolved/
+  );
+});
