@@ -48,19 +48,51 @@ function isClearlyPrivateDestination(host) {
     const octets = ipv4.slice(1).map(Number);
     if (octets.some((value) => value > 255)) return true;
     const [a, b] = octets;
+    const [, , c, d] = octets;
     return a === 0 || a === 10 || a === 127 || a >= 224 ||
+      (a === 100 && b >= 64 && b <= 127) ||
       (a === 169 && b === 254) ||
       (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168);
+      (a === 192 && b === 0 && c === 0) ||
+      (a === 192 && b === 0 && c === 2) ||
+      (a === 192 && b === 88 && c === 99) ||
+      (a === 192 && b === 168) ||
+      (a === 198 && (b === 18 || b === 19)) ||
+      (a === 198 && b === 51 && c === 100) ||
+      (a === 203 && b === 0 && c === 113) ||
+      (a === 255 && b === 255 && c === 255 && d === 255);
   }
 
   if (normalized.includes(":")) {
     const groups = normalized.split(":").map((value) => Number.parseInt(value || "0", 16));
     const first = groups[0] ?? 0;
+    const second = groups[1] ?? 0;
     return first === 0 || (first & 0xfe00) === 0xfc00 ||
-      (first & 0xffc0) === 0xfe80 || (first & 0xff00) === 0xff00;
+      (first & 0xffc0) === 0xfe80 || (first & 0xff00) === 0xff00 ||
+      (first === 0x2001 && (second === 0x0002 || second === 0x0db8));
   }
   return false;
+}
+
+function isValidNumericAddress(address) {
+  if (typeof address !== "string" || !address || address.includes("%")) return false;
+  const octets = address.split(".");
+  if (octets.length === 4 && octets.every((part) =>
+    part.length > 0 && part.length <= 3 &&
+    [...part].every((character) => character >= "0" && character <= "9") &&
+    Number(part) <= 255
+  )) return true;
+  if (!address.includes(":") || address.includes(".")) return false;
+  const halves = address.split("::");
+  if (halves.length > 2) return false;
+  const groups = address.split(":").filter(Boolean);
+  const isHexGroup = (group) => group.length >= 1 && group.length <= 4 &&
+    [...group].every((character) =>
+      (character >= "0" && character <= "9") ||
+      (character.toLowerCase() >= "a" && character.toLowerCase() <= "f")
+    );
+  if (groups.some((group) => !isHexGroup(group))) return false;
+  return halves.length === 2 ? groups.length < 8 : groups.length === 8;
 }
 
 function destinationAllowed(host, port, env) {
@@ -387,6 +419,20 @@ export function createVlessWebSocketHandler({
               return;
             }
             state.socket = socket;
+            let socketInfo;
+            try {
+              socketInfo = await socket.opened;
+            } catch {
+              await closeSession(1011, "upstream_unavailable");
+              return;
+            }
+            // Fail closed unless the runtime reports a valid public peer address.
+            // This checks the connected peer, not the hostname's prior DNS answer.
+            if (!isValidNumericAddress(socketInfo?.remoteAddress) ||
+                isClearlyPrivateDestination(socketInfo.remoteAddress)) {
+              await closeSession(1008, "destination_not_allowed");
+              return;
+            }
             state.writer = socket.writable.getWriter();
             state.accountId = account.id;
             if (parsed.initialPayload.byteLength) {

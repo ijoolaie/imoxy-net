@@ -50,3 +50,9 @@
 Account creation now generates a random UUID credential, stores only its lowercase SHA-256 hash in the proxy_credentials table, and returns the raw credential only in the creation response. Account list/get responses do not include it. The authenticated credential-rotation route returns a replacement once, revokes previous active credentials in the same D1 batch, and is restricted to owner/admin roles. Account deletion cascades credentials when foreign-key enforcement is active. Audit records contain the action and account ID, never the raw credential or hash.
 
 The store exposes lookup by hash for a future data-plane handler. It is not yet wired into a proxy route. Real D1 migration/batch rollback behavior is unverified; SQLite migration tests and mocked adapter tests are not proof of Cloudflare D1 behavior. Do not open upstream sockets before credential lookup, account status/expiry checks, and destination policy are enforced.
+
+## Proxy destination address policy — 2026-10-28
+
+The VLESS handler rejects common non-public IPv4 literal ranges (including shared-address CGNAT, documentation, benchmarking, and special-use ranges) and selected IPv6 special-use ranges even if a literal is mistakenly included in the configured hostname allowlist. Regression tests exercise these literals.
+
+This is defense in depth, not complete DNS-rebinding protection. Domain names are still passed to Cloudflare's TCP socket API, which resolves them at connection time; the application does not pin an independently validated DNS answer to the socket. Cloudflare documents runtime rejection of private/local destinations, but that behavior must be verified in a controlled Worker test before it can be relied upon as a release gate. Do not expose this route as a general-purpose production proxy until hostname resolution and connected-peer policy are demonstrated end-to-end.

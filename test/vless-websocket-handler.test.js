@@ -43,11 +43,12 @@ class FakeWebSocket extends EventTarget {
   fail() { this.dispatchEvent(new Event("error")); }
 }
 
-function fakeSocket() {
+function fakeSocket(remoteAddress = "93.184.216.34") {
   let controller;
   const writes = [];
   let closed = false;
   const socket = {
+    opened: Promise.resolve({ remoteAddress, localAddress: null }),
     readable: new ReadableStream({ start(value) { controller = value; } }),
     writable: new WritableStream({ write(value) { writes.push(Array.from(value)); } }),
     async close() {
@@ -275,6 +276,54 @@ test("malformed protocol requests and disallowed/private destinations never dial
   privateTarget.server.receive(vlessRequest({ host: "127.0.0.1" }));
   await settle();
   assert.equal(privateTarget.connectCalls.length, 0);
+});
+
+test("rejects special-use IPv4 literals even when explicitly allowlisted", async () => {
+  const blocked = [
+    "100.64.0.1", "192.0.0.1", "192.0.2.1", "192.88.99.1",
+    "198.18.0.1", "198.19.0.1", "198.51.100.1", "203.0.113.1",
+    "255.255.255.255"
+  ];
+  for (const host of blocked) {
+    const h = harness({ config: { PROXY_ALLOWED_HOSTS: host } });
+    await h.handler.fetch(request(), h.env);
+    h.server.receive(vlessRequest({ host, payload: [] }));
+    await settle();
+    assert.equal(h.connectCalls.length, 0, `${host} must not be dialed even when allowlisted`);
+    assert.ok(h.server.closeCalls.some((item) => item.code === 1008 && item.reason === "destination_not_allowed"));
+  }
+});
+
+test("validates the connected peer before forwarding the initial payload", async () => {
+  for (const remoteAddress of ["127.0.0.1", "10.0.0.8", null]) {
+    const upstream = fakeSocket(remoteAddress);
+    const h = harness({ connectTcp: async () => upstream.socket });
+    await h.handler.fetch(request(), h.env);
+    h.server.receive(vlessRequest());
+    await settle();
+
+    assert.equal(upstream.writes.length, 0, `peer ${String(remoteAddress)} must not receive initial bytes`);
+    assert.equal(h.quotaCalls.reserve.length, 0, "peer validation must happen before quota reservation");
+    assert.ok(h.server.closeCalls.some((item) =>
+      item.code === 1008 && item.reason === "destination_not_allowed"
+    ));
+    assert.equal(upstream.closed, true, "rejected upstream socket must be closed");
+  }
+});
+
+test("fails closed when the connected peer address is malformed or unavailable", async () => {
+  for (const remoteAddress of ["not-an-ip", "2001:zzzz::1"]) {
+    const upstream = fakeSocket(remoteAddress);
+    const h = harness({ connectTcp: async () => upstream.socket });
+    await h.handler.fetch(request(), h.env);
+    h.server.receive(vlessRequest({ payload: [] }));
+    await settle();
+    assert.equal(h.quotaCalls.reserve.length, 0);
+    assert.ok(h.server.closeCalls.some((item) =>
+      item.code === 1008 && item.reason === "destination_not_allowed"
+    ));
+    assert.equal(upstream.closed, true);
+  }
 });
 
 test("upstream connect failure closes the session without leaking details", async () => {
