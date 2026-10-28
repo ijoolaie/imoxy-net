@@ -115,3 +115,8 @@ CI regression cases cover malformed IPv6 syntax, compressed public IPv6, documen
 ### PR #63 connected IPv6 regression status — 2026-10-28
 
 PR #63 is merged after exact-head CI passed (run `40643131921`). Adapter-based regression tests cover malformed IPv6, compressed public IPv6, documentation ranges, loopback/mapped IPv4, NAT64 well-known prefix, IETF protocol assignments and 6to4. A real Cloudflare Worker/D1 smoke test and DNS-rebinding validation remain separate acceptance gates.
+
+
+### Non-production VLESS Worker/D1 smoke gate — 2026-10-28
+
+The controlled staging runbook is [nonprod-vless-smoke-gate.md](nonprod-vless-smoke-gate.md). Its status is **prepared, not executed**. Required evidence includes actual deployed Worker/D1 migration and persistence behavior, authenticated WebSocket handshake, DoH resolution and numeric TCP peer pinning, bidirectional bytes, timeout/close behavior, and reservation/usage consistency. No production environment may be used for this gate. Passing Node adapter tests or CI is not a substitute for running the gate in a dedicated disposable Cloudflare environment. No Worker/D1 deployment or live Cloudflare resource mutation has been performed.
