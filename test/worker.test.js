@@ -52,3 +52,27 @@ test("static panel routes use the Assets binding while API routes remain in Work
   assert.ok((await api.json()).implemented.includes("cloudflare-read-only-inventory-and-dry-run-plans"));
   assert.deepEqual(calls, ["/"]);
 });
+
+
+test("VLESS endpoint is reserved before static assets and fails closed without proxy configuration", async () => {
+  const assetCalls = [];
+  const proxyRequest = new Request("https://imoxy.test/proxy/vless", {
+    headers: {
+      upgrade: "websocket",
+      connection: "Upgrade",
+      "sec-websocket-version": "13",
+      "sec-websocket-key": "dGhlIHNhbXBsZSBub25jZQ=="
+    }
+  });
+  const response = await worker.fetch(proxyRequest, {
+    ASSETS: {
+      async fetch(req) {
+        assetCalls.push(new URL(req.url).pathname);
+        return new Response("panel-asset", { status: 200 });
+      }
+    }
+  });
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).error.code, "proxy_not_configured");
+  assert.deepEqual(assetCalls, []);
+});

@@ -281,3 +281,8 @@ The first code slice adds a pure VLESS TCP request parser and unit tests for ver
 ## Proxy credential foundation — 2026-10-28
 
 The current feature branch adds a hash-only proxy_credentials table, UUID issuance on account creation, hash lookup for the future data plane, and owner/admin-only credential rotation that revokes old credentials and audits the change. Raw UUIDs are returned only in create/rotate responses. Exact-head CI and real D1 validation are pending for this branch; no handler consumes these credentials yet. This removes one design blocker but does not make the proxy data plane functional. Phase 6 remains In progress.
+
+
+## Restricted VLESS WebSocket handler prototype — 2026-10-28
+
+The active feature branch adds /proxy/vless (configurable via PROXY_WS_PATH) with VLESS TCP header parsing, hash-based account credential lookup, active/expiry checks, an explicit host/port allowlist, Cloudflare TCP socket adapter, and bidirectional WebSocket/TCP relay tests using injected adapters. This is a restricted prototype, not full Nova parity. Exact-head Node CI run #510 passed; real Cloudflare Worker/D1 smoke, robust DNS/private-network policy, quota enforcement/accounting, speed/concurrency limits and black-box reference comparison remain outstanding. Do not deploy or mark Phase 6 complete.
