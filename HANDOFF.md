@@ -358,3 +358,10 @@ Every user-facing response about this repository ends with an evidence-based sch
 - Branch `fix/vless-idle-session-timeout` adds a default 120-second inactivity timeout to authenticated VLESS WebSocket sessions. Inactivity timer is reset on client upload and upstream download activity; a generation guard makes already-cancelled timer callbacks harmless.
 - Session closure cancels both handshake and idle timers. Invalid timeout configuration fails closed. Added tests for idle close, stale timer callbacks after new activity, upstream socket cleanup, and invalid timeout configuration.
 - This is a bounded resource-control improvement only. It does not address DNS rebinding/private-network resolution, robust backpressure, per-account connection/speed limits, or actual Cloudflare runtime behavior. No deployment occurred. Await exact-head CI before merge; after merge verify main CI and update this hand-off.
+
+
+## VLESS inbound queue bound — 2026-10-28
+
+- Branch `fix/vless-inbound-queue-bound` caps queued binary client WebSocket messages at 1 MiB before they enter the serialized handler queue. If an incoming message would exceed the cap, the session closes with `client_write_queue_full`; non-binary frames are rejected before queueing.
+- This limits application-level queued inbound payload memory and prevents unbounded accumulation while an upstream write/reservation is slow. Tests cover burst overflow and text-frame rejection.
+- This is not full backpressure: it does not bound Cloudflare's internal WebSocket receive buffers or downstream `server.send` buffering, and it does not impose per-account connection/speed limits. Await exact-head CI before merge. No deployment or live Worker/D1 test occurred.
