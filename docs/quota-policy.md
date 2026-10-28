@@ -74,3 +74,8 @@ Main now has the atomic reservation/event-ledger primitives from PR #53, but the
 ## VLESS integration merged — 2026-10-28
 
 PR #54 (`f9bc9bd790357521caad938a5de22026c242383d`) connects per-chunk reservation and measured usage settlement to the restricted VLESS handler. Exact-head CI passed in runs #557 and #558. Each non-empty chunk reserves bytes before forwarding and records upload/download bytes afterward; accounting failure closes the session and retains the reservation if forwarding may have occurred. The stable `PROXY_USAGE_PRODUCER_ID` Worker binding is required. This is not yet verified on Cloudflare D1: migration rollout, trigger semantics, rollback and concurrent reservations must be tested on a disposable real D1 database before deployment. Do not auto-release expired or ambiguous reservations.
+
+
+## Storage test evidence — 2026-10-28
+
+The actual `createD1Store` reservation/settlement SQL is now exercised by a SQLite-backed D1-shape adapter test (PR #56). It passes concurrent daily-quota reservation, duplicate/conflicting event, settlement/release and overflow rollback scenarios. This is stronger than a statement mock, but still not real Cloudflare D1. Do not enable production traffic until the migration and tests are run against a disposable D1 database and the Worker forwarding path is smoke-tested.
