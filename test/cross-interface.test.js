@@ -25,6 +25,7 @@ function makeStore() {
       return { items: accountRows.slice(0, limit), nextCursor: null };
     },
     async createAccount() { throw new Error("not used"); },
+    async rotateCredential() { throw new Error("not used"); },
     async updateAccount() { throw new Error("not used"); },
     async deleteAccount() { throw new Error("not used"); }
   };
