@@ -87,3 +87,8 @@ Fail closed when the TCP runtime reports a malformed peer address or an IPv6 add
 ### Decision status — conservative IPv6 peer policy (2026-10-28)
 
 The PR #63 policy is merged as `29fa597c5c649552d827396a218609ce895724f4` after exact-head CI passed. The application fails closed on non-global IPv6 and selected special-purpose, transition and documentation ranges. This is not a complete maintained IANA registry and does not pin hostname DNS answers to a connected peer. Real Cloudflare runtime validation and Nova parity remain open.
+
+
+### Decision — pin outbound TCP dials to validated DNS answers (2026-10-28)
+
+PR #66 is merged as `471e3a0d0cd9d0fc0fd2292b450e9a95aa026198` after exact-head CI passed. Hostnames are resolved through a fixed DNS-over-HTTPS endpoint; a normalized public numeric address is selected and passed directly to the TCP adapter, and the runtime-reported peer must match before any payload is forwarded or quota is reserved. Fail closed on resolution failure, invalid/private-only answers, invalid numeric destinations or peer mismatch. This narrows DNS-rebinding risk by preventing a second hostname lookup at dial time, but is not proof of complete SSRF protection or Nova parity. Actual Cloudflare Worker/D1 smoke tests, complete maintained special-purpose IP coverage, fallback behavior and resource/backpressure limits remain required; no deployment was performed.
