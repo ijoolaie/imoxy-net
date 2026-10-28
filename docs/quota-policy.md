@@ -43,3 +43,8 @@ The adapter-level guard reduces risk of daily counter precision loss, but it is 
 ## Schema-level counter guard — 2026-10-27
 
 Migration `0004_usage_daily_safe_integer_guards.sql` adds SQLite/D1 triggers that reject inserts and updates where an individual daily counter exceeds `Number.MAX_SAFE_INTEGER` or the daily upload-plus-download total exceeds it. This is defense-in-depth for writers that bypass the JavaScript adapter. SQLite migration tests cover insert and update rejection; actual Cloudflare D1 migration and trigger behavior still require integration verification. The guard does not solve cross-day lifetime-total overflow, replay idempotency, or atomic quota reservation.
+
+
+## Lifetime aggregate overflow guard — 2026-10-28
+
+`getUsageSummary` now performs a first-pass `SUM(CAST(... AS REAL))` bound check before running exact integer aggregates. This avoids SQLite integer `SUM` overflow escaping before application validation when multiple individually-safe daily rows exceed the JavaScript safe-integer limit. Exact totals are returned only after all approximate aggregate bounds are finite, non-negative, and no greater than `Number.MAX_SAFE_INTEGER`. SQLite regression coverage uses multiple safe daily rows whose lifetime total exceeds that bound. This is a fail-closed reporting safeguard, not a quota reservation, stable-event idempotency mechanism, proxy traffic integration, or real Cloudflare D1 proof.
