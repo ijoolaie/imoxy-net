@@ -90,7 +90,7 @@ async function settle() {
   for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function harness({ lookup, connectTcp, config = {}, clock = () => NOW, timerCallbacks = null, quotaAllowed = true, quotaSettleFails = false, quotaReserveFails = false } = {}) {
+function harness({ lookup, connectTcp, config = {}, clock = () => NOW, timerCallbacks = null, quotaAllowed = true, quotaSettleFails = false, quotaReserveFails = false, quotaReserveConflict = false } = {}) {
   const client = new FakeWebSocket();
   const server = new FakeWebSocket();
   const connectCalls = [];
@@ -108,6 +108,11 @@ function harness({ lookup, connectTcp, config = {}, clock = () => NOW, timerCall
     quotaServiceFactory: () => ({
       async reserve(input) {
         quotaCalls.reserve.push(input);
+        if (quotaReserveConflict) {
+          const error = new Error("injected reservation ID conflict");
+          error.code = "reservation_conflict";
+          throw error;
+        }
         if (quotaReserveFails) throw new Error("injected reserve failure");
         if (!quotaAllowed) return { allowed: false, reason: "quota_exceeded" };
         return { allowed: true, reservation: { ...input, usageDate: input.at.slice(0, 10), status: "active" } };
@@ -296,6 +301,18 @@ test("a reservation with an ambiguous response is released only before any forwa
   assert.equal(h.quotaCalls.reserve.length, 1);
   assert.equal(h.quotaCalls.release.length, 1);
   assert.equal(h.quotaCalls.release[0].reservationId, h.quotaCalls.reserve[0].reservationId);
+  assert.deepEqual(upstream.writes, []);
+  assert.ok(h.server.closeCalls.some((item) => item.code === 1011 && item.reason === "quota_reservation_failed"));
+});
+
+
+test("a reservation ID conflict never releases a potentially pre-existing reservation", async () => {
+  const upstream = fakeSocket();
+  const h = harness({ quotaReserveConflict: true, connectTcp: async () => upstream.socket });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest());
+  await settle();
+  assert.equal(h.quotaCalls.release.length, 0);
   assert.deepEqual(upstream.writes, []);
   assert.ok(h.server.closeCalls.some((item) => item.code === 1011 && item.reason === "quota_reservation_failed"));
 });
