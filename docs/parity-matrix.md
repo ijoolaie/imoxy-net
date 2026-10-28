@@ -72,3 +72,7 @@ Main now contains a testable VLESS-over-WebSocket TCP prototype at /proxy/vless 
 ### Connected-peer IPv6 policy — 2026-10-28
 
 imoxy now validates the syntax of the connected TCP peer address and (in PR #63, pending exact-head CI) rejects non-global IPv6 space plus selected special-purpose, transition and documentation prefixes. This is an imoxy security policy, not evidence of Nova behavioral parity. Hostname DNS rebinding, complete IANA special-purpose coverage, real Cloudflare runtime behavior and reference black-box comparison remain **Not assessed**.
+
+### PR #63 connected IPv6 policy status — 2026-10-28
+
+PR #63 is merged as `29fa597c5c649552d827396a218609ce895724f4` after exact-head CI passed (run `40643131921`). The implementation rejects non-global IPv6 and selected special-purpose, transition and documentation ranges before forwarding. This remains a conservative implementation policy, not a complete IANA registry or Nova parity evidence. Hostname DNS pinning and authorized Nova black-box comparison remain **Not assessed**.
