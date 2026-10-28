@@ -37,7 +37,7 @@ Record timestamp, Worker deployment version/commit, Wrangler version, D1 databas
 
 3. **WebSocket handshake and authentication**
    - A valid WebSocket upgrade with a valid staging credential reaches the handler.
-   - Invalid/missing credentials, unsupported method, wrong path, non-upgrade request, inactive/expired account and unconfigured policy are rejected without opening an outbound socket.
+   - Invalid/missing credentials, unsupported method, non-upgrade request, inactive/expired account and unconfigured policy are rejected without opening an outbound socket. A non-matching path must not invoke the VLESS handler or dial an outbound socket.
    - Confirm no raw token or credential is logged.
 
 4. **DNS resolution and TCP peer pinning**
