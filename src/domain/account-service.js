@@ -1,4 +1,5 @@
 import { validateAccountInput, ValidationError } from "./validation.js";
+import { generateProxyCredential, hashProxyCredential, isProxyCredential, isProxyCredentialHash } from "../security/proxy-credentials.js";
 
 export class DomainError extends Error {
   constructor(code, message, status) {
@@ -16,11 +17,14 @@ export function createAccountService({
   store,
   authorize,
   idFactory = () => globalThis.crypto.randomUUID(),
+  credentialFactory = generateProxyCredential,
+  credentialHasher = hashProxyCredential,
   now = () => new Date().toISOString()
 }) {
   if (!store || typeof store.getAccount !== "function" ||
       typeof store.listAccounts !== "function" ||
       typeof store.createAccount !== "function" ||
+      typeof store.rotateCredential !== "function" ||
       typeof store.updateAccount !== "function" ||
       typeof store.deleteAccount !== "function") {
     throw new TypeError("An account storage adapter is required.");
@@ -84,9 +88,48 @@ export function createAccountService({
         createdAt: timestamp,
         updatedAt: timestamp
       };
-      const saved = await store.createAccount(account, audit(principal, "account.created", account.id, context));
+      const credential = credentialFactory();
+      if (!isProxyCredential(credential)) throw new TypeError("The proxy credential factory returned an invalid credential.");
+      const credentialHash = await credentialHasher(credential);
+      if (!isProxyCredentialHash(credentialHash)) throw new TypeError("The proxy credential hasher must return a SHA-256 hex digest.");
+      const credentialRecord = {
+        id: idFactory(),
+        accountId: account.id,
+        credentialHash,
+        createdAt: timestamp
+      };
+      const saved = await store.createAccount(
+        account,
+        audit(principal, "account.created", account.id, context),
+        credentialRecord
+      );
       if (!saved) throw new DomainError("persistence_failed", "The account could not be persisted.", 500);
-      return saved;
+      // Return the raw credential only in the creation response. It is never stored.
+      return { ...saved, credential };
+    },
+
+    async rotateCredential(id, context = {}) {
+      const principal = await principalFor("account.credential.rotate", id);
+      const account = await store.getAccount(id);
+      if (!account) throw notFound();
+      const timestamp = now();
+      const credential = credentialFactory();
+      if (!isProxyCredential(credential)) throw new TypeError("The proxy credential factory returned an invalid credential.");
+      const credentialHash = await credentialHasher(credential);
+      if (!isProxyCredentialHash(credentialHash)) throw new TypeError("The proxy credential hasher must return a SHA-256 hex digest.");
+      const credentialRecord = {
+        id: idFactory(),
+        accountId: id,
+        credentialHash,
+        createdAt: timestamp
+      };
+      const rotated = await store.rotateCredential(
+        id,
+        credentialRecord,
+        audit(principal, "account.credential.rotated", id, context)
+      );
+      if (!rotated) throw notFound();
+      return { accountId: id, credential, createdAt: timestamp };
     },
 
     async update(id, input, context = {}) {
