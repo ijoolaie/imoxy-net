@@ -387,6 +387,120 @@ export function createD1Store(db) {
       }
     },
 
+    async reserveQuota({ reservationId, accountId, usageDate, reservedBytes, createdAt, leaseExpiresAt }) {
+      const validId = (value) => typeof value === "string" && value.length > 0 && value.length <= 128;
+      if (!validId(reservationId) || !validId(accountId) || !isValidUsageDate(usageDate) ||
+          !Number.isSafeInteger(reservedBytes) || reservedBytes < 1 ||
+          typeof createdAt !== "string" || !Number.isFinite(Date.parse(createdAt)) ||
+          typeof leaseExpiresAt !== "string" || !Number.isFinite(Date.parse(leaseExpiresAt)) ||
+          Date.parse(leaseExpiresAt) <= Date.parse(createdAt)) {
+        throw new TypeError("Quota reservation fields are invalid.");
+      }
+
+      await db.prepare(`INSERT INTO quota_reservations
+        (reservation_id, account_id, usage_date, reserved_bytes, actual_bytes, status, created_at, lease_expires_at, updated_at)
+        SELECT ?, a.id, ?, ?, NULL, 'active', ?, ?, ?
+        FROM proxy_accounts a
+        WHERE a.id = ? AND a.status = 'active'
+          AND (a.expires_at IS NULL OR a.expires_at > ?)
+          AND (a.quota_bytes IS NULL OR
+            COALESCE((SELECT SUM(upload_bytes + download_bytes) FROM usage_daily
+              WHERE account_id = a.id), 0) +
+            COALESCE((SELECT SUM(reserved_bytes) FROM quota_reservations
+              WHERE account_id = a.id AND status = 'active'), 0) + ? <= a.quota_bytes)
+          AND (a.daily_quota_bytes IS NULL OR
+            COALESCE((SELECT upload_bytes + download_bytes FROM usage_daily
+              WHERE account_id = a.id AND usage_date = ?), 0) +
+            COALESCE((SELECT SUM(reserved_bytes) FROM quota_reservations
+              WHERE account_id = a.id AND usage_date = ? AND status = 'active'), 0) + ? <= a.daily_quota_bytes)
+        ON CONFLICT(reservation_id) DO NOTHING`).bind(
+        reservationId, usageDate, reservedBytes, createdAt, leaseExpiresAt, createdAt,
+        accountId, createdAt, reservedBytes, usageDate, usageDate, reservedBytes
+      ).run();
+
+      const row = await db.prepare(`SELECT reservation_id, account_id, usage_date, reserved_bytes,
+        actual_bytes, status, created_at, lease_expires_at, updated_at
+        FROM quota_reservations WHERE reservation_id = ? LIMIT 1`).bind(reservationId).first();
+      if (row) {
+        if (row.account_id !== accountId || row.usage_date !== usageDate || row.reserved_bytes !== reservedBytes ||
+            row.created_at !== createdAt || row.lease_expires_at !== leaseExpiresAt) {
+          return { allowed: false, conflict: true, reason: "reservation_id_conflict" };
+        }
+        return {
+          allowed: row.status === "active",
+          duplicate: true,
+          reason: row.status === "active" ? null : "reservation_not_active",
+          reservation: {
+            reservationId: row.reservation_id, accountId: row.account_id, usageDate: row.usage_date,
+            reservedBytes: row.reserved_bytes, actualBytes: row.actual_bytes, status: row.status,
+            createdAt: row.created_at, leaseExpiresAt: row.lease_expires_at, updatedAt: row.updated_at
+          }
+        };
+      }
+      return { allowed: false, duplicate: false, reason: "quota_exceeded_or_account_unusable", reservation: null };
+    },
+
+    async settleUsageEvent({
+      producerId, eventId, reservationId, accountId, usageDate,
+      uploadBytes, downloadBytes, requestCount = 1, payloadHash, at
+    }) {
+      const validId = (value) => typeof value === "string" && value.length > 0 && value.length <= 128;
+      if (!validId(producerId) || !validId(eventId) || !validId(reservationId) || !validId(accountId) ||
+          !isValidUsageDate(usageDate) ||
+          ![uploadBytes, downloadBytes, requestCount].every((value) => Number.isSafeInteger(value) && value >= 0) ||
+          !Number.isSafeInteger(uploadBytes + downloadBytes) ||
+          uploadBytes + downloadBytes > Number.MAX_SAFE_INTEGER ||
+          typeof payloadHash !== "string" || !/^[0-9a-f]{64}$/.test(payloadHash) ||
+          typeof at !== "string" || !Number.isFinite(Date.parse(at))) {
+        throw new TypeError("Usage event fields are invalid.");
+      }
+
+      const batchResults = await db.batch([
+        db.prepare(`INSERT INTO usage_events
+          (producer_id, event_id, reservation_id, account_id, usage_date,
+           upload_bytes, download_bytes, request_count, payload_hash, status, created_at)
+          SELECT ?, ?, r.reservation_id, r.account_id, r.usage_date, ?, ?, ?, ?, 'claimed', ?
+          FROM quota_reservations r
+          WHERE r.reservation_id = ? AND r.account_id = ? AND r.usage_date = ?
+            AND r.status = 'active' AND ? <= r.reserved_bytes
+          ON CONFLICT(producer_id, event_id) DO NOTHING`).bind(
+          producerId, eventId, uploadBytes, downloadBytes, requestCount, payloadHash, at,
+          reservationId, accountId, usageDate, uploadBytes + downloadBytes
+        ),
+        db.prepare(`UPDATE usage_events SET status = 'applied'
+          WHERE producer_id = ? AND event_id = ? AND status = 'claimed'
+            AND reservation_id = ? AND account_id = ? AND usage_date = ?
+            AND upload_bytes = ? AND download_bytes = ? AND request_count = ? AND payload_hash = ?`).bind(
+          producerId, eventId, reservationId, accountId, usageDate,
+          uploadBytes, downloadBytes, requestCount, payloadHash
+        )
+      ]);
+
+      const row = await db.prepare(`SELECT producer_id, event_id, reservation_id, account_id, usage_date,
+        upload_bytes, download_bytes, request_count, payload_hash, status
+        FROM usage_events WHERE producer_id = ? AND event_id = ? LIMIT 1`).bind(producerId, eventId).first();
+      if (!row) return { applied: false, duplicate: false, reason: "reservation_not_active_or_exceeded" };
+      const samePayload = row.reservation_id === reservationId && row.account_id === accountId &&
+        row.usage_date === usageDate && row.upload_bytes === uploadBytes &&
+        row.download_bytes === downloadBytes && row.request_count === requestCount &&
+        row.payload_hash === payloadHash;
+      if (!samePayload) return { applied: false, duplicate: true, conflict: true, reason: "usage_event_id_conflict" };
+      if (row.status !== "applied") return { applied: false, duplicate: false, reason: "usage_event_not_applied" };
+      return { applied: true, duplicate: (batchResults?.[0]?.meta?.changes ?? 0) === 0, reservationId, eventId, status: row.status };
+    },
+
+    async releaseQuotaReservation({ reservationId, accountId, at }) {
+      if (typeof reservationId !== "string" || !reservationId || reservationId.length > 128 ||
+          typeof accountId !== "string" || !accountId ||
+          typeof at !== "string" || !Number.isFinite(Date.parse(at))) {
+        throw new TypeError("Quota reservation release fields are invalid.");
+      }
+      const result = await db.prepare(`UPDATE quota_reservations
+        SET status = 'released', actual_bytes = 0, updated_at = ?
+        WHERE reservation_id = ? AND account_id = ? AND status = 'active'`).bind(at, reservationId, accountId).run();
+      return (result?.meta?.changes ?? 0) === 1;
+    },
+
     async getSubscriptionById(id) {
       if (typeof id !== "string" || !id) return null;
       const row = await db.prepare(`SELECT id, account_id, token_hash, formats_json, created_at,

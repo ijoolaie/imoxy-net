@@ -1,6 +1,6 @@
 # Usage event identity, idempotency, and quota reservation design
 
-**Status:** Design only; not implemented or runtime-validated  
+**Status:** First schema/storage/domain slice implemented on `feat/atomic-quota-reservations`; not yet wired into the proxy handler or validated on Cloudflare D1  
 **Date:** 2026-10-28  
 **Scope:** Phase 5 accounting correctness and prerequisites for future proxy/data-plane enforcement
 
@@ -111,3 +111,17 @@ The restricted VLESS-over-WebSocket handler now identifies the trusted measureme
 For accounting, upload bytes are observable after the client-to-TCP writer accepts a binary chunk; download bytes are observable when the Worker successfully hands a TCP chunk to the WebSocket send path. The exact counting point and control/response bytes must still be characterized against the pinned Nova runtime. These are candidate boundaries, not yet verified parity semantics.
 
 Quota reservations must be created/extended atomically before forwarding each chunk. A successful forwarding chunk then consumes its reservation and records the idempotent event. If the event write has an ambiguous result, retry the same event ID. If the Worker dies after forwarding but before the event is committed, keep the reservation fail-closed until a reconciliation/recovery process can safely resolve it; do not expire/release such reservations blindly and allow over-quota traffic. Per-day reservation identity must handle UTC day rollover. No event ledger or reservation is implemented yet.
+
+
+## Implementation checkpoint — 2026-10-28
+
+Migration 0006 adds `quota_reservations` and `usage_events`. The D1 adapter now has an atomic conditional reservation insert, a stable-ID event settlement path, and a release operation for reservations that are known not to have forwarded any bytes. The domain service requires caller-supplied reservation/event IDs, derives a canonical SHA-256 payload hash, and preserves the reservation's original UTC usage date across midnight.
+
+A SQLite trigger transitions a newly claimed event to applied, updates `usage_daily`, and settles its reservation as part of the same SQL statement/transaction. Replays with the same producer/event key cannot re-apply an already-applied row; mismatched immutable payloads return a conflict. Safe-integer aggregate failures abort the statement.
+
+Important limits:
+- This is not yet connected to `src/proxy/vless-websocket-handler.js`; no hard quota enforcement claim is valid until the handler reserves before each forward and settles measured bytes afterward.
+- Lease expiry is advisory metadata only. Never automatically release an expired reservation: a Worker may have forwarded bytes before dying. Recovery must reconcile the event/forwarding outcome or retain the reservation fail-closed.
+- `releaseQuotaReservation` is only safe when the caller knows no bytes were forwarded.
+- SQLite migration/trigger tests and mocked D1 adapter tests do not prove D1 batch/trigger semantics. Run a controlled real D1 concurrency, rollback, replay and trigger smoke test before enabling the feature.
+- The producer identity must be trusted and stable for retries; never expose this service as an arbitrary client-supplied usage-report endpoint.

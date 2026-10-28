@@ -13,6 +13,7 @@ function databaseWithMigrations() {
   db.exec(migration("0003_telegram_webhook_updates.sql"));
   db.exec(migration("0004_usage_daily_safe_integer_guards.sql"));
   db.exec(migration("0005_proxy_credentials.sql"));
+  db.exec(migration("0006_atomic_quota_reservations.sql"));
   return db;
 }
 
@@ -23,7 +24,7 @@ test("all D1 migrations execute in SQLite and create the expected tables", () =>
   const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((row) => row.name);
   for (const name of [
     "principals", "sessions", "proxy_accounts", "subscriptions", "usage_daily",
-    "installation_settings", "provider_resources", "audit_events", "auth_rate_limits", "telegram_webhook_updates", "proxy_credentials"
+    "installation_settings", "provider_resources", "audit_events", "auth_rate_limits", "telegram_webhook_updates", "proxy_credentials", "quota_reservations", "usage_events"
   ]) assert.ok(tables.includes(name), `missing table ${name}`);
   assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
   db.close();
@@ -186,5 +187,79 @@ test("proxy credentials store only lowercase SHA-256 hashes and cascade with acc
   db.prepare("DELETE FROM proxy_accounts WHERE id = ?").run("acct-cred");
   assert.equal(db.prepare("SELECT COUNT(*) AS count FROM proxy_credentials WHERE account_id = ?").get("acct-cred").count, 0);
   assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
+  db.close();
+});
+
+
+test("quota reservations enforce immutable bounds and usage events atomically settle usage once", () => {
+  const db = databaseWithMigrations();
+  db.prepare(`INSERT INTO proxy_accounts (id, username, status, quota_bytes, daily_quota_bytes, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`).run("a1", "customer_01", "active", 1000, 500, timestamp, timestamp);
+  db.prepare(`INSERT INTO quota_reservations
+    (reservation_id, account_id, usage_date, reserved_bytes, actual_bytes, status, created_at, lease_expires_at, updated_at)
+    VALUES (?, ?, ?, ?, NULL, 'active', ?, ?, ?)`).run(
+    "reserve-1", "a1", "2026-10-27", 100, timestamp, "2026-10-27T12:01:00.000Z", timestamp
+  );
+  const insertEvent = db.prepare(`INSERT INTO usage_events
+    (producer_id, event_id, reservation_id, account_id, usage_date, upload_bytes, download_bytes,
+     request_count, payload_hash, status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'claimed', ?)
+    ON CONFLICT(producer_id, event_id) DO NOTHING`);
+  const payload = ["worker-1", "event-1", "reserve-1", "a1", "2026-10-27", 30, 40, 1, "a".repeat(64), timestamp];
+
+  db.exec("BEGIN");
+  insertEvent.run(...payload);
+  db.prepare("UPDATE usage_events SET status = 'applied' WHERE producer_id = ? AND event_id = ? AND status = 'claimed'")
+    .run("worker-1", "event-1");
+  db.exec("COMMIT");
+
+  const usage = db.prepare("SELECT upload_bytes, download_bytes, request_count FROM usage_daily WHERE account_id = ? AND usage_date = ?")
+    .get("a1", "2026-10-27");
+  assert.deepEqual({ ...usage }, { upload_bytes: 30, download_bytes: 40, request_count: 1 });
+  assert.deepEqual({ ...db.prepare("SELECT status, actual_bytes FROM quota_reservations WHERE reservation_id = ?").get("reserve-1") },
+    { status: "settled", actual_bytes: 70 });
+  assert.throws(() => db.prepare("UPDATE usage_events SET status = 'claimed' WHERE producer_id = ? AND event_id = ?")
+    .run("worker-1", "event-1"), /usage event status transition is invalid/);
+  assert.throws(() => db.prepare("UPDATE quota_reservations SET status = 'active', actual_bytes = NULL WHERE reservation_id = ?")
+    .run("reserve-1"), /quota reservation status transition is invalid/);
+  assert.throws(() => db.prepare(`INSERT INTO usage_events
+    (producer_id, event_id, reservation_id, account_id, usage_date, upload_bytes, download_bytes,
+     request_count, payload_hash, status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'applied', ?)`).run(
+    "worker-1", "event-direct-applied", "reserve-1", "a1", "2026-10-27", 0, 0, 0, "c".repeat(64), timestamp
+  ), /usage events must begin claimed/);
+
+  db.exec("BEGIN");
+  insertEvent.run(...payload);
+  db.prepare("UPDATE usage_events SET status = 'applied' WHERE producer_id = ? AND event_id = ? AND status = 'claimed'")
+    .run("worker-1", "event-1");
+  db.exec("COMMIT");
+  const usageAfterReplay = db.prepare("SELECT upload_bytes, download_bytes, request_count FROM usage_daily WHERE account_id = ? AND usage_date = ?")
+    .get("a1", "2026-10-27");
+  assert.deepEqual({ ...usageAfterReplay }, { upload_bytes: 30, download_bytes: 40, request_count: 1 });
+  assert.throws(() => db.prepare("UPDATE quota_reservations SET reserved_bytes = 200 WHERE reservation_id = ?").run("reserve-1"),
+    /quota reservation identity is immutable/);
+  db.close();
+});
+
+test("an event cannot settle without a matching active reservation or exceed its allowance", () => {
+  const db = databaseWithMigrations();
+  db.prepare(`INSERT INTO proxy_accounts (id, username, status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?)`).run("a1", "customer_01", "active", timestamp, timestamp);
+  db.prepare(`INSERT INTO quota_reservations
+    (reservation_id, account_id, usage_date, reserved_bytes, actual_bytes, status, created_at, lease_expires_at, updated_at)
+    VALUES (?, ?, ?, ?, NULL, 'active', ?, ?, ?)`).run(
+    "reserve-1", "a1", "2026-10-27", 10, timestamp, "2026-10-27T12:01:00.000Z", timestamp
+  );
+  db.prepare(`INSERT INTO usage_events
+    (producer_id, event_id, reservation_id, account_id, usage_date, upload_bytes, download_bytes,
+     request_count, payload_hash, status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'claimed', ?)`).run(
+    "worker-1", "event-oversize", "reserve-1", "a1", "2026-10-27", 8, 5, 1, "b".repeat(64), timestamp
+  );
+  assert.throws(() => db.prepare("UPDATE usage_events SET status = 'applied' WHERE event_id = ?").run("event-oversize"),
+    /usage event has no matching active reservation/);
+  assert.equal(db.prepare("SELECT status FROM quota_reservations WHERE reservation_id = ?").get("reserve-1").status, "active");
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM usage_daily").get().n, 0);
   db.close();
 });

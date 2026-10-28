@@ -291,3 +291,8 @@ The active feature branch adds /proxy/vless (configurable via PROXY_WS_PATH) wit
 ## Post-merge data-plane status — 2026-10-28
 
 PR #51 is merged as 88ddb38f813aa0f4fa4700724972015169749a48. Its exact-head CI passed on cf0b6ceb61f5ee6702275cd8f8cf5d3a9f80af86 in run #515, including npm run verify. Main now contains a restricted VLESS-over-WebSocket TCP prototype with credential lookup, account status/expiry checks, destination allowlist and basic relay cleanup. It is not a production proxy. Next implement stable usage event identity and atomic pre-forward quota reservations, then test concurrency and recovery on disposable real D1; do not use read-only evaluate() as hard enforcement. Phase 5 and Phase 6 remain In progress; Phase 12 remains Blocked.
+
+
+## Atomic quota reservation implementation slice — 2026-10-28
+
+Branch `feat/atomic-quota-reservations` adds migration 0006, D1 store methods for conditional reservations and idempotent event settlement, trigger-driven usage aggregate updates, and a trusted domain service that hashes immutable event payloads. SQLite schema tests cover event settlement, replay suppression, reservation bounds and invalid over-reservation. This slice is not yet wired into the VLESS handler and is not hard enforcement. Exact-head CI and real Cloudflare D1 concurrency/rollback tests are required. Next: verify the migration and triggers on SQLite CI, then validate D1 semantics and integrate bounded chunk reserve/settle at the actual forwarding boundary without auto-releasing ambiguous reservations.
