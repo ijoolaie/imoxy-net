@@ -455,7 +455,7 @@ export function createD1Store(db) {
         throw new TypeError("Usage event fields are invalid.");
       }
 
-      await db.batch([
+      const batchResults = await db.batch([
         db.prepare(`INSERT INTO usage_events
           (producer_id, event_id, reservation_id, account_id, usage_date,
            upload_bytes, download_bytes, request_count, payload_hash, status, created_at)
@@ -486,7 +486,7 @@ export function createD1Store(db) {
         row.payload_hash === payloadHash;
       if (!samePayload) return { applied: false, duplicate: true, conflict: true, reason: "usage_event_id_conflict" };
       if (row.status !== "applied") return { applied: false, duplicate: false, reason: "usage_event_not_applied" };
-      return { applied: true, duplicate: true, reservationId, eventId, status: row.status };
+      return { applied: true, duplicate: (batchResults?.[0]?.meta?.changes ?? 0) === 0, reservationId, eventId, status: row.status };
     },
 
     async releaseQuotaReservation({ reservationId, accountId, at }) {
