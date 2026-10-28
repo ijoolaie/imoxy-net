@@ -218,6 +218,16 @@ test("quota reservations enforce immutable bounds and usage events atomically se
   assert.deepEqual({ ...usage }, { upload_bytes: 30, download_bytes: 40, request_count: 1 });
   assert.deepEqual({ ...db.prepare("SELECT status, actual_bytes FROM quota_reservations WHERE reservation_id = ?").get("reserve-1") },
     { status: "settled", actual_bytes: 70 });
+  assert.throws(() => db.prepare("UPDATE usage_events SET status = 'claimed' WHERE producer_id = ? AND event_id = ?")
+    .run("worker-1", "event-1"), /usage event status transition is invalid/);
+  assert.throws(() => db.prepare("UPDATE quota_reservations SET status = 'active', actual_bytes = NULL WHERE reservation_id = ?")
+    .run("reserve-1"), /quota reservation status transition is invalid/);
+  assert.throws(() => db.prepare(`INSERT INTO usage_events
+    (producer_id, event_id, reservation_id, account_id, usage_date, upload_bytes, download_bytes,
+     request_count, payload_hash, status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'applied', ?)`).run(
+    "worker-1", "event-direct-applied", "reserve-1", "a1", "2026-10-27", 0, 0, 0, "c".repeat(64), timestamp
+  ), /usage events must begin claimed/);
 
   db.exec("BEGIN");
   insertEvent.run(...payload);
