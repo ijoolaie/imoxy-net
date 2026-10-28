@@ -255,3 +255,7 @@ Phase 5 now includes a two-pass usage-summary query: a floating-point aggregate 
 ### Usage-event identity and atomic reservation design — 2026-10-28
 
 Added [usage-event-atomicity-design.md](usage-event-atomicity-design.md) to specify stable producer-scoped event identity, immutable payload/replay rules, ledger + aggregate atomicity, a separate reservation contract, and required real-D1 integration tests. This is documentation/design work only. Phase 5 remains **In progress**; Phase 12 remains **Blocked**. No usage-event ledger, reservation, real D1 integration, data-plane enforcement, or Nova parity was added by this change.
+
+### Quota producer integration gap — 2026-10-28
+
+A source trace confirms `createQuotaService` is not wired into `src/http/api.js`; the capabilities endpoint still lists quota enforcement/usage accounting as pending, and no trusted proxy/data-plane usage reporter was found in the inspected source tree. The next work is not to expose a raw usage-write endpoint: first establish the trusted producer, authentication, account mapping, stable event IDs, and pre-forwarding reservation contract. Phase 5 remains **In progress** with hard enforcement blocked on this boundary; Phase 12 remains **Blocked**. See [architecture.md](architecture.md), [parity-matrix.md](parity-matrix.md), and [usage-event-atomicity-design.md](usage-event-atomicity-design.md).
