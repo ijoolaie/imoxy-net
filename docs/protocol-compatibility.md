@@ -30,3 +30,10 @@
 - Compare decoded subscription payloads, URI parameters, fragment encoding, Base64 alphabet/padding, Clash YAML semantics and transport combinations.
 - Import generated configs into target client versions and run connection smoke tests.
 - Verify that disabled/expired accounts and revoked/expired tokens cannot retrieve content.
+
+
+## Initial VLESS request parser — 2026-10-28
+
+A clean-room parser in src/proxy/vless-parser.js now parses the VLESS version, 16-byte UUID, bounded addons, TCP command, destination port and IPv4/domain/IPv6 address, while preserving the initial payload bytes. Unit tests cover valid forms, malformed domains, incomplete headers and unsupported command/address/version cases.
+
+This is parser-only groundwork. It does not authenticate the UUID against an account, authorize the destination, open a Cloudflare TCP socket, accept a WebSocket upgrade, relay traffic, or enforce quotas. Its tests establish imoxy parser behavior only and are not Nova parity evidence. Do not wire it to upstream networking until the credential lookup/storage contract and no-dial-before-authentication policy are implemented.
