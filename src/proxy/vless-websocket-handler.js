@@ -166,19 +166,20 @@ function sameNumericAddress(left, right) {
   return Boolean(leftV6 && rightV6 && leftV6.every((group, index) => group === rightV6[index]));
 }
 
-async function resolvePublicDestination(host, fetchImpl = globalThis.fetch) {
+export async function resolvePublicDestination(host, fetchImpl = globalThis.fetch) {
   if (isValidNumericAddress(host)) {
     if (isClearlyPrivateDestination(host)) throw new TypeError("Destination address is not public.");
     return host;
   }
-  if (typeof host !== "string" ||
-      !/^(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(host) ||
-      host.split(".").some((label) => !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label))) {
+  if (typeof host !== "string") throw new TypeError("Destination hostname is invalid.");
+  const normalizedHost = host.replace(/\.$/, "");
+  if (!/^(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(normalizedHost) ||
+      normalizedHost.split(".").some((label) => !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label))) {
     throw new TypeError("Destination hostname is invalid.");
   }
 
   const query = async (type) => {
-    const url = `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(host)}&type=${type}`;
+    const url = `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(normalizedHost)}&type=${type}`;
     const response = await fetchImpl(url, {
       headers: { accept: "application/dns-json" },
       redirect: "error"
