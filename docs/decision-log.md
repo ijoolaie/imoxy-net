@@ -68,3 +68,8 @@ The D1 usage adapter validates the combined upload/download delta and uses a con
 ## 2026-10-27 — enforce daily counter bounds at the schema layer
 
 The adapter's conditional upsert is not the only possible writer to `usage_daily`; therefore migration 0004 adds BEFORE INSERT/UPDATE triggers to enforce the supported safe-integer bound independently of application code. SQLite migration tests cover rejected inserts and updates and confirm failed updates leave the row unchanged. This is defense-in-depth, not a substitute for real D1 testing, idempotency, lifetime aggregate guards, or atomic quota reservation.
+
+
+## 2026-10-28 — usage-event identity and reservation design
+
+A future usage report must carry a stable caller-provided event ID from the trusted proxy/data-plane source. Do not derive IDs from account/date/delta, and do not mint IDs at the receiving API. The same ID plus same immutable payload is a replay no-op; the same ID with changed content is a conflict. Ledger insertion and aggregate mutation must succeed or fail atomically. This is a design decision only: no ledger, idempotency, reservation, or real D1 behavior has been implemented. See [usage-event-atomicity-design.md](usage-event-atomicity-design.md). Cloudflare's current D1 docs describe `batch()` as a SQL transaction with rollback on failure, but this must be confirmed by isolated real-D1 integration tests for the exact implementation.

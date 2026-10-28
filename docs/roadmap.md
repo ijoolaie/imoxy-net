@@ -250,3 +250,8 @@ Quota schema follow-up (2026-10-27): migration 0004 adds BEFORE INSERT/UPDATE tr
 ### Lifetime usage aggregate overflow guard — 2026-10-28
 
 Phase 5 now includes a two-pass usage-summary query: a floating-point aggregate is used only to detect totals outside the supported safe-integer range, then exact integer sums run only when bounds are safe. Regression tests cover the adapter query path and SQLite's cross-day aggregate behavior. This does not close lifetime accounting correctness generally: real D1 compatibility, stable event IDs/deduplication, atomic quota reservation, and proxy data-plane enforcement remain open.
+
+
+### Usage-event identity and atomic reservation design — 2026-10-28
+
+Added [usage-event-atomicity-design.md](usage-event-atomicity-design.md) to specify stable producer-scoped event identity, immutable payload/replay rules, ledger + aggregate atomicity, a separate reservation contract, and required real-D1 integration tests. This is documentation/design work only. Phase 5 remains **In progress**; Phase 12 remains **Blocked**. No usage-event ledger, reservation, real D1 integration, data-plane enforcement, or Nova parity was added by this change.
