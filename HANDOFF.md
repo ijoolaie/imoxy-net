@@ -552,3 +552,11 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - These changes strengthen resolver input validation and regression coverage. They do not establish full SSRF protection, complete special-purpose address coverage, runtime backpressure, Nova parity, or production readiness.
 - Issue [#78](https://github.com/ijoolaie/imoxy-net/issues/78) remains open. The disposable Worker/D1 smoke gate and slow/non-reading downstream probe remain unexecuted; no deployment, route binding, or D1 mutation was performed.
 - Phase audit: phases 0–11 **In progress**; phase 12 **Blocked**; phase 13 **Not started**. No phase is Complete.
+
+## Post-merge verification — PR #89 (2026-10-28)
+
+- PR #89, [docs: record verified DNS resolver hardening handoff](https://github.com/ijoolaie/imoxy-net/pull/89), merged as `89e63afec37970783387b51341b69610b162c92c` after its exact-head CI run [40721938418](https://github.com/ijoolaie/imoxy-net/actions/runs/40721938418) completed successfully.
+- Post-merge main CI run [40722382675](https://github.com/ijoolaie/imoxy-net/actions/runs/40722382675) passed on the exact main commit `89e63afec37970783387b51341b69610b162c92c` (`npm run verify`). This verifies the repository's current automated Node checks only; it is not a Cloudflare runtime or Nova parity test.
+- No open pull requests were found at the time of this audit. Issue [#78](https://github.com/ijoolaie/imoxy-net/issues/78) remains open; no approved disposable staging Worker/hostname or cleanup authorization has been supplied, so the slow-reader runtime probe remains unexecuted. No Worker deployment, route binding, D1 mutation, or live smoke test occurred.
+- Next safe work: continue static review and deterministic tests for Phase 6 without choosing an unapproved session byte/time policy. Before any live probe, obtain explicit owner approval for the disposable staging resource, test limits, and cleanup procedure.
+- Phase audit remains: phases 0–11 **In progress**; phase 12 **Blocked**; phase 13 **Not started**. No phase is Complete.
