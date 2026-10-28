@@ -205,6 +205,16 @@ export function createVlessWebSocketHandler({
         try { await state.socket?.close(); } catch {}
       };
 
+      const releaseBeforeForward = async (reservationId) => {
+        if (typeof quotaService.release !== "function" || !state.accountId) return;
+        try {
+          await quotaService.release({ reservationId, accountId: state.accountId, at: new Date(now()).toISOString() });
+        } catch {
+          // No bytes have crossed the forwarding boundary. A failed release is
+          // conservative: the reservation remains held until reconciliation.
+        }
+      };
+
       const reserveAndSettle = async (bytes, direction) => {
         if (!bytes?.byteLength || state.closed) return !state.closed;
         const reservationId = idFactory();
@@ -218,16 +228,27 @@ export function createVlessWebSocketHandler({
             reservedBytes: bytes.byteLength,
             at: reservedAt
           });
-          if (!result?.allowed || !result.reservation?.usageDate) {
+          if (!result?.allowed) {
             await closeSession(1008, "quota_exceeded");
+            return false;
+          }
+          if (!result.reservation?.usageDate) {
+            await releaseBeforeForward(reservationId);
+            await closeSession(1011, "quota_reservation_invalid");
             return false;
           }
           reservation = result.reservation;
         } catch {
+          // Reserve may have committed even if its response was lost, but no
+          // bytes have been forwarded yet, so an idempotent release is safe.
+          await releaseBeforeForward(reservationId);
           await closeSession(1011, "quota_reservation_failed");
           return false;
         }
-        if (state.closed) return false;
+        if (state.closed) {
+          await releaseBeforeForward(reservationId);
+          return false;
+        }
 
         try {
           if (direction === "upload") await state.writer.write(bytes);
