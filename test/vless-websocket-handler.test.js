@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createVlessWebSocketHandler } from "../src/proxy/vless-websocket-handler.js";
+import { createVlessWebSocketHandler, resolvePublicDestination } from "../src/proxy/vless-websocket-handler.js";
 import { hashProxyCredential } from "../src/security/proxy-credentials.js";
 
 const UUID = "123e4567-e89b-12d3-a456-426614174000";
@@ -295,6 +295,43 @@ test("rejects special-use IPv4 literals even when explicitly allowlisted", async
   }
 });
 
+
+
+test("DNS-over-HTTPS resolution selects only a validated public A or AAAA answer", async () => {
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    const parsed = new URL(url);
+    calls.push({ type: parsed.searchParams.get("type"), accept: options.headers.accept });
+    const type = parsed.searchParams.get("type");
+    return {
+      ok: true,
+      async json() {
+        return type === "A"
+          ? { Status: 0, Answer: [{ type: 1, data: "93.184.216.34" }] }
+          : { Status: 0, Answer: [{ type: 28, data: "fd00::1" }] };
+      }
+    };
+  };
+  assert.equal(await resolvePublicDestination("example.test.", fetchImpl), "93.184.216.34");
+  assert.deepEqual(calls.map((item) => item.type).sort(), ["A", "AAAA"]);
+  assert.ok(calls.every((item) => item.accept === "application/dns-json"));
+});
+
+test("DNS-over-HTTPS resolution fails closed when no public answer exists", async () => {
+  const fetchImpl = async () => ({
+    ok: true,
+    async json() {
+      return { Status: 0, Answer: [{ type: 1, data: "10.0.0.4" }] };
+    }
+  });
+  await assert.rejects(() => resolvePublicDestination("private.example", fetchImpl));
+});
+
+test("DNS-over-HTTPS resolution fails closed when both DNS queries fail", async () => {
+  await assert.rejects(() => resolvePublicDestination("example.test", async () => {
+    throw new Error("injected resolver outage");
+  }));
+});
 
 test("resolves hostnames to a public numeric address before dialing and pins the connected peer", async () => {
   const upstream = fakeSocket("93.184.216.34");
