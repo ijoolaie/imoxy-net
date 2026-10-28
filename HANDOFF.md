@@ -420,3 +420,19 @@ Every user-facing response about this repository ends with an evidence-based sch
 - Key cross-phase blockers: no authorized/pinned Nova runtime scenarios or completed distribution-license decision; no real Cloudflare D1 durability/concurrency/restore evidence; no deployed Worker/D1 VLESS smoke test; incomplete quota event identity/idempotency and hard data-plane enforcement; incomplete web/bot/device E2E; no release candidate.
 - PR #67, https://github.com/ijoolaie/imoxy-net/pull/67, contains the non-production VLESS smoke runbook and this phase audit. CI passed on earlier PR head `c3cb92d0c53e891c0c8470fc920705744a07aa3a` (run `40650803938`); the new phase-audit commit `b207855a211db2f3742f7f1fd94e3baec9009e04` still requires its own exact-head CI result before merge.
 - No Cloudflare resource was created or modified, and no deployment or Nova runtime comparison was performed.
+
+
+## Verified status refresh — PRs #67–#68 (2026-10-28)
+
+This section supersedes stale pending-merge notes above where they conflict with the verified repository state.
+
+- PR #67 (non-production VLESS smoke gate and phase audit) is merged. Its runbook is documentation only and has **not** been executed against a real Worker/D1 environment.
+- PR #68, [fix(proxy): support validated IPv4/IPv6 dial fallback](https://github.com/ijoolaie/imoxy-net/pull/68), is merged as `d3c9d6f5002696d3b9e5dcbd426f17d7c9f7f273`.
+- Exact-head PR CI passed on `4ff167957939537853abf4ee625e6f407dc8e224` in runs [40653008200](https://github.com/ijoolaie/imoxy-net/actions/runs/40653008200) and [40653014105](https://github.com/ijoolaie/imoxy-net/actions/runs/40653014105).
+- Post-merge `main` CI passed on merge commit `d3c9d6f5002696d3b9e5dcbd426f17d7c9f7f273` in run [40653294526](https://github.com/ijoolaie/imoxy-net/actions/runs/40653294526).
+- PR #68 resolves and validates unique public numeric A/AAAA candidates, tries candidates sequentially only when connection/opening fails before any payload forwarding or quota reservation, and fails closed on connected-peer mismatch. Tests are adapter-based; this is not proof of complete SSRF protection or runtime behavior in Cloudflare.
+- Current verified `main` head at this update is `d3c9d6f5002696d3b9e5dcbd426f17d7c9f7f273`.
+- No live Cloudflare resources were created or modified, no deployment occurred, and no real Worker/D1 smoke test or Nova runtime comparison was performed.
+- Remaining blockers are unchanged: selected-range special-purpose IP filtering is not a complete maintained IANA registry; relay/backpressure and quota/data-plane enforcement need further validation; real D1 durability/concurrency/recovery and end-to-end panel/bot/device tests remain outstanding; Nova compatibility and licensing review remain unresolved.
+- Phase audit remains: phases 0–11 In progress, phase 12 Blocked, phase 13 Not started. No phase is declared Complete.
+- Next: continue focused security review of TCP relay lifecycle, queue/resource bounds and quota reservation/settlement failure paths; prepare a controlled disposable Worker/D1 test only after explicit authorization. Do not deploy or mutate live Cloudflare resources without explicit approval.
