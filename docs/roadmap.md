@@ -301,3 +301,8 @@ Branch `feat/atomic-quota-reservations` adds migration 0006, D1 store methods fo
 ## VLESS quota enforcement integration — 2026-10-28
 
 PR #53 merged the reservation/event-ledger primitives and exact-head CI plus post-merge main CI passed. The active branch `feat/vless-quota-enforcement` integrates reserve-before-forward and settle-after-forward into VLESS upload/download chunks. It requires a stable producer ID and retains reservations on ambiguous settlement. Exact-head CI, real D1 transaction/trigger/concurrency validation, private-network/DNS protections, resource limits and Nova behavior comparison remain mandatory gates.
+
+
+## VLESS quota integration merged — 2026-10-28
+
+PR #54 merged as `f9bc9bd790357521caad938a5de22026c242383d`; exact-head CI passed on `6e58695155d2a2ed76acf5f6961b03ba6f44dca1` in runs #557/#558. Main now integrates per-chunk reserve-before-forward and settle-after-forward into VLESS upload/download. Phase 5 remains In progress because real D1 transaction/trigger/concurrency/recovery tests and quota-boundary validation are not done. Phase 6 remains In progress because real Worker smoke tests, DNS/private-network hardening, resource limits and Nova behavior comparison are missing. Phase 12 remains Blocked. No deployment occurred.

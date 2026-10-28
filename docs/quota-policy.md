@@ -69,3 +69,8 @@ This is a storage/domain primitive, **not yet hard quota enforcement**: the VLES
 ## VLESS reserve/settle integration — 2026-10-28
 
 Main now has the atomic reservation/event-ledger primitives from PR #53, but the next branch `feat/vless-quota-enforcement` wires them into the VLESS handler. It reserves each non-empty chunk before the TCP/WebSocket send and settles measured bytes afterward. If settlement is ambiguous after a send, it closes the session and keeps the reservation active. The branch requires a stable `PROXY_USAGE_PRODUCER_ID` binding. This integration remains pending exact-head CI and real Cloudflare D1 validation; do not treat it as production-ready.
+
+
+## VLESS integration merged — 2026-10-28
+
+PR #54 (`f9bc9bd790357521caad938a5de22026c242383d`) connects per-chunk reservation and measured usage settlement to the restricted VLESS handler. Exact-head CI passed in runs #557 and #558. Each non-empty chunk reserves bytes before forwarding and records upload/download bytes afterward; accounting failure closes the session and retains the reservation if forwarding may have occurred. The stable `PROXY_USAGE_PRODUCER_ID` Worker binding is required. This is not yet verified on Cloudflare D1: migration rollout, trigger semantics, rollback and concurrent reservations must be tested on a disposable real D1 database before deployment. Do not auto-release expired or ambiguous reservations.

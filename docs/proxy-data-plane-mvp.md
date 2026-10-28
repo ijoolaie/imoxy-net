@@ -75,3 +75,8 @@ The feature branch `feat/atomic-quota-reservations` adds migration 0006, stable-
 ## VLESS quota integration branch — 2026-10-28
 
 The active branch `feat/vless-quota-enforcement` connects the reservation/event primitives to the actual VLESS forwarding boundary: reserve each non-empty chunk before sending, then settle measured upload/download bytes. A failed/ambiguous settlement closes the session and leaves the reservation active. `PROXY_USAGE_PRODUCER_ID` must be a stable installation identifier. Exact-head CI and real Cloudflare D1 validation are pending; this is not a deployment approval.
+
+
+## VLESS quota integration merged — 2026-10-28
+
+Main now reserves every non-empty upload/download chunk before forwarding and settles its measured byte count afterward through the event ledger. Missing `PROXY_USAGE_PRODUCER_ID` fails closed. If settlement is ambiguous after possible forwarding, the session stops and the reservation remains held. This has passing exact-head Node CI, but no real Cloudflare Worker/D1 validation; it is not deployment approval or a Nova parity claim.
