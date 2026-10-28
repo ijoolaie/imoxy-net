@@ -38,6 +38,28 @@ function parsePolicyList(value) {
   return value.split(",").map((item) => item.trim()).filter(Boolean);
 }
 
+function parseIPv6Groups(address) {
+  if (typeof address !== "string" || !address || address.includes("%") || address.includes(".")) return null;
+  const halves = address.split("::");
+  if (halves.length > 2) return null;
+  const isHexGroup = (group) => group.length >= 1 && group.length <= 4 &&
+    [...group].every((character) =>
+      (character >= "0" && character <= "9") ||
+      (character.toLowerCase() >= "a" && character.toLowerCase() <= "f")
+    );
+  if (halves.length === 2) {
+    const left = halves[0] ? halves[0].split(":") : [];
+    const right = halves[1] ? halves[1].split(":") : [];
+    const present = [...left, ...right];
+    if (present.length >= 8 || !present.every(isHexGroup)) return null;
+    const zeros = Array(8 - present.length).fill("0");
+    return [...left, ...zeros, ...right].map((group) => Number.parseInt(group, 16));
+  }
+  const groups = address.split(":");
+  if (groups.length !== 8 || !groups.every(isHexGroup)) return null;
+  return groups.map((group) => Number.parseInt(group, 16));
+}
+
 function isClearlyPrivateDestination(host) {
   const normalized = host.toLowerCase().replace(/\.$/, "");
   if (normalized === "localhost" || normalized.endsWith(".localhost") ||
@@ -64,12 +86,17 @@ function isClearlyPrivateDestination(host) {
   }
 
   if (normalized.includes(":")) {
-    const groups = normalized.split(":").map((value) => Number.parseInt(value || "0", 16));
-    const first = groups[0] ?? 0;
-    const second = groups[1] ?? 0;
-    return first === 0 || (first & 0xfe00) === 0xfc00 ||
-      (first & 0xffc0) === 0xfe80 || (first & 0xff00) === 0xff00 ||
-      (first === 0x2001 && (second === 0x0002 || second === 0x0db8));
+    const groups = parseIPv6Groups(normalized);
+    if (!groups) return true;
+    const [first, second] = groups;
+    // Permit only global-unicast space (2000::/3), then fail closed on
+    // well-known special-purpose ranges and transition/documentation prefixes.
+    if (first < 0x2000 || first > 0x3fff) return true;
+    if (first === 0x2001 && second <= 0x01ff) return true; // IETF protocol assignments
+    if (first === 0x2001 && second === 0x0db8) return true; // documentation
+    if (first === 0x2002) return true; // 6to4 embeds IPv4 addresses
+    if (first === 0x3fff && second <= 0x0fff) return true; // documentation
+    return false;
   }
   return false;
 }
@@ -82,23 +109,7 @@ function isValidNumericAddress(address) {
     [...part].every((character) => character >= "0" && character <= "9") &&
     Number(part) <= 255
   )) return true;
-  if (!address.includes(":") || address.includes(".")) return false;
-  const isHexGroup = (group) => group.length >= 1 && group.length <= 4 &&
-    [...group].every((character) =>
-      (character >= "0" && character <= "9") ||
-      (character.toLowerCase() >= "a" && character.toLowerCase() <= "f")
-    );
-  const halves = address.split("::");
-  if (halves.length > 2) return false;
-  if (halves.length === 2) {
-    const left = halves[0] ? halves[0].split(":") : [];
-    const right = halves[1] ? halves[1].split(":") : [];
-    const groups = [...left, ...right];
-    // Compression must replace at least one of the eight 16-bit groups.
-    return groups.length < 8 && groups.every(isHexGroup);
-  }
-  const groups = address.split(":");
-  return groups.length === 8 && groups.every(isHexGroup);
+  return parseIPv6Groups(address) !== null;
 }
 
 function destinationAllowed(host, port, env) {
