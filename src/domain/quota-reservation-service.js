@@ -4,6 +4,12 @@ function validId(value) {
   return typeof value === "string" && value.length > 0 && value.length <= 128;
 }
 
+function validUsageDate(value) {
+  if (typeof value !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;
+  const timestamp = Date.parse(value + "T00:00:00.000Z");
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value;
+}
+
 function validTimestamp(value, field) {
   if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) {
     throw new TypeError(`${field} must be a valid timestamp.`);
@@ -60,8 +66,8 @@ export function createQuotaReservationService({
     },
 
     async settle({
-      producerId, eventId, reservationId, accountId, uploadBytes, downloadBytes,
-      requestCount = 1, at = now()
+      producerId, eventId, reservationId, accountId, usageDate,
+      uploadBytes, downloadBytes, requestCount = 1, at = now()
     }) {
       for (const [field, value] of Object.entries({ producerId, eventId, reservationId, accountId })) {
         if (!validId(value)) throw new TypeError(`${field} is required.`);
@@ -71,8 +77,8 @@ export function createQuotaReservationService({
       validBytes(requestCount, "requestCount");
       const totalBytes = uploadBytes + downloadBytes;
       if (!Number.isSafeInteger(totalBytes)) throw new TypeError("Combined usage bytes must be a safe integer.");
+      if (!validUsageDate(usageDate)) throw new TypeError("usageDate must be a valid UTC date.");
       const timestamp = validTimestamp(at, "at");
-      const usageDate = timestamp.slice(0, 10);
       const canonicalPayload = JSON.stringify({
         producerId, eventId, reservationId, accountId, usageDate,
         uploadBytes, downloadBytes, requestCount
