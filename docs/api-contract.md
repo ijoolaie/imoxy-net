@@ -52,3 +52,6 @@ Account mutations accept only `username`, `status`, `expiresAt`, `quotaBytes`, `
 - `cloudflare-only`: provider workflows are available without requiring the web panel.
 - `combined`: panel and provider workflows use the same domain services and policy.
 - Missing provider credentials disable provider operations with a clear dependency error; they must not break local account management or health checks.
+
+
+**Credential rotation retry limitation:** POST /accounts/:id/credential/rotate currently issues a new secret and revokes previous active credentials. It has no idempotency/recovery response contract yet; clients must not blindly retry after an ambiguous timeout. Add a production-safe idempotency/recovery design before treating this route as release-ready.
