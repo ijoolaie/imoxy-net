@@ -317,6 +317,10 @@ test("DNS-over-HTTPS resolution selects only a validated public A or AAAA answer
   assert.ok(calls.every((item) => item.accept === "application/dns-json"));
 });
 
+test("normalizes numeric addresses before they are used as TCP dial targets", async () => {
+  assert.equal(await resolvePublicDestination("093.184.216.034"), "93.184.216.34");
+});
+
 test("DNS-over-HTTPS resolution fails closed when no public answer exists", async () => {
   const fetchImpl = async () => ({
     ok: true,
