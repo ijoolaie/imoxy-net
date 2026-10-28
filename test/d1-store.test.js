@@ -98,13 +98,32 @@ test("mutations require an audit event", async () => {
   await assert.rejects(() => store.createAccount({ id: "acct-1", username: "x" }, null), TypeError);
 });
 
-test("usage summaries bind the requested UTC date and account ID", async () => {
-  const db = makeDb({ firstRow: { total_bytes: 1500, daily_bytes: 300, request_count: 7 } });
+test("usage summaries check approximate lifetime bounds before exact integer sums", async () => {
+  const db = makeDb({ firstRow: {
+    total_bytes_approx: 1500, daily_bytes_approx: 300, request_count_approx: 7,
+    total_bytes: 1500, daily_bytes: 300, request_count: 7
+  }});
   const summary = await createD1Store(db).getUsageSummary("acct-1", "2026-10-27");
   assert.equal(summary.totalBytes, 1500);
   assert.equal(summary.dailyBytes, 300);
   assert.equal(summary.requestCount, 7);
+  assert.equal(db.calls.length, 2);
+  assert.match(db.calls[0].sql, /SUM\(CAST\(upload_bytes AS REAL\) \+ CAST\(download_bytes AS REAL\)\)/);
   assert.deepEqual(db.calls[0].values, ["2026-10-27", "acct-1"]);
+  assert.deepEqual(db.calls[1].values, ["2026-10-27", "acct-1"]);
+});
+
+test("usage summaries fail closed on lifetime aggregates beyond safe integer range", async () => {
+  const db = makeDb({ firstRow: {
+    total_bytes_approx: Number.MAX_SAFE_INTEGER + 1,
+    daily_bytes_approx: 0,
+    request_count_approx: 1
+  }});
+  await assert.rejects(
+    () => createD1Store(db).getUsageSummary("acct-1", "2026-10-27"),
+    /Usage counters exceed the supported safe-integer range/
+  );
+  assert.equal(db.calls.length, 1, "unsafe approximate totals must stop before exact SUM can overflow");
 });
 
 test("usage records use an atomic upsert with bounded non-negative counters", async () => {
