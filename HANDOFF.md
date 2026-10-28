@@ -517,3 +517,15 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Current risk remains: download forwarding uses synchronous `server.send(bytes)`; the documented Workers WebSocket API does not expose a documented drain signal or awaitable write. Client-side receive backlog and a bounded test run do not prove the Worker's internal send buffer is bounded. Do not reintroduce undocumented `bufferedAmount` assumptions.
 - Next actions: obtain explicit staging authorization and approval of hard byte/time/concurrency limits plus cleanup; then execute the bounded probe, record observed evidence and limitations, and update issue #78/handoff. Keep the backpressure acceptance criterion open until the evidence supports a defensible design.
 
+
+
+## Verified follow-up — PR #82 and downstream backpressure status (2026-10-28)
+
+- PR #82 hand-off correction was squash-merged as `fd066796f5cdb35a52af32e7c9695b04e7694344`.
+- Post-merge main CI run [40713599656](https://github.com/ijoolaie/imoxy-net/actions/runs/40713599656) completed **success** on that exact main commit; `npm run verify` passed.
+- Repository check found issue [#78](https://github.com/ijoolaie/imoxy-net/issues/78) still open and no open PRs at the time of review.
+- Re-inspected `src/proxy/vless-websocket-handler.js`: the download loop reads one upstream chunk, reserves quota, calls synchronous `server.send(bytes)`, awaits settlement, and only then reads the next chunk. This supports the narrower claim that the application does not intentionally read ahead into its own download queue. It does **not** bound the Worker's internal WebSocket send buffer, and a fake WebSocket test cannot establish behavior for a slow/non-reading client in the real runtime.
+- The 1 MiB `MAX_QUEUED_CLIENT_BYTES` limit remains an upload-side client-to-TCP write queue bound; it is not a download buffer limit. Settlement failure remains fail-closed and retains the reservation.
+- `docs/vless-runtime-backpressure-probe.md` remains a plan only. The proposed probe caps (10 seconds, 8 MiB total attempted bytes, 16 KiB frame, two concurrent clients) are not yet approved and have not been executed. No Worker was deployed, no route or D1 was changed, and no live smoke test was run.
+- Next: continue only non-live design/test work until explicit owner authorization names a disposable staging Worker/hostname and approves the hard limits and cleanup. Do not reintroduce undocumented `bufferedAmount` assumptions. Keep issue #78 open until a defensible runtime-backed solution or explicitly bounded application policy is validated.
+- Phase audit: phases 0–11 **In progress**; phase 12 **Blocked**; phase 13 **Not started**. No phase is Complete.
