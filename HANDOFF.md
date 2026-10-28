@@ -482,3 +482,13 @@ This update supersedes earlier pending-status notes where they conflict with the
 6. Resolve distribution-license review; complete panel, Telegram bot and Android client E2E and release certification.
 
 Phase status remains unchanged: phases 0–11 In progress, phase 12 Blocked, phase 13 Not started; no phase is declared Complete. Do not deploy or mutate live Cloudflare resources without explicit approval.
+
+## Latest work session — 2026-10-28 (VLESS downstream queue bound)
+
+- Starting `main` SHA: `06209ff28b9bea54ef83f086f6a49ac5a6e5018f`; handoff-refresh main CI run `40701152811` was still in progress at session start.
+- Branch: `fix/vless-downstream-buffer-bound`.
+- Objective: reduce unbounded downstream WebSocket buffering in the restricted VLESS TCP relay.
+- Change: before reserving quota or sending a TCP download chunk, inspect `server.bufferedAmount`; close with `downstream_write_queue_full` if it is missing/invalid or if current queued bytes plus the chunk exceed 1 MiB. Added unit tests for over-budget and unavailable telemetry.
+- Scope/limits: this is an application-level queue guard, not complete transport backpressure. No Cloudflare Worker/D1 deployment, live write, or Nova runtime comparison. Confirm `bufferedAmount` support and real slow-client behavior in disposable Worker smoke tests.
+- Required verification: review all changed files, require exact-head CI success before merge, verify post-merge main CI, then update this handoff with exact SHA/run IDs and verify the handoff commit's own CI.
+- Release gates remain: real D1 transaction/concurrency/replay tests; controlled Worker smoke; DNS/special-address review; full speed/concurrency limits; Nova REF-001–039 black-box comparison; license/distribution review. Phase 5 and Phase 6 remain In progress; Phase 12 remains Blocked.
