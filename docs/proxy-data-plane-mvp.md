@@ -59,6 +59,9 @@ The slice is complete only when the parser and handler acceptance tests pass, th
 
 ## Restricted handler prototype — 2026-10-28
 
-The current feature branch adds a Worker route at /proxy/vless (overridable with PROXY_WS_PATH; default /proxy/vless). It authenticates the parsed UUID using the SHA-256 credential lookup, rejects inactive/expired accounts, requires PROXY_ALLOWED_HOSTS and PROXY_ALLOWED_PORTS, blocks obvious private/local destination literals, and opens a Cloudflare TCP socket only after those checks. It relays the initial payload and subsequent binary WebSocket messages to TCP, and TCP bytes back to WebSocket, with basic close/error cleanup.
+The current feature branch adds a Worker route at /proxy/vless (overridable with PROXY_WS_PATH; default /proxy/vless). It authenticates the parsed UUID using the SHA-256 credential lookup, rejects inactive/expired accounts, requires PROXY_ALLOWED_HOSTS and PROXY_ALLOWED_PORTS, blocks obvious private/local destination literals, and opens a Cloudflare TCP socket only after those checks. It relays the initial payload and subsequent binary WebSocket messages to TCP, and TCP bytes back to WebSocket, with a 10-second initial handshake timeout and basic close/error cleanup.
 
 This remains a restricted prototype. Host allowlists do not by themselves prevent DNS rebinding to private addresses; do not use a user-controlled or broad allowlist in production. No quota reservation/accounting, speed or connection limits, robust backpressure policy, DNS/private-network enforcement, D1 runtime test, controlled Worker smoke test, or Nova black-box comparison has been completed. A Node test passing with injected WebSocket/socket adapters is not proof of Cloudflare runtime correctness.
+
+
+Credential rotation currently returns a one-time secret and is not idempotent. Clients must not automatically retry a rotation request after an ambiguous network failure; a production-safe retry/recovery contract is still needed.
