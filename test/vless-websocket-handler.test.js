@@ -605,6 +605,30 @@ test("ambiguous settlement failure closes the session and does not release the r
   assert.ok(h.server.closeCalls.some((item) => item.code === 1011 && item.reason === "usage_settlement_failed"));
 });
 
+test("download settlement failure closes the relay before forwarding a later queued chunk", async () => {
+  const upstream = fakeSocket();
+  const h = harness({ quotaSettleFails: true, connectTcp: async () => upstream.socket });
+
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  upstream.push([0xa1, 0xa2]);
+  upstream.push([0xb1, 0xb2]);
+  await settle();
+
+  assert.ok(h.server.sent.some((message) => message.length === 2 && message[0] === 0 && message[1] === 0));
+  assert.ok(h.server.sent.some((message) => message.length === 2 && message[0] === 0xa1 && message[1] === 0xa2));
+  assert.equal(h.server.sent.some((message) => message.length === 2 && message[0] === 0xb1 && message[1] === 0xb2), false);
+  assert.equal(h.quotaCalls.reserve.length, 1);
+  assert.equal(h.quotaCalls.settle.length, 1);
+  assert.equal(h.quotaCalls.settle[0].downloadBytes, 2);
+  assert.equal(h.quotaCalls.settle[0].uploadBytes, 0);
+  assert.equal(h.quotaCalls.release.length, 0);
+  assert.ok(h.server.closeCalls.some((item) => item.code === 1011 && item.reason === "usage_settlement_failed"));
+  assert.equal(upstream.closed, true);
+});
+
 
 test("a reservation with an ambiguous response is released only before any forwarding", async () => {
   const upstream = fakeSocket();
