@@ -179,3 +179,11 @@ Every user-facing response about this repository ends with an evidence-based sch
 - The earlier notes above that say PR #43 is open, CI is pending, and mergeability is false are historical checkpoint notes superseded by this follow-up.
 - Post-merge main CI: not yet observable at the time of this update (workflow/status lookups returned no run/status for the merge SHA). Do not report post-merge CI as successful until the run for the resulting main commit is observed.
 - Next: check workflow runs for the merge commit and current main HEAD; verify this hand-off update's own CI; then proceed to implementation planning only after the next scoped PR has explicit acceptance criteria and a testable real-D1 strategy. Keep Phase 5 In progress and Phase 12 Blocked.
+
+
+## CI verification update — 2026-10-28
+
+- Post-merge main hand-off commit `a913266c76eafb995384b6454fa93f1c1f6c20f8` completed CI successfully: run #435, workflow run ID `40631448090`, job `test`, including `npm run verify`: https://github.com/ijoolaie/imoxy-net/actions/runs/40631448090.
+- This confirms repository verification on the hand-off update commit. It does not verify Cloudflare D1 runtime behavior or quota reservation, because those remain design-only and no real D1 integration tests were run.
+- PR #43 head CI also passed on `c22f6b6a4610426b9d4261d0f02dc82f5063a04d` (run #433 / `40631341345`), and PR #43 was squash-merged as `1ded95232255aae591508e46f86d095c2be8283f`.
+- This note itself changes `HANDOFF.md` and therefore triggers another main CI run; record its result in a subsequent update before claiming the hand-off is fully current.
