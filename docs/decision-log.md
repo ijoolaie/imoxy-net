@@ -100,3 +100,12 @@ The Worker WebSocket send path has no awaitable write promise in this implementa
 ## Correction — do not assume Worker bufferedAmount support
 
 The earlier 1 MiB guard based on `server.bufferedAmount` is superseded by a compatibility review. The official Cloudflare Workers WebSocket API reference does not document this property; the browser WebSocket API does, but that is not proof it exists in Workers. The fail-closed check is being removed to avoid closing all sessions on an absent property. No replacement is called complete until it is based on a supported runtime mechanism and validated in a disposable Worker smoke test.
+
+
+## 2026-10-28 — documented Workers WebSocket flow-control capability review
+
+Reviewed the current official [Cloudflare Workers WebSocket runtime API](https://developers.cloudflare.com/workers/runtime-apis/websockets/) and [WebSockets usage guide](https://developers.cloudflare.com/workers/examples/websockets/). The documented `WebSocket` surface includes synchronous `send()`, `accept()`, `close()`, event listeners, `readyState`, and `binaryType`; these references do not document `bufferedAmount`, a drain event, or an awaitable send result. This is a documentation review, not runtime execution evidence, and does not prove that no undocumented implementation behavior exists.
+
+Decision: do not use undocumented properties or treat an injected fake adapter as proof of Cloudflare runtime buffering. Sequentially awaiting quota settlement between TCP reads constrains application read-ahead, but settlement is unrelated to downstream WebSocket drain. A hard per-session byte/time budget with session termination can bound application lifetime/forwarded work, but must be an explicit product policy and must not be described as measuring or bounding the runtime's internal WebSocket queue. The policy has not been selected or implemented pending owner/product approval.
+
+Issue #78 remains open. Before claiming completion, add deterministic tests for whichever explicit application policy is selected (slow/non-reading client simulation, stop condition, socket/WS cleanup, and reservation/settlement behavior), then perform the separately authorized bounded staging probe. Record client-side receive backlog only as an observation; it is not an authoritative Worker send-buffer measurement. No Worker deployment, route binding, D1 mutation, or live probe was performed for this review.
