@@ -70,3 +70,8 @@ Credential rotation currently returns a one-time secret and is not idempotent. C
 ## Quota reservation primitives — 2026-10-28
 
 The feature branch `feat/atomic-quota-reservations` adds migration 0006, stable-ID usage events, conditional reservations, and trigger-driven aggregate settlement. These are not yet wired into the VLESS handler and do not mean hard quota enforcement is active. Exact-head CI and real Cloudflare D1 concurrency/rollback tests are required before integrating or deploying.
+
+
+## VLESS quota integration branch — 2026-10-28
+
+The active branch `feat/vless-quota-enforcement` connects the reservation/event primitives to the actual VLESS forwarding boundary: reserve each non-empty chunk before sending, then settle measured upload/download bytes. A failed/ambiguous settlement closes the session and leaves the reservation active. `PROXY_USAGE_PRODUCER_ID` must be a stable installation identifier. Exact-head CI and real Cloudflare D1 validation are pending; this is not a deployment approval.
