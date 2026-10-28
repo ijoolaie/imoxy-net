@@ -97,6 +97,24 @@ test("usage schema triggers reject unsafe daily counters on insert and update", 
   db.close();
 });
 
+test("REAL aggregate preflight detects cross-day lifetime overflow without integer SUM overflow", () => {
+  const db = databaseWithMigrations();
+  db.prepare(`INSERT INTO proxy_accounts (id, username, status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?)`).run("a1", "customer_01", "active", timestamp, timestamp);
+  const insert = db.prepare(`INSERT INTO usage_daily
+    (account_id, usage_date, upload_bytes, download_bytes, request_count, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)`);
+  insert.run("a1", "2026-10-26", 5_000_000_000_000_000, 0, 1, timestamp);
+  insert.run("a1", "2026-10-27", 5_000_000_000_000_000, 0, 1, timestamp);
+  const aggregate = db.prepare(`SELECT
+    COALESCE(SUM(CAST(upload_bytes AS REAL) + CAST(download_bytes AS REAL)), 0) AS total_bytes_approx,
+    COALESCE(SUM(CAST(request_count AS REAL)), 0) AS request_count_approx
+    FROM usage_daily WHERE account_id = ?`).get("a1");
+  assert.ok(aggregate.total_bytes_approx > Number.MAX_SAFE_INTEGER);
+  assert.equal(aggregate.request_count_approx, 2);
+  db.close();
+});
+
 test("usage upserts add counters without overwriting previous traffic", () => {
   const db = databaseWithMigrations();
   db.prepare(`INSERT INTO proxy_accounts (id, username, status, created_at, updated_at)
