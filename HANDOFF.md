@@ -294,11 +294,14 @@ Every user-facing response about this repository ends with an evidence-based sch
 - Credential lifecycle is now in main: migration 0005_proxy_credentials.sql; random UUID issuance at account creation; SHA-256 hash-only persistence; hash lookup; owner/admin-only rotation; prior credential revocation and audit; raw credential returned only once. The legacy credential_secret_ref field remains unused.
 - Active branch: feat/vless-websocket-handler. Added src/proxy/vless-websocket-handler.js and route dispatch before static assets. It validates WebSocket upgrade, parses VLESS TCP, hashes/looks up the UUID, checks account active/expiry, requires explicit PROXY_ALLOWED_HOSTS and PROXY_ALLOWED_PORTS, blocks obvious private/local literals, then dials TCP and relays binary data both ways. The route defaults to /proxy/vless and can be configured with PROXY_WS_PATH.
 - Safety limitation: host allowlists are only a prototype guard and do not prevent DNS rebinding to private addresses. No general-purpose production proxy should be exposed from this branch. No usage metering, quota reservation, speed/concurrency enforcement, real D1/Worker smoke test or Nova runtime comparison is complete.
-- This branch has not yet passed exact-head CI. Review the diff, run tests, and do not merge until exact-head CI passes. No deployment has occurred.
+- At this hand-off checkpoint, exact-head CI was still pending. The later verification section below supersedes this status. No deployment has occurred.
 
 
 ## Handler safety review update — 2026-10-28
 
-- Added a 10-second initial-handshake timeout and a regression test; after timeout the session closes without opening an upstream socket. The current branch head is c85eb2f98806360522f93293ed8e8723b652ad38; CI for this latest head is not yet observed.
+- Added a 10-second initial-handshake timeout and a regression test; after timeout the session closes without opening an upstream socket. Latest exact head e94b0f93d34b97a0f97e46f64093281a9a07d18d passed CI run #510 / workflow ID 40635532913, including npm run verify.
 - Credential rotation is intentionally documented as non-idempotent for now: a lost response can leave the caller without the replacement secret. Do not add automatic client retries until a safe recovery/idempotency contract is designed.
 - Remaining security gaps include DNS rebinding/private-network protection for allowed hostnames, idle timeout, robust WebSocket backpressure, quota/accounting integration, speed/concurrency limits, and a real Cloudflare Worker/D1 smoke test. Do not deploy this prototype to production.
+
+
+- Exact-head Node CI passed, but it uses injected WebSocket/TCP adapters. Do not treat it as a Cloudflare runtime smoke test; live Worker/D1 validation and Nova comparison remain outstanding.
