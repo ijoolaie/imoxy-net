@@ -76,3 +76,8 @@ imoxy now validates the syntax of the connected TCP peer address and (in PR #63,
 ### PR #63 connected IPv6 policy status — 2026-10-28
 
 PR #63 is merged as `29fa597c5c649552d827396a218609ce895724f4` after exact-head CI passed (run `40643131921`). The implementation rejects non-global IPv6 and selected special-purpose, transition and documentation ranges before forwarding. This remains a conservative implementation policy, not a complete IANA registry or Nova parity evidence. Hostname DNS pinning and authorized Nova black-box comparison remain **Not assessed**.
+
+
+### VLESS Worker runtime validation gate — 2026-10-28
+
+DNS answer pinning is implemented and covered by Node tests with injected adapters, but actual Cloudflare Worker/D1 runtime behavior remains **Not assessed**. The [non-production VLESS smoke gate](nonprod-vless-smoke-gate.md) is a prepared runbook, not an executed test. Do not mark proxy transport or quota enforcement as Verified until controlled staging evidence and the required pinned Nova black-box scenarios are recorded. No live deployment or Cloudflare resource write has been performed.
