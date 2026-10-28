@@ -187,7 +187,7 @@ test("unknown, disabled and expired credentials never dial upstream", async () =
 test("malformed protocol requests and disallowed/private destinations never dial", async () => {
   const malformed = harness();
   await malformed.handler.fetch(request(), malformed.env);
-  malformed.server.receive(Uint8Array.from([0, 1, 2]));
+  malformed.server.receive(Uint8Array.from([1, 1, 2]));
   await settle();
   assert.equal(malformed.storeCalls.length, 0);
   assert.equal(malformed.connectCalls.length, 0);
