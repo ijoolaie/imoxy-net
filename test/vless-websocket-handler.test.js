@@ -353,6 +353,25 @@ test("resolves hostnames to a public numeric address before dialing and pins the
   assert.ok(h.server.sent.some((item) => item.length === 2 && item[1] === 0));
 });
 
+test("does not dial if the handshake times out while DNS resolution is pending", async () => {
+  const timerCallbacks = [];
+  let finishResolution;
+  const h = harness({
+    timerCallbacks,
+    resolveDestination: () => new Promise((resolve) => { finishResolution = resolve; })
+  });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest());
+  await settle();
+  assert.equal(typeof finishResolution, "function");
+  timerCallbacks[0]();
+  await settle();
+  finishResolution("93.184.216.34");
+  await settle();
+  assert.equal(h.connectCalls.length, 0);
+  assert.ok(h.server.closeCalls.some((item) => item.reason === "initial_request_timeout"));
+});
+
 test("rejects a connected peer that differs from the pinned DNS answer", async () => {
   const upstream = fakeSocket("10.0.0.8");
   const h = harness({
