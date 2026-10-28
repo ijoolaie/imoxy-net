@@ -88,3 +88,7 @@ The older note above about the handler not calling the reservation service has b
 ## Downstream send-queue guard — 2026-10-28
 
 The VLESS handler checks the WebSocket `bufferedAmount` before reserving quota for a download chunk. Missing/invalid buffering telemetry or a next chunk that would exceed 1 MiB closes the session before reservation and send. This is a resource guard, not a guarantee of complete transport backpressure; real Worker behavior and queue accounting remain to be validated.
+
+## Correction — queue telemetry is not runtime-verified
+
+The earlier note describing a Worker `bufferedAmount` quota guard is superseded. That property is not documented by the Cloudflare Workers WebSocket API reference, so the adapter-only check must not be presented as an operational guard. No change to quota reservation/settlement semantics is intended in the follow-up; a supported downstream flow-control mechanism remains to be designed and tested.
