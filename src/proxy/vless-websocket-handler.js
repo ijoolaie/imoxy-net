@@ -4,6 +4,7 @@ import { parseVlessRequest, VlessProtocolError } from "./vless-parser.js";
 
 const DEFAULT_PATH = "/proxy/vless";
 const MAX_INITIAL_BUFFER_BYTES = 64 * 1024;
+const DEFAULT_INITIAL_HANDSHAKE_TIMEOUT_MS = 10_000;
 
 function jsonError(code, message, status) {
   return new Response(JSON.stringify({ error: { code, message } }), {
@@ -118,7 +119,10 @@ export function createVlessWebSocketHandler({
   connectTcp = cloudflareTcpConnect,
   webSocketPairFactory = createWebSocketPair,
   upgradeResponseFactory = createUpgradeResponse,
-  now = () => Date.now()
+  now = () => Date.now(),
+  initialHandshakeTimeoutMs = DEFAULT_INITIAL_HANDSHAKE_TIMEOUT_MS,
+  setTimeoutImpl = globalThis.setTimeout,
+  clearTimeoutImpl = globalThis.clearTimeout
 } = {}) {
   return {
     async fetch(request, env = {}) {
@@ -170,10 +174,15 @@ export function createVlessWebSocketHandler({
         writer: null,
         writeQueue: Promise.resolve()
       };
+      let handshakeTimer = null;
 
       const closeSession = async (code = 1000, reason = "closed") => {
         if (state.closed) return;
         state.closed = true;
+        if (handshakeTimer !== null) {
+          try { clearTimeoutImpl(handshakeTimer); } catch {}
+          handshakeTimer = null;
+        }
         try { server.close(code, reason); } catch {}
         try { await state.reader?.cancel(); } catch {}
         try { await state.writer?.abort(); } catch {}
@@ -221,7 +230,9 @@ export function createVlessWebSocketHandler({
 
           try {
             const credentialHash = await credentialHasher(parsed.uuid);
+            if (state.closed) return;
             const match = await store.findAccountByCredentialHash(credentialHash);
+            if (state.closed) return;
             const account = match?.account;
             if (!accountIsUsable(account, now())) {
               await closeSession(1008, "invalid_credential");
@@ -233,6 +244,10 @@ export function createVlessWebSocketHandler({
             }
 
             const socket = await connectTcp({ hostname: parsed.host, port: parsed.port }, env);
+            if (state.closed) {
+              try { await socket?.close?.(); } catch {}
+              return;
+            }
             if (!socket?.readable || !socket?.writable || typeof socket.close !== "function") {
               try { await socket?.close?.(); } catch {}
               await closeSession(1011, "upstream_unavailable");
@@ -241,6 +256,11 @@ export function createVlessWebSocketHandler({
             state.socket = socket;
             state.writer = socket.writable.getWriter();
             if (parsed.initialPayload.byteLength) await state.writer.write(parsed.initialPayload);
+            if (state.closed) return;
+            if (handshakeTimer !== null) {
+              try { clearTimeoutImpl(handshakeTimer); } catch {}
+              handshakeTimer = null;
+            }
             state.authenticated = true;
             server.send(Uint8Array.from([parsed.version, 0]));
             state.buffer = new Uint8Array();
@@ -264,6 +284,13 @@ export function createVlessWebSocketHandler({
       });
       server.addEventListener("close", () => { void closeSession(1000, "client_closed"); });
       server.addEventListener("error", () => { void closeSession(1011, "websocket_error"); });
+
+      if (!Number.isSafeInteger(initialHandshakeTimeoutMs) || initialHandshakeTimeoutMs < 1 ||
+          typeof setTimeoutImpl !== "function" || typeof clearTimeoutImpl !== "function") {
+        await closeSession(1011, "proxy_timeout_config_invalid");
+        return jsonError("proxy_timeout_config_invalid", "The proxy timeout configuration is invalid.", 503);
+      }
+      handshakeTimer = setTimeoutImpl(() => { void closeSession(1008, "initial_request_timeout"); }, initialHandshakeTimeoutMs);
 
       try {
         return upgradeResponseFactory(client);
