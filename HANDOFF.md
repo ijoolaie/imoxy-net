@@ -314,3 +314,14 @@ Every user-facing response about this repository ends with an evidence-based sch
 - CI tests use injected WebSocket/TCP adapters. No real Cloudflare Worker/D1 smoke test, live traffic transfer, Nova black-box comparison, quota enforcement, usage event ledger, reservation, speed/concurrency enforcement, or production deployment has occurred. Post-merge main CI for 88ddb38f813aa0f4fa4700724972015169749a48 was not observable through the available workflow-run lookup.
 - The next critical path is usage accounting and quota reservation tied to the actual handler forwarding boundary. Do not wire the existing read-only quota evaluate() as hard enforcement; it is race-prone and does not reserve capacity. Define stable event identity, atomic event/aggregate updates, per-chunk pre-forward reservation, completion/release behavior and stale-reservation recovery before claiming hard quotas.
 - Security blockers remain: host allowlisting does not prevent DNS rebinding to private destinations; credential rotation is non-idempotent; idle timeout/backpressure/resource limits need hardening. Do not expose the route as a general-purpose production proxy or claim Nova parity.
+
+
+## Atomic quota reservation branch — 2026-10-28 (pending CI/review)
+
+- Active branch: `feat/atomic-quota-reservations`.
+- Added migration `0006_atomic_quota_reservations.sql`: `quota_reservations`, `usage_events`, payload immutability checks, and a trigger that applies the daily aggregate and settles the matching reservation when a claimed event transitions to applied.
+- Added `createQuotaReservationService`, requiring caller-supplied stable reservation/event IDs and hashing canonical event fields. Settlement takes the reservation's original `usageDate`, so a chunk reserved before UTC midnight does not silently move into the next day.
+- Added D1 adapter methods for conditional quota reservation, idempotent event settlement and explicit release. Added SQLite schema/trigger tests and domain-service tests.
+- Not yet connected to the VLESS handler. Do not claim quota enforcement until each bounded data chunk is reserved before forwarding and settled with measured bytes after forwarding. If settlement is ambiguous, retain the reservation; do not release it automatically on lease expiry. Release only when no bytes were forwarded.
+- Exact-head CI is not yet observed. Even if CI passes, real Cloudflare D1 tests are still required for trigger behavior, batch rollback, uniqueness races and concurrency before deployment.
+- Existing VLESS route remains restricted and not production-ready; DNS rebinding/private network, backpressure/idle limits, real Worker smoke tests and Nova black-box parity remain open.
