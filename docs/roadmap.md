@@ -61,6 +61,8 @@ Exit gate:
 - Critical ambiguities and license blockers are documented; no implementation is falsely labeled as parity.
 
 ### Phase 2 — Domain model, configuration, and API contract
+**State:** In progress — versioned API conventions, capability reporting, domain services and schema validation have partial implementation/tests; the complete contract, migration/versioning strategy, deterministic error coverage and cross-client rule centralization have not passed the exit gate.
+
 Deliver:
 - Versioned API conventions and structured error format.
 - Domain model for installation/configuration, users, credentials, expiry, limits, subscriptions, providers, and audit events.
@@ -84,6 +86,8 @@ Exit gate:
 - Secrets are absent from source, responses, and logs; security review findings are resolved or explicitly blocked.
 
 ### Phase 4 — Persistence, migrations, and recovery
+**State:** In progress — D1-oriented adapters and migrations plus Node/SQLite migration regression tests exist. Real Cloudflare D1 persistence, backup/export, restore, interrupted-write, concurrency, upgrade and rollback evidence are missing.
+
 Deliver:
 - Storage adapter and schema/migration management appropriate to the selected runtime.
 - Backup/export, restore, upgrade, rollback, and failure behavior.
@@ -336,3 +340,29 @@ PR #63 merged as `29fa597c5c649552d827396a218609ce895724f4`; exact-head CI run `
 PR #66 merged as `471e3a0d0cd9d0fc0fd2292b450e9a95aa026198`; exact-head CI passed on `c874882ae9179446cddad6ba1f2504c93dd8e063` (PR run `40647440374`, push run `40647434071`). Hostnames are resolved through DNS-over-HTTPS, validated public numeric answers are normalized and used directly as TCP dial targets, and the reported connected peer must match the pinned address before forwarding/quota reservation. Regression tests cover resolver failures, private-only answers, canonical targets, timeout during resolution and peer mismatch.
 
 This remains unverified in the actual Cloudflare Worker/D1 runtime. DNS-over-HTTPS availability, Worker socket semantics, complete special-purpose address coverage, destination allowlist behavior, connection/resource limits, backpressure and Nova black-box parity remain open. Phase 6 stays **In progress** and Phase 12 stays **Blocked**. No deployment or live Cloudflare writes occurred.
+
+
+## Phase completion audit — 2026-10-28
+
+This is a gate-based status audit, not a percentage estimate. A phase is marked Complete only when its own exit criteria have reproducible evidence on the relevant final commit/environment. A green `npm run verify` is useful repository evidence but does not substitute for runtime, reference, legal, recovery, client-device, or deployment gates.
+
+| Phase | Audited status | Evidence-based reason it is not Complete |
+|---|---|---|
+| 0 — Repository governance | In progress | Governance/docs/CI exist; final repository-wide audit and all exit checks are not certified. |
+| 1 — Reference characterization | In progress | REF-001–REF-032 are documented, but no authorized Nova runtime scenarios were executed and distribution-license review remains open. |
+| 2 — Domain/API contract | In progress | Partial API/domain contracts and tests exist; complete schema/versioning/error and shared-rule exit gate is not demonstrated. |
+| 3 — Security and identity | In progress | Auth/session/RBAC tests exist; real D1 integration, deployed configuration, deeper abuse tests and security sign-off remain. |
+| 4 — Persistence and recovery | In progress | Migrations and SQLite tests exist; real D1 durability, backup/restore, interrupted-write, concurrency and rollback evidence is missing. |
+| 5 — Core management | In progress | Account CRUD and quota foundations exist; atomic reservations, stable event identity/idempotency, complete data-plane enforcement and real D1 tests remain. |
+| 6 — Subscription/proxy compatibility | In progress | Restricted VLESS/WS TCP prototype, DNS pinning and adapter tests exist; real Worker/D1, target-client, backpressure/limits and Nova comparison are unverified. |
+| 7 — Cloudflare operations | In progress | Inventory and dry-run planning are tested; real account verification, approved write workflows, idempotency and rollback are absent. |
+| 8 — Web panel | In progress | Initial login/account/usage/preview screens exist; critical browser E2E, remaining workflows, accessibility and deployed-Worker validation remain. |
+| 9 — Telegram bot | In progress | Initial read-only commands and mocked/SQLite replay tests exist; secure account linking, real D1/webhook validation, audited mutations and parity remain. |
+| 10 — Android APK | In progress | Initial Kotlin client and debug-build pipeline exist; device install/E2E, security/session verification, core workflows and signed release provenance remain. |
+| 11 — Cross-interface reliability | In progress | Limited API/Telegram contract tests exist; complete shared-operation parity, browser/device E2E, failure injection and SLOs remain. |
+| 12 — Release certification | Blocked | License/distribution approval, reference evidence, real D1 recovery, staging/client E2E, security sign-off and release provenance are missing. |
+| 13 — Imoxy-specific improvements | Not started | Deliberately gated until parity and release/legal blockers are resolved. |
+
+**Audit conclusion:** 0 phases Complete; 11 phases In progress (0–11); Phase 12 Blocked; Phase 13 Not started. This is a phase-exit assessment, not a claim that no implementation work has been done.
+
+**Next exit-gate sequence:** (1) close Phase 0 audit gaps; (2) execute prioritized Phase 1 reference scenarios and obtain a documented license/distribution decision; (3) prove Phase 2–4 contract/security/persistence against the actual target runtime; (4) complete stable-ID quota accounting and real D1 validation in Phase 5; (5) execute the controlled Worker/D1 smoke gate linked from [nonprod-vless-smoke-gate.md](nonprod-vless-smoke-gate.md) and compare critical proxy outputs to the pinned reference for Phase 6; then certify the client, cross-interface and release gates. Do not promote a phase to Complete solely because its implementation files or unit tests exist.
