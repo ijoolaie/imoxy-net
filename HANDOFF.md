@@ -325,3 +325,12 @@ Every user-facing response about this repository ends with an evidence-based sch
 - Not yet connected to the VLESS handler. Do not claim quota enforcement until each bounded data chunk is reserved before forwarding and settled with measured bytes after forwarding. If settlement is ambiguous, retain the reservation; do not release it automatically on lease expiry. Release only when no bytes were forwarded.
 - Exact-head CI is not yet observed. Even if CI passes, real Cloudflare D1 tests are still required for trigger behavior, batch rollback, uniqueness races and concurrency before deployment.
 - Existing VLESS route remains restricted and not production-ready; DNS rebinding/private network, backpressure/idle limits, real Worker smoke tests and Nova black-box parity remain open.
+
+
+## Quota reservation implementation merged — 2026-10-28
+
+- PR #53 merged as `783ef21559d3655dac9e0b1a4071194d57237a3a`. Exact-head CI passed on `d0ea10355de9a9384fcdd6e20e72679b48423eb6` in runs #539 (push) and #540 (pull_request); `npm run verify` passed. Post-merge `main` CI passed in run #541 (`40636585805`).
+- Main now contains migration 0006, `quota_reservations`, `usage_events`, trigger-driven event application and reservation settlement, plus `createQuotaReservationService`. SQLite tests verify the migration, one-time settlement/replay suppression, immutable payload/state transitions and domain behavior.
+- Active branch `feat/vless-quota-enforcement` now wires reserve-before-forward and settle-after-forward around VLESS upload/download chunks. It requires a stable `PROXY_USAGE_PRODUCER_ID` environment value. If reserve fails, forwarding stops; if settlement fails after possible forwarding, the session closes and the reservation is intentionally retained.
+- This handler integration is not yet merged or CI-verified. Real Cloudflare D1 concurrency/rollback/trigger testing is still absent. Do not deploy or claim production quota enforcement until that is completed.
+- Reservation leases are advisory metadata; no automatic expiry release is allowed. A release is only safe if the caller knows no bytes were forwarded. DNS rebinding/private-network controls, idle/backpressure/concurrency limits, real Worker smoke tests and Nova parity remain open.
