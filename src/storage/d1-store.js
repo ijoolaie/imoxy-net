@@ -398,8 +398,8 @@ export function createD1Store(db) {
       }
 
       await db.prepare(`INSERT INTO quota_reservations
-        (reservation_id, account_id, usage_date, reserved_bytes, actual_bytes, status, created_at, updated_at)
-        SELECT ?, a.id, ?, ?, NULL, 'active', ?, ?
+        (reservation_id, account_id, usage_date, reserved_bytes, actual_bytes, status, created_at, lease_expires_at, updated_at)
+        SELECT ?, a.id, ?, ?, NULL, 'active', ?, ?, ?
         FROM proxy_accounts a
         WHERE a.id = ? AND a.status = 'active'
           AND (a.expires_at IS NULL OR a.expires_at > ?)
@@ -414,12 +414,12 @@ export function createD1Store(db) {
             COALESCE((SELECT SUM(reserved_bytes) FROM quota_reservations
               WHERE account_id = a.id AND usage_date = ? AND status = 'active'), 0) + ? <= a.daily_quota_bytes)
         ON CONFLICT(reservation_id) DO NOTHING`).bind(
-        reservationId, usageDate, reservedBytes, createdAt, createdAt,
+        reservationId, usageDate, reservedBytes, createdAt, leaseExpiresAt, createdAt,
         accountId, createdAt, reservedBytes, usageDate, usageDate, reservedBytes
       ).run();
 
       const row = await db.prepare(`SELECT reservation_id, account_id, usage_date, reserved_bytes,
-        actual_bytes, status, created_at, updated_at
+        actual_bytes, status, created_at, lease_expires_at, updated_at
         FROM quota_reservations WHERE reservation_id = ? LIMIT 1`).bind(reservationId).first();
       if (row) {
         if (row.account_id !== accountId || row.usage_date !== usageDate || row.reserved_bytes !== reservedBytes ||
@@ -433,7 +433,7 @@ export function createD1Store(db) {
           reservation: {
             reservationId: row.reservation_id, accountId: row.account_id, usageDate: row.usage_date,
             reservedBytes: row.reserved_bytes, actualBytes: row.actual_bytes, status: row.status,
-            createdAt: row.created_at, updatedAt: row.updated_at
+            createdAt: row.created_at, leaseExpiresAt: row.lease_expires_at, updatedAt: row.updated_at
           }
         };
       }
