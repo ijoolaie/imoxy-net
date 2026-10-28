@@ -74,6 +74,18 @@ function isClearlyPrivateDestination(host) {
   return false;
 }
 
+function isValidNumericAddress(address) {
+  if (typeof address !== "string" || !address || address.includes("%")) return false;
+  const ipv4 = /^(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})$/.exec(address);
+  if (ipv4) return ipv4.slice(1).every((part) => Number(part) <= 255);
+  if (!address.includes(":") || address.includes(".")) return false;
+  const halves = address.split("::");
+  if (halves.length > 2) return false;
+  const groups = address.split(":").filter(Boolean);
+  if (groups.some((group) => !/^[0-9a-fA-F]{1,4}$/.test(group))) return false;
+  return halves.length === 2 ? groups.length < 8 : groups.length === 8;
+}
+
 function destinationAllowed(host, port, env) {
   if (isClearlyPrivateDestination(host)) return false;
   const hosts = parsePolicyList(env?.PROXY_ALLOWED_HOSTS).map((value) => value.toLowerCase().replace(/\.$/, ""));
@@ -398,6 +410,20 @@ export function createVlessWebSocketHandler({
               return;
             }
             state.socket = socket;
+            let socketInfo;
+            try {
+              socketInfo = await socket.opened;
+            } catch {
+              await closeSession(1011, "upstream_unavailable");
+              return;
+            }
+            // Fail closed unless the runtime reports a valid public peer address.
+            // This checks the connected peer, not the hostname's prior DNS answer.
+            if (!isValidNumericAddress(socketInfo?.remoteAddress) ||
+                isClearlyPrivateDestination(socketInfo.remoteAddress)) {
+              await closeSession(1008, "destination_not_allowed");
+              return;
+            }
             state.writer = socket.writable.getWriter();
             state.accountId = account.id;
             if (parsed.initialPayload.byteLength) {
