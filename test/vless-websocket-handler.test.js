@@ -277,6 +277,22 @@ test("malformed protocol requests and disallowed/private destinations never dial
   assert.equal(privateTarget.connectCalls.length, 0);
 });
 
+test("rejects special-use IPv4 literals even when explicitly allowlisted", async () => {
+  const blocked = [
+    "100.64.0.1", "192.0.0.1", "192.0.2.1", "192.88.99.1",
+    "198.18.0.1", "198.19.0.1", "198.51.100.1", "203.0.113.1",
+    "255.255.255.255"
+  ];
+  for (const host of blocked) {
+    const h = harness({ config: { PROXY_ALLOWED_HOSTS: host } });
+    await h.handler.fetch(request(), h.env);
+    h.server.receive(vlessRequest({ host, payload: [] }));
+    await settle();
+    assert.equal(h.connectCalls.length, 0, `${host} must not be dialed even when allowlisted`);
+    assert.ok(h.server.closeCalls.some((item) => item.code === 1008 && item.reason === "destination_not_allowed"));
+  }
+});
+
 test("upstream connect failure closes the session without leaking details", async () => {
   const h = harness({ connectTcp: async () => { throw new Error("sensitive socket detail"); } });
   await h.handler.fetch(request(), h.env);
