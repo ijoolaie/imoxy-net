@@ -305,3 +305,12 @@ Every user-facing response about this repository ends with an evidence-based sch
 
 
 - Exact-head Node CI passed, but it uses injected WebSocket/TCP adapters. Do not treat it as a Cloudflare runtime smoke test; live Worker/D1 validation and Nova comparison remain outstanding.
+
+
+## Restricted VLESS handler merge confirmation — 2026-10-28
+
+- PR #51 merged as 88ddb38f813aa0f4fa4700724972015169749a48. Exact PR-head CI passed on cf0b6ceb61f5ee6702275cd8f8cf5d3a9f80af86 in run #515 / workflow ID 40635590418, including npm run verify. This supersedes the earlier branch-pending and run #510 checkpoints above.
+- Main now contains the restricted /proxy/vless VLESS-over-WebSocket TCP prototype, the parser, hash-only credential issuance/lookup/rotation, explicit host/port allowlist, account active/expiry checks, and 10-second initial-handshake timeout.
+- CI tests use injected WebSocket/TCP adapters. No real Cloudflare Worker/D1 smoke test, live traffic transfer, Nova black-box comparison, quota enforcement, usage event ledger, reservation, speed/concurrency enforcement, or production deployment has occurred. Post-merge main CI for 88ddb38f813aa0f4fa4700724972015169749a48 was not observable through the available workflow-run lookup.
+- The next critical path is usage accounting and quota reservation tied to the actual handler forwarding boundary. Do not wire the existing read-only quota evaluate() as hard enforcement; it is race-prone and does not reserve capacity. Define stable event identity, atomic event/aggregate updates, per-chunk pre-forward reservation, completion/release behavior and stale-reservation recovery before claiming hard quotas.
+- Security blockers remain: host allowlisting does not prevent DNS rebinding to private destinations; credential rotation is non-idempotent; idle timeout/backpressure/resource limits need hardening. Do not expose the route as a general-purpose production proxy or claim Nova parity.
