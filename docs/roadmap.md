@@ -271,3 +271,8 @@ Source inspection against the pinned Nova Proxy 5.0.0 deployment model found a s
 ## Proxy data-plane MVP — acceptance-first next slice (2026-10-28)
 
 The next implementation target is one independently written VLESS-over-WebSocket TCP vertical slice, contingent on authorized reference characterization confirming the supported combination. The design and P0/P1 scenarios are recorded in [proxy-data-plane-mvp.md](proxy-data-plane-mvp.md) and [reference-scenarios.md](reference-scenarios.md) (REF-033–039). No handler is implemented yet. First resolve the account credential lookup/storage contract, strict protocol parsing, Cloudflare TCP socket adapter, relay cleanup/backpressure, and the controlled Worker smoke-test setup. Do not mark the slice functional from Node unit tests alone. This is now the active Phase 6 path; Phase 5 quota reservation/idempotency must attach to the real data-plane measurement/forwarding boundary rather than precede it.
+
+
+## Initial protocol parser foundation — 2026-10-28
+
+The first code slice adds a pure VLESS TCP request parser and unit tests for version/command/address parsing, domain validation, incomplete headers and payload-offset preservation. This is a narrow Phase 6 foundation only: no WebSocket route, account credential lookup, upstream TCP connection, relay, quota enforcement, Cloudflare Worker smoke test, or Nova runtime comparison exists yet. Keep Phase 6 In progress and all proxy parity rows Not assessed. Next prerequisites are credential storage/lookup and a testable Worker TCP adapter; do not treat parser CI as an end-to-end proxy milestone.
