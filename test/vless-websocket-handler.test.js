@@ -68,6 +68,7 @@ function env(overrides = {}) {
     PROXY_WS_PATH: "/proxy/vless",
     PROXY_ALLOWED_HOSTS: "example.test",
     PROXY_ALLOWED_PORTS: "443",
+    PROXY_USAGE_PRODUCER_ID: "worker-test-1",
     ...overrides
   };
 }
@@ -89,11 +90,12 @@ async function settle() {
   for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function harness({ lookup, connectTcp, config = {}, clock = () => NOW, timerCallbacks = null } = {}) {
+function harness({ lookup, connectTcp, config = {}, clock = () => NOW, timerCallbacks = null, quotaAllowed = true, quotaSettleFails = false, quotaReserveFails = false, quotaReserveConflict = false } = {}) {
   const client = new FakeWebSocket();
   const server = new FakeWebSocket();
   const connectCalls = [];
   const storeCalls = [];
+  const quotaCalls = { reserve: [], settle: [], release: [] };
   const handler = createVlessWebSocketHandler({
     storeFactory: () => ({
       async findAccountByCredentialHash(hash) {
@@ -101,6 +103,28 @@ function harness({ lookup, connectTcp, config = {}, clock = () => NOW, timerCall
         return lookup === undefined
           ? { credentialId: "cred-1", account: { id: "acct-1", status: "active", expiresAt: null } }
           : typeof lookup === "function" ? lookup(hash) : lookup;
+      }
+    }),
+    quotaServiceFactory: () => ({
+      async reserve(input) {
+        quotaCalls.reserve.push(input);
+        if (quotaReserveConflict) {
+          const error = new Error("injected reservation ID conflict");
+          error.code = "reservation_conflict";
+          throw error;
+        }
+        if (quotaReserveFails) throw new Error("injected reserve failure");
+        if (!quotaAllowed) return { allowed: false, reason: "quota_exceeded" };
+        return { allowed: true, reservation: { ...input, usageDate: input.at.slice(0, 10), status: "active" } };
+      },
+      async settle(input) {
+        quotaCalls.settle.push(input);
+        if (quotaSettleFails) throw new Error("injected settlement failure");
+        return { applied: true };
+      },
+      async release(input) {
+        quotaCalls.release.push(input);
+        return true;
       }
     }),
     connectTcp: async (destination) => {
@@ -115,7 +139,7 @@ function harness({ lookup, connectTcp, config = {}, clock = () => NOW, timerCall
     setTimeoutImpl: timerCallbacks ? (callback) => { timerCallbacks.push(callback); return timerCallbacks.length; } : globalThis.setTimeout,
     clearTimeoutImpl: timerCallbacks ? () => {} : globalThis.clearTimeout
   });
-  return { handler, client, server, connectCalls, storeCalls, config, env: env(config) };
+  return { handler, client, server, connectCalls, storeCalls, quotaCalls, config, env: env(config) };
 }
 
 test("non-matching paths are ignored and do not allocate a WebSocket pair", async () => {
@@ -133,6 +157,8 @@ test("requires a valid WebSocket upgrade and explicit destination policy", async
   assert.equal(wrongUpgrade.status, 426);
   const unconfigured = await h.handler.fetch(request(), env({ PROXY_ALLOWED_HOSTS: "" }));
   assert.equal(unconfigured.status, 503);
+  const missingProducer = await h.handler.fetch(request(), env({ PROXY_USAGE_PRODUCER_ID: "" }));
+  assert.equal(missingProducer.status, 503);
   assert.equal(h.connectCalls.length, 0);
 });
 
@@ -149,14 +175,24 @@ test("valid credential is authenticated before dialing and relays initial and la
   assert.deepEqual(h.storeCalls, [await hashProxyCredential(UUID)]);
   assert.deepEqual(upstream.writes, [[0x11, 0x22]]);
   assert.ok(h.server.sent.some((message) => message.length === 2 && message[0] === 0 && message[1] === 0));
+  assert.equal(h.quotaCalls.reserve.length, 1);
+  assert.equal(h.quotaCalls.reserve[0].reservedBytes, 2);
+  assert.equal(h.quotaCalls.settle[0].uploadBytes, 2);
+  assert.equal(h.quotaCalls.settle[0].requestCount, 1);
 
   h.server.receive(Uint8Array.from([0x33, 0x44]));
   await settle();
   assert.deepEqual(upstream.writes, [[0x11, 0x22], [0x33, 0x44]]);
+  assert.equal(h.quotaCalls.reserve.length, 2);
+  assert.equal(h.quotaCalls.settle[1].uploadBytes, 2);
+  assert.equal(h.quotaCalls.settle[1].requestCount, 0);
 
   upstream.push([0xaa, 0xbb]);
   await settle();
   assert.ok(h.server.sent.some((message) => message.length === 2 && message[0] === 0xaa && message[1] === 0xbb));
+  assert.equal(h.quotaCalls.reserve.length, 3);
+  assert.equal(h.quotaCalls.settle[2].downloadBytes, 2);
+  assert.equal(h.quotaCalls.settle[2].requestCount, 0);
 });
 
 test("buffers a split initial header without dialing early", async () => {
@@ -228,4 +264,55 @@ test("incomplete unauthenticated handshakes are closed on timeout", async () => 
   await settle();
   assert.ok(h.server.closeCalls.some((item) => item.code === 1008 && item.reason === "initial_request_timeout"));
   assert.equal(h.connectCalls.length, 0);
+});
+
+
+test("quota denial stops before forwarding bytes and closes the session", async () => {
+  const upstream = fakeSocket();
+  const h = harness({ quotaAllowed: false, connectTcp: async () => upstream.socket });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest());
+  await settle();
+  assert.equal(h.quotaCalls.reserve.length, 1);
+  assert.equal(h.quotaCalls.settle.length, 0);
+  assert.deepEqual(upstream.writes, []);
+  assert.ok(h.server.closeCalls.some((item) => item.code === 1008 && item.reason === "quota_exceeded"));
+});
+
+test("ambiguous settlement failure closes the session and does not release the reservation", async () => {
+  const upstream = fakeSocket();
+  const h = harness({ quotaSettleFails: true, connectTcp: async () => upstream.socket });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest());
+  await settle();
+  assert.deepEqual(upstream.writes, [[0x11, 0x22]]);
+  assert.equal(h.quotaCalls.reserve.length, 1);
+  assert.equal(h.quotaCalls.settle.length, 1);
+  assert.ok(h.server.closeCalls.some((item) => item.code === 1011 && item.reason === "usage_settlement_failed"));
+});
+
+
+test("a reservation with an ambiguous response is released only before any forwarding", async () => {
+  const upstream = fakeSocket();
+  const h = harness({ quotaReserveFails: true, connectTcp: async () => upstream.socket });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest());
+  await settle();
+  assert.equal(h.quotaCalls.reserve.length, 1);
+  assert.equal(h.quotaCalls.release.length, 1);
+  assert.equal(h.quotaCalls.release[0].reservationId, h.quotaCalls.reserve[0].reservationId);
+  assert.deepEqual(upstream.writes, []);
+  assert.ok(h.server.closeCalls.some((item) => item.code === 1011 && item.reason === "quota_reservation_failed"));
+});
+
+
+test("a reservation ID conflict never releases a potentially pre-existing reservation", async () => {
+  const upstream = fakeSocket();
+  const h = harness({ quotaReserveConflict: true, connectTcp: async () => upstream.socket });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest());
+  await settle();
+  assert.equal(h.quotaCalls.release.length, 0);
+  assert.deepEqual(upstream.writes, []);
+  assert.ok(h.server.closeCalls.some((item) => item.code === 1011 && item.reason === "quota_reservation_failed"));
 });

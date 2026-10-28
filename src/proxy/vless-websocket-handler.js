@@ -1,5 +1,6 @@
 import { createD1Store } from "../storage/d1-store.js";
 import { hashProxyCredential } from "../security/proxy-credentials.js";
+import { createQuotaReservationService } from "../domain/quota-reservation-service.js";
 import { parseVlessRequest, VlessProtocolError } from "./vless-parser.js";
 
 const DEFAULT_PATH = "/proxy/vless";
@@ -116,6 +117,8 @@ function createUpgradeResponse(client) {
 export function createVlessWebSocketHandler({
   storeFactory = (env) => createD1Store(env.DB),
   credentialHasher = hashProxyCredential,
+  quotaServiceFactory = ({ store }) => createQuotaReservationService({ store }),
+  idFactory = () => globalThis.crypto.randomUUID(),
   connectTcp = cloudflareTcpConnect,
   webSocketPairFactory = createWebSocketPair,
   upgradeResponseFactory = createUpgradeResponse,
@@ -138,8 +141,9 @@ export function createVlessWebSocketHandler({
       if (!isWebSocketUpgrade(request)) return jsonError("websocket_upgrade_required", "A valid WebSocket upgrade is required.", 426);
       if (!env.DB || typeof env.PROXY_ALLOWED_HOSTS !== "string" ||
           !env.PROXY_ALLOWED_HOSTS.trim() || typeof env.PROXY_ALLOWED_PORTS !== "string" ||
-          !env.PROXY_ALLOWED_PORTS.trim()) {
-        return jsonError("proxy_not_configured", "The proxy credential store and destination allowlist must be configured.", 503);
+          !env.PROXY_ALLOWED_PORTS.trim() || typeof env.PROXY_USAGE_PRODUCER_ID !== "string" ||
+          !/^[a-zA-Z0-9._:-]{1,128}$/.test(env.PROXY_USAGE_PRODUCER_ID)) {
+        return jsonError("proxy_not_configured", "The proxy credential store, destination allowlist, and stable usage producer ID must be configured.", 503);
       }
 
       let store;
@@ -150,6 +154,16 @@ export function createVlessWebSocketHandler({
       }
       if (typeof store?.findAccountByCredentialHash !== "function") {
         return jsonError("proxy_storage_unavailable", "The proxy credential lookup is unavailable.", 503);
+      }
+
+      let quotaService;
+      try {
+        quotaService = quotaServiceFactory({ store });
+      } catch {
+        return jsonError("proxy_storage_unavailable", "The quota reservation store is unavailable.", 503);
+      }
+      if (typeof quotaService?.reserve !== "function" || typeof quotaService?.settle !== "function") {
+        return jsonError("proxy_storage_unavailable", "The quota reservation service is unavailable.", 503);
       }
 
       let pair;
@@ -172,7 +186,9 @@ export function createVlessWebSocketHandler({
         socket: null,
         reader: null,
         writer: null,
-        writeQueue: Promise.resolve()
+        writeQueue: Promise.resolve(),
+        accountId: null,
+        requestCountClaimed: false
       };
       let handshakeTimer = null;
 
@@ -189,12 +205,94 @@ export function createVlessWebSocketHandler({
         try { await state.socket?.close(); } catch {}
       };
 
+      const releaseBeforeForward = async (reservationId) => {
+        if (typeof quotaService.release !== "function" || !state.accountId) return;
+        try {
+          await quotaService.release({ reservationId, accountId: state.accountId, at: new Date(now()).toISOString() });
+        } catch {
+          // No bytes have crossed the forwarding boundary. A failed release is
+          // conservative: the reservation remains held until reconciliation.
+        }
+      };
+
+      const reserveAndSettle = async (bytes, direction) => {
+        if (!bytes?.byteLength || state.closed) return !state.closed;
+        const reservationId = idFactory();
+        const eventId = idFactory();
+        const reservedAt = new Date(now()).toISOString();
+        let reservation;
+        try {
+          const result = await quotaService.reserve({
+            reservationId,
+            accountId: state.accountId,
+            reservedBytes: bytes.byteLength,
+            at: reservedAt
+          });
+          if (!result?.allowed) {
+            await closeSession(1008, "quota_exceeded");
+            return false;
+          }
+          if (!result.reservation?.usageDate) {
+            await releaseBeforeForward(reservationId);
+            await closeSession(1011, "quota_reservation_invalid");
+            return false;
+          }
+          reservation = result.reservation;
+        } catch (error) {
+          // A true ID/payload conflict may refer to an earlier in-flight
+          // reservation, so never release it. For other ambiguous reserve
+          // outcomes, no bytes have been forwarded by this call yet.
+          if (error?.code !== "reservation_conflict") await releaseBeforeForward(reservationId);
+          await closeSession(1011, "quota_reservation_failed");
+          return false;
+        }
+        if (state.closed) {
+          await releaseBeforeForward(reservationId);
+          return false;
+        }
+
+        try {
+          if (direction === "upload") await state.writer.write(bytes);
+          else server.send(bytes);
+        } catch {
+          // The transport may have accepted a partial chunk before throwing.
+          // Keep its reservation; releasing it could permit over-quota traffic.
+          await closeSession(1011, direction === "upload" ? "upstream_write_failed" : "downstream_write_failed");
+          return false;
+        }
+
+        const requestCount = state.requestCountClaimed ? 0 : 1;
+        state.requestCountClaimed = true;
+        try {
+          await quotaService.settle({
+            producerId: env.PROXY_USAGE_PRODUCER_ID,
+            eventId,
+            reservationId,
+            accountId: state.accountId,
+            usageDate: reservation.usageDate,
+            uploadBytes: direction === "upload" ? bytes.byteLength : 0,
+            downloadBytes: direction === "download" ? bytes.byteLength : 0,
+            requestCount,
+            at: new Date(now()).toISOString()
+          });
+          return true;
+        } catch {
+          // Bytes may already have crossed the forwarding boundary. Retain the
+          // reservation and stop this session rather than silently undercount.
+          await closeSession(1011, "usage_settlement_failed");
+          return false;
+        }
+      };
+
       const pumpUpstream = async () => {
         try {
           while (!state.closed && state.reader) {
             const { value, done } = await state.reader.read();
             if (done) break;
-            if (value?.byteLength && !state.closed) server.send(value);
+            if (value?.byteLength && !state.closed) {
+              const forwarded = await reserveAndSettle(value, "download");
+              if (!forwarded) return;
+            }
           }
           await closeSession(1000, "upstream_closed");
         } catch {
@@ -255,7 +353,11 @@ export function createVlessWebSocketHandler({
             }
             state.socket = socket;
             state.writer = socket.writable.getWriter();
-            if (parsed.initialPayload.byteLength) await state.writer.write(parsed.initialPayload);
+            state.accountId = account.id;
+            if (parsed.initialPayload.byteLength) {
+              const forwarded = await reserveAndSettle(parsed.initialPayload, "upload");
+              if (!forwarded) return;
+            }
             if (state.closed) return;
             if (handshakeTimer !== null) {
               try { clearTimeoutImpl(handshakeTimer); } catch {}
@@ -272,11 +374,7 @@ export function createVlessWebSocketHandler({
           return;
         }
 
-        try {
-          await state.writer.write(bytes);
-        } catch {
-          await closeSession(1011, "upstream_write_failed");
-        }
+        await reserveAndSettle(bytes, "upload");
       };
 
       server.addEventListener("message", (event) => {

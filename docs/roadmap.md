@@ -296,3 +296,8 @@ PR #51 is merged as 88ddb38f813aa0f4fa4700724972015169749a48. Its exact-head CI 
 ## Atomic quota reservation implementation slice — 2026-10-28
 
 Branch `feat/atomic-quota-reservations` adds migration 0006, D1 store methods for conditional reservations and idempotent event settlement, trigger-driven usage aggregate updates, and a trusted domain service that hashes immutable event payloads. SQLite schema tests cover event settlement, replay suppression, reservation bounds and invalid over-reservation. This slice is not yet wired into the VLESS handler and is not hard enforcement. Exact-head CI and real Cloudflare D1 concurrency/rollback tests are required. Next: verify the migration and triggers on SQLite CI, then validate D1 semantics and integrate bounded chunk reserve/settle at the actual forwarding boundary without auto-releasing ambiguous reservations.
+
+
+## VLESS quota enforcement integration — 2026-10-28
+
+PR #53 merged the reservation/event-ledger primitives and exact-head CI plus post-merge main CI passed. The active branch `feat/vless-quota-enforcement` integrates reserve-before-forward and settle-after-forward into VLESS upload/download chunks. It requires a stable producer ID and retains reservations on ambiguous settlement. Exact-head CI, real D1 transaction/trigger/concurrency validation, private-network/DNS protections, resource limits and Nova behavior comparison remain mandatory gates.
