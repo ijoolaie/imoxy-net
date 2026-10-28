@@ -56,7 +56,7 @@ The next implementation slice is design-gated by [usage-event-atomicity-design.m
 
 ## VLESS handler integration status — 2026-10-28
 
-The restricted /proxy/vless handler now authenticates credentials and relays bytes, but it does not call createQuotaService, reserve quota, or persist measured usage. The current evaluate() method is a read-only preflight and record() is additive aggregate reporting; neither is safe hard enforcement under concurrent sessions. Do not mark quota enforcement implemented until a trusted event ledger and atomic pre-forward reservation/reconciliation are integrated at the actual byte-forwarding boundary, with concurrent reservation tests and real D1 validation.
+The restricted /proxy/vless handler now authenticates credentials and relays bytes. PR #53 added the event ledger and atomic reservation primitives; PR #54 integrates per-chunk reserve-before-forward and settle-after-forward into the handler. A failed/ambiguous settlement closes the session and retains the reservation. However, this remains unverified against real Cloudflare D1: migration/trigger behavior, batch rollback, uniqueness races, concurrent reservations and recovery must pass on a disposable D1 database before deployment. The handler also remains a restricted prototype with unresolved DNS rebinding/private-network controls, backpressure and resource limits. Do not call it production-ready or Nova-compatible.
 
 
 ## Atomic reservation implementation checkpoint — 2026-10-28
@@ -79,3 +79,8 @@ PR #54 (`f9bc9bd790357521caad938a5de22026c242383d`) connects per-chunk reservati
 ## Storage test evidence — 2026-10-28
 
 The actual `createD1Store` reservation/settlement SQL is now exercised by a SQLite-backed D1-shape adapter test (PR #56). It passes concurrent daily-quota reservation, duplicate/conflicting event, settlement/release and overflow rollback scenarios. This is stronger than a statement mock, but still not real Cloudflare D1. Do not enable production traffic until the migration and tests are run against a disposable D1 database and the Worker forwarding path is smoke-tested.
+
+
+## Current handler integration correction — 2026-10-28
+
+The older note above about the handler not calling the reservation service has been superseded by PRs #53 and #54. Main integrates atomic reservation/event settlement at the VLESS forwarding boundary, and PR #56 adds SQLite-backed tests of the actual adapter SQL. Real Cloudflare D1 validation and a controlled Worker smoke test are still mandatory; SQLite is not equivalent to D1. Hard quota behavior must not be represented as production-verified until those gates pass.
