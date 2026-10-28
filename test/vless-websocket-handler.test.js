@@ -330,7 +330,7 @@ test("returns deduplicated validated public A and AAAA candidates for fallback",
               { type: 1, data: "10.0.0.1" }
             ] }
           : { Status: 0, Answer: [
-              { type: 28, data: "2606:4700::1111" },
+              { type: 28, data: "2606:4700:0:0:0:0:0:1111" },
               { type: 28, data: "fd00::1" }
             ] };
       }
@@ -338,7 +338,7 @@ test("returns deduplicated validated public A and AAAA candidates for fallback",
   };
   assert.deepEqual(
     await resolvePublicDestinations("example.test", fetchImpl),
-    ["93.184.216.34", "2606:4700::1111"]
+    ["93.184.216.34", "2606:4700:0:0:0:0:0:1111"]
   );
   // Preserve the original single-address helper for existing callers.
   assert.equal(await resolvePublicDestination("example.test", fetchImpl), "93.184.216.34");
@@ -381,9 +381,9 @@ test("resolves hostnames to a public numeric address before dialing and pins the
 });
 
 test("falls back to the next validated IP only when the first connection attempt fails", async () => {
-  const upstream = fakeSocket("2606:4700::1111");
+  const upstream = fakeSocket("2606:4700:0:0:0:0:0:1111");
   const h = harness({
-    resolveDestination: async () => ["93.184.216.34", "2606:4700::1111"],
+    resolveDestination: async () => ["93.184.216.34", "2606:4700:0:0:0:0:0:1111"],
     connectTcp: async (destination) => {
       if (destination.hostname === "93.184.216.34") throw new Error("IPv4 route unavailable");
       return upstream.socket;
@@ -395,7 +395,7 @@ test("falls back to the next validated IP only when the first connection attempt
 
   assert.deepEqual(h.connectCalls, [
     { hostname: "93.184.216.34", port: 443 },
-    { hostname: "2606:4700::1111", port: 443 }
+    { hostname: "2606:4700:0:0:0:0:0:1111", port: 443 }
   ]);
   assert.deepEqual(upstream.writes, [[0x11, 0x22]]);
   assert.equal(h.quotaCalls.reserve.length, 1);
@@ -476,10 +476,10 @@ test("fails closed when the connected peer address is malformed or unavailable",
 });
 
 test("accepts a valid compressed public IPv6 peer address", async () => {
-  const upstream = fakeSocket("2606:4700::1111");
+  const upstream = fakeSocket("2606:4700:0:0:0:0:0:1111");
   const h = harness({
     connectTcp: async () => upstream.socket,
-    resolveDestination: async () => "2606:4700::1111"
+    resolveDestination: async () => "2606:4700:0:0:0:0:0:1111"
   });
   await h.handler.fetch(request(), h.env);
   h.server.receive(vlessRequest({ payload: [] }));
