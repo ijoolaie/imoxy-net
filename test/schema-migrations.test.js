@@ -12,6 +12,7 @@ function databaseWithMigrations() {
   db.exec(migration("0002_auth_rate_limits.sql"));
   db.exec(migration("0003_telegram_webhook_updates.sql"));
   db.exec(migration("0004_usage_daily_safe_integer_guards.sql"));
+  db.exec(migration("0005_proxy_credentials.sql"));
   return db;
 }
 
@@ -22,7 +23,7 @@ test("all D1 migrations execute in SQLite and create the expected tables", () =>
   const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((row) => row.name);
   for (const name of [
     "principals", "sessions", "proxy_accounts", "subscriptions", "usage_daily",
-    "installation_settings", "provider_resources", "audit_events", "auth_rate_limits", "telegram_webhook_updates"
+    "installation_settings", "provider_resources", "audit_events", "auth_rate_limits", "telegram_webhook_updates", "proxy_credentials"
   ]) assert.ok(tables.includes(name), `missing table ${name}`);
   assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
   db.close();
@@ -168,5 +169,22 @@ test("account deletion cascades subscriptions and usage while audit remains hist
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM subscriptions").get().n, 0);
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM usage_daily").get().n, 0);
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM audit_events").get().n, 1);
+  db.close();
+});
+
+test("proxy credentials store only lowercase SHA-256 hashes and cascade with account deletion", () => {
+  const db = databaseWithMigrations();
+  db.prepare(`INSERT INTO proxy_accounts (id, username, created_at, updated_at)
+    VALUES (?, ?, ?, ?)`).run("acct-cred", "credential_user", timestamp, timestamp);
+  const insert = db.prepare(`INSERT INTO proxy_credentials (id, account_id, credential_hash, created_at)
+    VALUES (?, ?, ?, ?)`);
+  assert.equal(insert.run("cred-1", "acct-cred", "a".repeat(64), timestamp).changes, 1);
+  assert.throws(() => insert.run("cred-plaintext", "acct-cred", "not-a-hash", timestamp));
+  assert.equal(db.prepare("SELECT credential_hash FROM proxy_credentials WHERE id = ?").get("cred-1").credential_hash, "a".repeat(64));
+  db.prepare("UPDATE proxy_credentials SET revoked_at = ? WHERE id = ?").run(timestamp, "cred-1");
+  assert.equal(db.prepare("SELECT revoked_at FROM proxy_credentials WHERE id = ?").get("cred-1").revoked_at, timestamp);
+  db.prepare("DELETE FROM proxy_accounts WHERE id = ?").run("acct-cred");
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM proxy_credentials WHERE account_id = ?").get("acct-cred").count, 0);
+  assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
   db.close();
 });
