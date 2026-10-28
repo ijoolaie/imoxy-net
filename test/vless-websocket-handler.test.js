@@ -754,3 +754,34 @@ test("handshake timeout releases the message queue when DNS never settles", asyn
   assert.equal(h.connectCalls.length, 0);
   assert.equal(h.quotaCalls.reserve.length, 0);
 });
+
+
+test("DNS resolution tolerates one failed address-family query when the other yields a public address", async () => {
+  const fetchImpl = async (url) => {
+    const type = new URL(url).searchParams.get("type");
+    if (type === "A") throw new Error("injected A query failure");
+    return {
+      ok: true,
+      async json() {
+        return { Status: 0, Answer: [{ type: 28, data: "2606:4700:4700::1111" }] };
+      }
+    };
+  };
+
+  assert.deepEqual(await resolvePublicDestinations("example.test", fetchImpl), ["2606:4700:4700:0:0:0:0:1111"]);
+});
+
+test("DNS resolution fails closed when the only successful address-family query returns no public address", async () => {
+  const fetchImpl = async (url) => {
+    const type = new URL(url).searchParams.get("type");
+    if (type === "AAAA") throw new Error("injected AAAA query failure");
+    return {
+      ok: true,
+      async json() {
+        return { Status: 0, Answer: [{ type: 1, data: "10.0.0.7" }] };
+      }
+    };
+  };
+
+  await assert.rejects(() => resolvePublicDestinations("example.test", fetchImpl), /No public destination address was resolved/);
+});
