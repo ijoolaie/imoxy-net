@@ -90,7 +90,7 @@ async function settle() {
   for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function harness({ lookup, connectTcp, config = {}, clock = () => NOW, timerCallbacks = null, quotaAllowed = true, quotaSettleFails = false, quotaReserveFails = false, quotaReserveConflict = false } = {}) {
+function harness({ lookup, connectTcp, config = {}, clock = () => NOW, timerCallbacks = null, idleTimeoutMs = 120_000, quotaAllowed = true, quotaSettleFails = false, quotaReserveFails = false, quotaReserveConflict = false } = {}) {
   const client = new FakeWebSocket();
   const server = new FakeWebSocket();
   const connectCalls = [];
@@ -136,6 +136,7 @@ function harness({ lookup, connectTcp, config = {}, clock = () => NOW, timerCall
     upgradeResponseFactory: () => new Response("upgraded", { status: 200 }),
     now: clock,
     initialHandshakeTimeoutMs: 10_000,
+    idleTimeoutMs,
     setTimeoutImpl: timerCallbacks ? (callback) => { timerCallbacks.push(callback); return timerCallbacks.length; } : globalThis.setTimeout,
     clearTimeoutImpl: timerCallbacks ? () => {} : globalThis.clearTimeout
   });
@@ -266,6 +267,42 @@ test("incomplete unauthenticated handshakes are closed on timeout", async () => 
   assert.equal(h.connectCalls.length, 0);
 });
 
+
+
+test("authenticated sessions close after inactivity and stale idle timers cannot close active sessions", async () => {
+  const timerCallbacks = [];
+  const upstream = fakeSocket();
+  const h = harness({ timerCallbacks, idleTimeoutMs: 5_000, connectTcp: async () => upstream.socket });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest());
+  await settle();
+
+  // Callback 0 is the initial handshake timeout; callback 1 is the idle timeout.
+  assert.equal(timerCallbacks.length, 2);
+  assert.equal(h.server.closeCalls.length, 0);
+
+  h.server.receive(Uint8Array.from([0x33]));
+  await settle();
+  assert.equal(timerCallbacks.length, 3);
+
+  // The old timer is stale after activity and must not close the live session.
+  timerCallbacks[1]();
+  await settle();
+  assert.equal(h.server.closeCalls.some((item) => item.reason === "idle_timeout"), false);
+
+  timerCallbacks[2]();
+  await settle();
+  assert.ok(h.server.closeCalls.some((item) => item.code === 1001 && item.reason === "idle_timeout"));
+  assert.equal(upstream.closed, true);
+});
+
+test("invalid idle timeout configuration fails closed before upgrade", async () => {
+  const h = harness({ idleTimeoutMs: 0 });
+  const response = await h.handler.fetch(request(), h.env);
+  assert.equal(response.status, 503);
+  assert.equal(h.server.accepted, true);
+  assert.ok(h.server.closeCalls.some((item) => item.reason === "proxy_timeout_config_invalid"));
+});
 
 test("quota denial stops before forwarding bytes and closes the session", async () => {
   const upstream = fakeSocket();
