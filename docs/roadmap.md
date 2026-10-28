@@ -325,3 +325,7 @@ PR #60 is merged as `3f63f97b55b2ea19e771ae18a7c3f9b8e9eb3931`. Exact-head CI ru
 ### Connected IPv6 peer policy — 2026-10-28
 
 PR #62 strict numeric IPv6 parsing is merged as `26dba7efa45d58de5982c1ffcdf5c5ff28018c77`; exact-head CI run `40642098509` passed and post-merge main CI run `40642950313` passed. PR #63 adds normalized IPv6 expansion and conservative rejection of non-global and selected special-purpose/transition/documentation ranges; exact-head CI run `40643131921` on `66f2e90fc2ff7dc0b58b17900408bcacfe3a24d2` was still in progress at the time of this note. This is defense in depth only: complete IANA range coverage, DNS pinning, real Worker/D1 tests and Nova comparison remain open. Phase 6 remains **In progress**; Phase 12 remains **Blocked**.
+
+### PR #63/#64 final status — 2026-10-28
+
+PR #63 merged as `29fa597c5c649552d827396a218609ce895724f4`; exact-head CI run `40643131921` passed. It normalizes IPv6 and conservatively rejects non-global plus selected special-purpose/transition/documentation ranges. PR #64 documentation update merged as `7a1856f311840466d080ed0606b1555474579584`; exact-head CI run `40643283669` passed. Post-merge main CI runs `40643515543` and `40643555979` were still in progress when this note was written. Phase 6 remains **In progress**; DNS pinning, real Worker/D1 validation, backpressure/connection limits and Nova comparison remain open. Phase 12 remains **Blocked**.

@@ -83,3 +83,7 @@ Decision: do not implement a disconnected usage ledger/reservation subsystem nex
 ### Decision — conservative connected IPv6 peer filtering (2026-10-28)
 
 Fail closed when the TCP runtime reports a malformed peer address or an IPv6 address outside global-unicast space; additionally block selected special-purpose, transition and documentation prefixes. PR #62 is merged and PR #63 is pending exact-head CI. This reduces obvious bypasses but is not a complete maintained IANA registry, does not pin hostname DNS answers to the connected peer, and is not Nova parity evidence.
+
+### Decision status — conservative IPv6 peer policy (2026-10-28)
+
+The PR #63 policy is merged as `29fa597c5c649552d827396a218609ce895724f4` after exact-head CI passed. The application fails closed on non-global IPv6 and selected special-purpose, transition and documentation ranges. This is not a complete maintained IANA registry and does not pin hostname DNS answers to a connected peer. Real Cloudflare runtime validation and Nova parity remain open.
