@@ -316,3 +316,8 @@ PR #56 adds SQLite-backed integration tests for the actual D1 adapter SQL. Exact
 ### VLESS idle-session resource control — 2026-10-28
 
 Branch `fix/vless-idle-session-timeout` adds a default 120-second inactivity timeout for authenticated VLESS WebSocket sessions, resets it on upload/download activity, guards against stale timer callbacks, and closes the upstream socket on timeout. Unit tests cover timeout, activity reset, stale timer behavior and invalid configuration. This does not complete Phase 6: DNS rebinding/private-network protections, backpressure, connection/speed limits, live Worker/D1 validation and Nova black-box parity remain open. Await exact-head CI before merge; Phase 5 and Phase 6 remain **In progress**, and Phase 12 remains **Blocked**.
+
+
+### Connected upstream peer validation — 2026-10-28
+
+PR #60 is merged as `3f63f97b55b2ea19e771ae18a7c3f9b8e9eb3931`. Exact-head CI run #597 (`40640361156`) passed on `55776b816c2b74216840d4838ed704105ce98e09`, including `npm run verify`. The VLESS handler now validates the TCP socket's reported `remoteAddress` before forwarding the initial payload and fails closed on missing, malformed, or blocked peer addresses; special-use IPv4 literal filtering and regression tests were expanded. This is still defense in depth: hostname DNS resolution is not pinned by the application, and adapter-based Node tests do not prove Cloudflare runtime behavior. Phase 6 remains **In progress**; real Worker/D1 testing, full DNS-rebinding validation, backpressure/resource limits and Nova black-box comparison remain outstanding. Phase 12 remains **Blocked**.
