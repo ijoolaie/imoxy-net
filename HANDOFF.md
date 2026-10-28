@@ -205,3 +205,14 @@ Every user-facing response about this repository ends with an evidence-based sch
 - Added docs in this branch to record the integration precondition. No runtime code, API endpoint, database migration, or production setting is changed.
 - PR #43 was merged as `1ded95232255aae591508e46f86d095c2be8283f`. Its exact head CI passed in run #433 / `40631341345`. Main hand-off commit `bd8923751d435ab0d38a3ec0a67fcfd1b09f40aa` passed CI run #436 / `40631481882`. The current update's CI run #437 / `40631523297` had `npm run verify` completed successfully; verify the run concludes successfully before merge.
 - Next: review the six-file documentation diff, create PR, require exact-head CI, merge only if passing, verify post-merge CI. Then choose/characterize the trusted proxy usage source and define the control-plane integration contract before implementing event ledger or reservations. Do not claim Nova parity, real D1 verification, or hard enforcement.
+
+
+## PR #44 merged — quota producer boundary documented (2026-10-28)
+
+- PR #44: https://github.com/ijoolaie/imoxy-net/pull/44 was reviewed and squash-merged after exact-head CI passed.
+- Exact PR head: `1aac00f0d3409be753562992ad1ba0f38e3697f6`; CI run #439, workflow run ID `40631667645`, conclusion success: https://github.com/ijoolaie/imoxy-net/actions/runs/40631667645.
+- Merge commit: `9cfa5e6f2cc17f659c68767ef87b85926decb8f6`.
+- The merged six-file documentation change makes the missing trusted usage producer explicit in architecture, parity, baseline, acceptance, roadmap, and hand-off records. No runtime code or production resource was changed.
+- Post-merge CI for the merge commit is not yet observable at the time of this note; verify before claiming it passed.
+- Next active work: select and characterize the actual proxy/data-plane source that measures traffic. Current source has no identified trusted usage reporter, and `createQuotaService` is not wired into the API. Do not add a raw client-supplied usage endpoint or implement an unconnected ledger/reservation layer. First establish source, authentication, account mapping, stable event IDs, and the pre-forwarding reservation boundary; then create black-box tests against pinned Nova Proxy 5.0.0 where feasible.
+- This hand-off update itself triggers main CI and requires its own verification.
