@@ -401,3 +401,22 @@ Every user-facing response about this repository ends with an evidence-based sch
 - Merge commit CI and this handoff update's own CI must still be verified after the documentation commit. No deployment or live Cloudflare resource writes occurred.
 - Limitations: this application-level pinning depends on DNS-over-HTTPS availability and the Worker runtime's supported outbound fetch/TCP behavior. The selected-address policy is still not a complete maintained IANA special-purpose registry; mixed answer sets and IPv4/IPv6 fallback behavior require further review. No controlled Worker/D1 smoke test or Nova black-box comparison has been performed. Do not mark Phase 6 complete or claim production readiness.
 - Next: verify main CI for the PR #66 merge commit; finish review of resolver edge cases and destination allowlist semantics; prepare a controlled non-production Worker/D1 smoke-test plan. Do not deploy or write live resources without explicit approval.
+
+
+## Follow-up work session — 2026-10-28 (non-production smoke gate)
+
+- Verified current `main` head: `796be026b8d41960bf77c99b5f48ff39d4d963fa`. Its CI run `40650164988` completed successfully; job `122688130054` reports `npm run verify` succeeded on that exact SHA.
+- Checked repository tree: it contains `wrangler.toml.example`, but no active `wrangler.toml`; the example intentionally leaves the D1 binding commented out. No existing deployed Worker/D1 environment can be inferred from repository configuration.
+- Open PR list was empty at inspection time.
+- Created branch `docs/nonprod-vless-smoke-gate` and added `docs/nonprod-vless-smoke-gate.md`. The runbook covers staging-only preconditions, migrations/persistence, WebSocket/auth paths, DoH/TCP peer pinning, bidirectional relay, accounting/quota checks, cleanup and acceptance evidence.
+- The runbook is **prepared, not executed**. No Cloudflare resources were created or changed, no deployment was performed, and no real D1/Worker or Nova black-box test was run.
+- Next: update the acceptance plan and parity matrix to link this gate; review the PR diff and CI. To execute the gate, first obtain explicit authorization and a dedicated disposable Cloudflare Worker/D1 environment. Separately review DNS mixed-answer and IPv4/IPv6 fallback behavior, special-purpose address coverage, backpressure, and quota enforcement before any production-readiness claim.
+
+
+## Phase completion audit — 2026-10-28
+
+- Re-read `docs/roadmap.md`, acceptance plan, parity matrix, license review and release certification. The exit-gate rule means **no phase is currently Complete**; this is not a statement that no features have been implemented.
+- Audited status: phases 0–11 In progress; phase 12 Blocked; phase 13 Not started. Phase 2 (domain/API contract) and Phase 4 (persistence/recovery) previously lacked explicit State lines in the roadmap; they are now explicitly marked In progress with remaining exit-gate evidence documented.
+- Key cross-phase blockers: no authorized/pinned Nova runtime scenarios or completed distribution-license decision; no real Cloudflare D1 durability/concurrency/restore evidence; no deployed Worker/D1 VLESS smoke test; incomplete quota event identity/idempotency and hard data-plane enforcement; incomplete web/bot/device E2E; no release candidate.
+- PR #67, https://github.com/ijoolaie/imoxy-net/pull/67, contains the non-production VLESS smoke runbook and this phase audit. CI passed on earlier PR head `c3cb92d0c53e891c0c8470fc920705744a07aa3a` (run `40650803938`); the new phase-audit commit `b207855a211db2f3742f7f1fd94e3baec9009e04` still requires its own exact-head CI result before merge.
+- No Cloudflare resource was created or modified, and no deployment or Nova runtime comparison was performed.
