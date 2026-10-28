@@ -366,3 +366,7 @@ This is a gate-based status audit, not a percentage estimate. A phase is marked 
 **Audit conclusion:** 0 phases Complete; 11 phases In progress (0–11); Phase 12 Blocked; Phase 13 Not started. This is a phase-exit assessment, not a claim that no implementation work has been done.
 
 **Next exit-gate sequence:** (1) close Phase 0 audit gaps; (2) execute prioritized Phase 1 reference scenarios and obtain a documented license/distribution decision; (3) prove Phase 2–4 contract/security/persistence against the actual target runtime; (4) complete stable-ID quota accounting and real D1 validation in Phase 5; (5) execute the controlled Worker/D1 smoke gate linked from [nonprod-vless-smoke-gate.md](nonprod-vless-smoke-gate.md) and compare critical proxy outputs to the pinned reference for Phase 6; then certify the client, cross-interface and release gates. Do not promote a phase to Complete solely because its implementation files or unit tests exist.
+
+## VLESS downstream buffer guard — 2026-10-28
+
+The active branch `fix/vless-downstream-buffer-bound` adds a fail-closed 1 MiB bound for WebSocket queued download bytes before quota reservation/send, with unit tests for over-budget and unmeasurable buffer state. This reduces one application-level queue risk but does not complete backpressure, speed/concurrency limits, Cloudflare runtime validation or Nova parity. Phase 6 remains In progress; Phase 12 remains Blocked until the existing release gates pass.
