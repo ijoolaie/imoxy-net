@@ -112,8 +112,10 @@ function createUpgradeResponse(client) {
  * Restricted VLESS-over-WebSocket TCP prototype.
  *
  * Requires explicit host/port allowlists and authenticates the credential before
- * opening an upstream TCP socket. This is not a full Nova-compatible proxy and
- * intentionally does not claim quota enforcement or usage accounting.
+ * opening an upstream TCP socket. It reserves and settles usage around each
+ * forwarded chunk, but remains a restricted prototype pending real D1/Worker
+ * validation, stronger destination resolution controls, backpressure and limits.
+ * It is not a full Nova-compatible proxy and is not production-ready.
  */
 export function createVlessWebSocketHandler({
   storeFactory = (env) => createD1Store(env.DB),
