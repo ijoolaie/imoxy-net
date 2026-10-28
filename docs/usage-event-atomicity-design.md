@@ -40,12 +40,13 @@ The existing `usage_daily` table can remain a materialized aggregate, but the ev
 
 A successful event write must make the ledger record and daily aggregate visible together, exactly once. A failed write must leave neither a newly accepted event nor a partial aggregate increment.
 
-1. Attempt to claim the unique event key and apply the aggregate increment in one database atomic unit.
-2. Gate the aggregate mutation on a successful new-event claim; a duplicate claim must not increment counters.
-3. Validate per-event deltas, combined bytes, resulting daily counters, and supported lifetime totals before accepting the event. All overflow paths fail closed.
-4. Treat a repeated matching event as a successful replay/no-op (returning the original recorded result); treat mismatched content as conflict.
-5. Treat storage errors or ambiguous outcomes as retryable only with the same stable event ID. Never retry with a new ID.
-6. Ensure a quota denial does not leave an accepted usage event unless the product contract explicitly models denied/observed traffic separately.
+1. In one D1 batch, insert a unique event row in a non-final `claimed` state using `ON CONFLICT DO NOTHING`; the event key and immutable payload are checked before any counter change.
+2. The aggregate-update statement must be conditioned on this newly claimed row still being in `claimed` state. A previously completed duplicate is already `applied`, so it must not satisfy the condition and cannot increment counters again.
+3. Mark the row `applied` only after the guarded aggregate mutation succeeds. Because the statements run in one atomic batch, an error or failed guard must roll back both the event claim and aggregate mutation. Verify the exact D1 result/rollback semantics in the disposable integration suite.
+4. On a duplicate key, compare immutable payload fields/hash: identical content returns the stored outcome without changing counters; different content is an idempotency conflict. Do not let a duplicate's existing `applied` row re-trigger aggregation.
+5. Validate per-event deltas, combined bytes, resulting daily counters, and supported lifetime totals before accepting the event. All overflow paths fail closed.
+6. Treat storage errors or ambiguous outcomes as retryable only with the same stable event ID. Never retry with a new ID.
+7. Keep quota reservation as a separate atomic state machine; do not accept a report in a way that bypasses the reservation/forwarding contract. If accounting observed-but-denied traffic is needed, model it explicitly rather than conflating it with accepted usage.
 
 ### D1 implementation constraint
 
