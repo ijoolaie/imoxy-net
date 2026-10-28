@@ -168,3 +168,14 @@ Every user-facing response about this repository ends with an evidence-based sch
 - PR #43 is open: https://github.com/ijoolaie/imoxy-net/pull/43. Current head at this checkpoint is `e3a54ff8a410c3a23e0716f22efdfbf809e54a38`; seven commits, six documentation files changed. The complete patch was inspected. A follow-up review clarified the event `claimed` → `applied` transition so already-applied duplicate IDs cannot re-trigger aggregate updates.
 - CI state at checkpoint: `fetch_commit_workflow_runs` returned no pull-request workflow runs for the current head and combined commit status returned no statuses. Treat this as **CI not observed**, not success. Do not merge while required exact-head CI is unconfirmed. PR metadata reports `mergeable: false`; recheck after GitHub recalculates mergeability.
 - Next: determine why PR CI/status has not appeared or wait for GitHub to populate it; do not merge without exact-head verification. If checks pass, recheck mergeability and review the final diff, then merge, verify post-merge main CI, and update this hand-off with exact run IDs/SHA. The hand-off update itself requires its own CI verification.
+
+
+## Follow-up — PR #43 merged (2026-10-28)
+
+- PR #43: https://github.com/ijoolaie/imoxy-net/pull/43 was squash-merged after the complete six-file patch was reviewed and GitHub reported the branch mergeable.
+- Exact PR head: `c22f6b6a4610426b9d4261d0f02dc82f5063a04d`. CI run #433, workflow run ID `40631341345`, completed successfully for that exact head: https://github.com/ijoolaie/imoxy-net/actions/runs/40631341345.
+- Merge commit: `1ded95232255aae591508e46f86d095c2be8283f`.
+- Scope remains documentation/design only. No application code, database migration, event ledger, idempotency behavior, quota reservation, production D1 changes, deployment, or Nova parity were implemented or verified.
+- The earlier notes above that say PR #43 is open, CI is pending, and mergeability is false are historical checkpoint notes superseded by this follow-up.
+- Post-merge main CI: not yet observable at the time of this update (workflow/status lookups returned no run/status for the merge SHA). Do not report post-merge CI as successful until the run for the resulting main commit is observed.
+- Next: check workflow runs for the merge commit and current main HEAD; verify this hand-off update's own CI; then proceed to implementation planning only after the next scoped PR has explicit acceptance criteria and a testable real-D1 strategy. Keep Phase 5 In progress and Phase 12 Blocked.
