@@ -147,6 +147,8 @@ test("requires a valid WebSocket upgrade and explicit destination policy", async
   assert.equal(wrongUpgrade.status, 426);
   const unconfigured = await h.handler.fetch(request(), env({ PROXY_ALLOWED_HOSTS: "" }));
   assert.equal(unconfigured.status, 503);
+  const missingProducer = await h.handler.fetch(request(), env({ PROXY_USAGE_PRODUCER_ID: "" }));
+  assert.equal(missingProducer.status, 503);
   assert.equal(h.connectCalls.length, 0);
 });
 
