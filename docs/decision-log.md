@@ -96,3 +96,7 @@ PR #66 is merged as `471e3a0d0cd9d0fc0fd2292b450e9a95aa026198` after exact-head 
 ## 2026-10-28 — bound queued VLESS download bytes
 
 The Worker WebSocket send path has no awaitable write promise in this implementation. Before reserving quota for a downstream TCP chunk, the handler now checks the WebSocket's `bufferedAmount` and fails closed if it is missing/invalid or if adding the chunk would exceed 1 MiB. This bounds application-level queued bytes but is not a complete backpressure mechanism: Cloudflare runtime behavior, chunk-size behavior, and Nova reference semantics require smoke/black-box validation. Unit tests must prove over-budget chunks are neither reserved nor sent.
+
+## Correction — do not assume Worker bufferedAmount support
+
+The earlier 1 MiB guard based on `server.bufferedAmount` is superseded by a compatibility review. The official Cloudflare Workers WebSocket API reference does not document this property; the browser WebSocket API does, but that is not proof it exists in Workers. The fail-closed check is being removed to avoid closing all sessions on an absent property. No replacement is called complete until it is based on a supported runtime mechanism and validated in a disposable Worker smoke test.

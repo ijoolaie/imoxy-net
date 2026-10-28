@@ -370,3 +370,7 @@ This is a gate-based status audit, not a percentage estimate. A phase is marked 
 ## VLESS downstream buffer guard — 2026-10-28
 
 The active branch `fix/vless-downstream-buffer-bound` adds a fail-closed 1 MiB bound for WebSocket queued download bytes before quota reservation/send, with unit tests for over-budget and unmeasurable buffer state. This reduces one application-level queue risk but does not complete backpressure, speed/concurrency limits, Cloudflare runtime validation or Nova parity. Phase 6 remains In progress; Phase 12 remains Blocked until the existing release gates pass.
+
+## Correction — Worker downstream flow control is still open
+
+The 1 MiB downstream guard added in PR #76 relied on `server.bufferedAmount`, which is not documented in Cloudflare Workers' WebSocket API. Follow-up PR #77 removes this unsupported assumption. Do not count downstream backpressure as implemented or verified: a supported mechanism and disposable Worker slow-client test are still required. Phase 6 remains In progress; Phase 12 remains Blocked.

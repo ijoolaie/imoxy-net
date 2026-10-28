@@ -85,3 +85,7 @@ DNS answer pinning is implemented and covered by Node tests with injected adapte
 ## VLESS downstream buffering guard — 2026-10-28
 
 Imoxy's restricted VLESS prototype now fails closed when WebSocket `bufferedAmount` cannot be measured or the next download chunk would exceed a 1 MiB queued-byte budget. Adapter tests cover both cases and assert no quota reservation or payload send occurs. This is an imoxy resource-safety guard, not Nova parity evidence. Runtime behavior on Cloudflare Workers and reference buffering semantics remain Not assessed.
+
+## Correction — downstream backpressure remains unverified
+
+Do not treat the earlier `bufferedAmount` adapter tests as Cloudflare runtime evidence. The official Workers WebSocket property list does not document `bufferedAmount`. PR #76's guard is being reverted in follow-up PR #77; real slow-client behavior, supported queue telemetry, bounded downstream buffering and Nova parity remain **Not assessed**.

@@ -6,7 +6,6 @@ import { parseVlessRequest, VlessProtocolError } from "./vless-parser.js";
 const DEFAULT_PATH = "/proxy/vless";
 const MAX_INITIAL_BUFFER_BYTES = 64 * 1024;
 const MAX_QUEUED_CLIENT_BYTES = 1024 * 1024;
-const MAX_QUEUED_DOWNSTREAM_BYTES = 1024 * 1024;
 const MAX_DIAL_CANDIDATES = 8;
 const SESSION_CLOSED = Symbol("session_closed");
 const DEFAULT_INITIAL_HANDSHAKE_TIMEOUT_MS = 10_000;
@@ -376,17 +375,6 @@ export function createVlessWebSocketHandler({
 
       const reserveAndSettle = async (bytes, direction) => {
         if (!bytes?.byteLength || state.closed) return !state.closed;
-        if (direction === "download") {
-          // WebSocket send() has no awaitable backpressure signal. Bound its
-          // queued bytes before reserving quota or handing another chunk off.
-          const bufferedBytes = server.bufferedAmount;
-          if (!Number.isSafeInteger(bufferedBytes) || bufferedBytes < 0 ||
-              bytes.byteLength > MAX_QUEUED_DOWNSTREAM_BYTES ||
-              bufferedBytes + bytes.byteLength > MAX_QUEUED_DOWNSTREAM_BYTES) {
-            await closeSession(1009, "downstream_write_queue_full");
-            return false;
-          }
-        }
         const reservationId = idFactory();
         const eventId = idFactory();
         const reservedAt = new Date(now()).toISOString();

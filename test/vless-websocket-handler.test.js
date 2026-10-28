@@ -24,7 +24,6 @@ class FakeWebSocket extends EventTarget {
     super();
     this.accepted = false;
     this.sent = [];
-    this.bufferedAmount = 0;
     this.closeCalls = [];
   }
   accept() { this.accepted = true; }
@@ -215,41 +214,6 @@ test("bounds queued client messages and closes before the queue can grow without
 
   assert.ok(h.server.closeCalls.some((item) => item.code === 1009 && item.reason === "client_write_queue_full"));
   assert.equal(h.quotaCalls.reserve.length, 0, "queued uploads must not reach quota reservation after the queue limit is crossed");
-});
-
-test("bounds downstream WebSocket buffering before quota reservation", async () => {
-  const upstream = fakeSocket();
-  const h = harness({ connectTcp: async () => upstream.socket });
-  await h.handler.fetch(request(), h.env);
-  h.server.receive(vlessRequest({ payload: [] }));
-  await settle();
-
-  h.server.bufferedAmount = 1024 * 1024 - 1;
-  upstream.push([0xaa, 0xbb]);
-  await settle();
-
-  assert.ok(h.server.closeCalls.some((item) =>
-    item.code === 1009 && item.reason === "downstream_write_queue_full"
-  ));
-  assert.equal(h.quotaCalls.reserve.length, 0, "over-budget download chunks must not reserve quota or be sent");
-  assert.equal(h.server.sent.some((message) => message.length === 2 && message[0] === 0xaa), false);
-});
-
-test("fails closed when downstream WebSocket buffering cannot be measured", async () => {
-  const upstream = fakeSocket();
-  const h = harness({ connectTcp: async () => upstream.socket });
-  await h.handler.fetch(request(), h.env);
-  h.server.receive(vlessRequest({ payload: [] }));
-  await settle();
-
-  h.server.bufferedAmount = undefined;
-  upstream.push([0xaa]);
-  await settle();
-
-  assert.ok(h.server.closeCalls.some((item) =>
-    item.code === 1009 && item.reason === "downstream_write_queue_full"
-  ));
-  assert.equal(h.quotaCalls.reserve.length, 0);
 });
 
 test("rejects text WebSocket messages before queueing or forwarding", async () => {
