@@ -68,3 +68,7 @@ Source inspection found that the quota domain service is not wired into the HTTP
 ### Connected-peer address validation evidence — 2026-10-28
 
 PR #62 strict IPv6 syntax validation passed exact-head CI and post-merge main CI. PR #63 expands connected-peer classification to normalized IPv6 and selected special-purpose ranges; its exact-head CI was pending at handoff time. These are implementation/security regression tests only. No authorized Nova runtime comparison or real Cloudflare Worker/D1 validation was performed; the corresponding parity rows must remain unverified.
+
+## VLESS backpressure status — 2026-10-28
+
+A 1 MiB downstream WebSocket buffered-byte guard is an imoxy safety decision. It has not been observed in the pinned Nova Proxy runtime and must not be presented as compatible behavior. The Cloudflare Worker `bufferedAmount` behavior and real slow-client behavior remain unverified pending a disposable Worker smoke test and authorized reference comparison.
