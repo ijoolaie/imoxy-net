@@ -312,7 +312,13 @@ test("validates the connected peer before forwarding the initial payload", async
 });
 
 test("fails closed when the connected peer address is malformed or unavailable", async () => {
-  for (const remoteAddress of ["not-an-ip", "2001:zzzz::1"]) {
+  for (const remoteAddress of [
+    "not-an-ip",
+    "2001:zzzz::1",
+    "1:::2",
+    "1:2:3:4:5:6:7",
+    "1:2:3:4:5:6:7:8:9"
+  ]) {
     const upstream = fakeSocket(remoteAddress);
     const h = harness({ connectTcp: async () => upstream.socket });
     await h.handler.fetch(request(), h.env);
@@ -324,6 +330,29 @@ test("fails closed when the connected peer address is malformed or unavailable",
     ));
     assert.equal(upstream.closed, true);
   }
+});
+
+test("accepts a valid compressed public IPv6 peer address", async () => {
+  const upstream = fakeSocket("2606:4700::1111");
+  const h = harness({ connectTcp: async () => upstream.socket });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+  assert.ok(h.server.sendCalls.some((item) => item instanceof Uint8Array && item[0] === 1));
+  assert.equal(upstream.closed, false);
+});
+
+test("rejects compressed IPv6 documentation addresses", async () => {
+  const upstream = fakeSocket("2001:db8::1");
+  const h = harness({ connectTcp: async () => upstream.socket });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+  assert.equal(h.quotaCalls.reserve.length, 0);
+  assert.ok(h.server.closeCalls.some((item) =>
+    item.code === 1008 && item.reason === "destination_not_allowed"
+  ));
+  assert.equal(upstream.closed, true);
 });
 
 test("upstream connect failure closes the session without leaking details", async () => {
