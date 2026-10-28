@@ -64,3 +64,8 @@ The restricted /proxy/vless handler now authenticates credentials and relays byt
 Branch `feat/atomic-quota-reservations` adds migration 0006, a conditional pre-forward reservation method, a stable producer/event ledger, and trigger-driven aggregate settlement. The domain service computes a SHA-256 hash over canonical immutable event fields and requires caller-supplied IDs so retries can reuse them. The reservation checks active account status, expiry, total usage plus active reservations, daily usage plus active reservations, and safe-integer boundaries.
 
 This is a storage/domain primitive, **not yet hard quota enforcement**: the VLESS handler does not call it yet. Integrate one stable reservation per bounded forwarding chunk; reserve before writing to TCP, settle the actual accepted byte count afterward, and retain the reservation if settlement outcome is ambiguous. Release only when no bytes could have been forwarded. Never automatically free a reservation merely because its advisory lease timestamp elapsed. Real Cloudflare D1 validation remains mandatory.
+
+
+## VLESS reserve/settle integration — 2026-10-28
+
+Main now has the atomic reservation/event-ledger primitives from PR #53, but the next branch `feat/vless-quota-enforcement` wires them into the VLESS handler. It reserves each non-empty chunk before the TCP/WebSocket send and settles measured bytes afterward. If settlement is ambiguous after a send, it closes the session and keeps the reservation active. The branch requires a stable `PROXY_USAGE_PRODUCER_ID` binding. This integration remains pending exact-head CI and real Cloudflare D1 validation; do not treat it as production-ready.
