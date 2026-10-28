@@ -68,6 +68,7 @@ function fixture({ storeFactory, fetchImpl } = {}) {
         return { items: [{ username: "alpha", status: "active" }, { username: "beta", status: "disabled" }], nextCursor: null };
       },
       async createAccount() { throw new Error("not used"); },
+      async rotateCredential() { throw new Error("not used"); },
       async updateAccount() { throw new Error("not used"); },
       async deleteAccount() { throw new Error("not used"); }
     })),

@@ -140,6 +140,9 @@ test("RBAC denies inactive principals and role escalation", () => {
   assert.throws(() => authorizeAction({ id: "p3", role: "admin", status: "disabled" }, "account.read"),
     (error) => error.code === "unauthorized");
   assert.equal(authorizeAction({ id: "p4", role: "operator", status: "active" }, "subscription.create").id, "p4");
+  assert.equal(authorizeAction({ id: "p6", role: "admin", status: "active" }, "account.credential.rotate").id, "p6");
+  assert.throws(() => authorizeAction({ id: "p4", role: "operator", status: "active" }, "account.credential.rotate"),
+    (error) => error.code === "forbidden");
   assert.throws(() => authorizeAction({ id: "p5", role: "viewer", status: "active" }, "subscription.revoke"),
     (error) => error.code === "forbidden");
 });

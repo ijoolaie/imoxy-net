@@ -15,10 +15,15 @@ function fixture() {
     async getAccount(id) { return state.accounts.get(id) ?? null; },
     async listAccounts() { return { items: [...state.accounts.values()], nextCursor: null }; },
     async getUsageSummary(accountId, usageDate) { return { accountId, usageDate, totalBytes: 123, dailyBytes: 23, requestCount: 4 }; },
-    async createAccount(account, audit) {
+    async createAccount(account, audit, credentialRecord) {
       state.accounts.set(account.id, account);
-      state.mutations.push({ type: "create", account, audit });
+      state.mutations.push({ type: "create", account, audit, credentialRecord });
       return account;
+    },
+    async rotateCredential(id, credentialRecord, audit) {
+      if (!state.accounts.has(id)) return false;
+      state.mutations.push({ type: "rotateCredential", id, credentialRecord, audit });
+      return true;
     },
     async updateAccount(id, changes, audit) {
       const current = state.accounts.get(id);
@@ -139,8 +144,17 @@ test("account create requires an authenticated principal and audits the mutation
   assert.equal(accepted.status, 201);
   const body = await accepted.json();
   assert.equal(body.account.username, "customer_01");
+  assert.match(body.account.credential, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+  assert.equal(state.mutations[0].credentialRecord.credentialHash.length, 64);
+  assert.equal(Object.hasOwn(state.mutations[0].credentialRecord, "credential"), false);
   assert.equal(state.mutations[0].audit.actorPrincipalId, owner.id);
   assert.equal(state.mutations[0].audit.action, "account.created");
+
+  const laterRead = await api.fetch(new Request(`https://imoxy.test/api/v1/accounts/${body.account.id}`, {
+    headers: { authorization: `Bearer ${bearer}` }
+  }), env);
+  assert.equal(laterRead.status, 200);
+  assert.equal("credential" in (await laterRead.json()).account, false);
 });
 
 test("cookie-authenticated mutations require a same-origin request", async () => {
@@ -175,4 +189,28 @@ test("usage summaries require a session and validate the UTC date", async () => 
     headers: { authorization: `Bearer ${bearer}` }
   }), env);
   assert.equal(invalid.status, 400);
+});
+
+test("proxy credential rotation requires authentication and returns the replacement once", async () => {
+  const { api, env, state } = fixture();
+  const created = await api.fetch(jsonRequest("https://imoxy.test/api/v1/accounts", "POST",
+    { username: "customer_02" }, { authorization: `Bearer ${bearer}` }), env);
+  const account = (await created.json()).account;
+
+  const denied = await api.fetch(new Request(`https://imoxy.test/api/v1/accounts/${account.id}/credential/rotate`, {
+    method: "POST"
+  }), env);
+  assert.equal(denied.status, 401);
+
+  const rotated = await api.fetch(new Request(`https://imoxy.test/api/v1/accounts/${account.id}/credential/rotate`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${bearer}` }
+  }), env);
+  assert.equal(rotated.status, 200);
+  const body = await rotated.json();
+  assert.match(body.result.credential, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+  assert.equal(body.result.accountId, account.id);
+  const mutation = state.mutations.find((item) => item.type === "rotateCredential");
+  assert.equal(mutation.audit.action, "account.credential.rotated");
+  assert.equal(mutation.credentialRecord.credentialHash.length, 64);
 });

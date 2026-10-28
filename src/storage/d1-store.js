@@ -50,6 +50,15 @@ function auditInsert(event, accountId) {
   };
 }
 
+function assertProxyCredential(record, accountId) {
+  if (!record || typeof record.id !== "string" || !record.id ||
+      typeof record.accountId !== "string" || record.accountId !== accountId ||
+      typeof record.credentialHash !== "string" || !/^[0-9a-f]{64}$/.test(record.credentialHash) ||
+      typeof record.createdAt !== "string" || !Number.isFinite(Date.parse(record.createdAt))) {
+    throw new TypeError("A valid hash-only proxy credential record is required.");
+  }
+}
+
 function assertAuditEvent(event) {
   if (!event || typeof event.id !== "string" || !event.id ||
       typeof event.action !== "string" || !event.action ||
@@ -116,8 +125,9 @@ export function createD1Store(db) {
       };
     },
 
-    async createAccount(account, auditEvent) {
+    async createAccount(account, auditEvent, credentialRecord = null) {
       assertAuditEvent(auditEvent);
+      if (credentialRecord !== null) assertProxyCredential(credentialRecord, account.id);
       const insert = db.prepare(`INSERT INTO proxy_accounts
         (id, username, status, credential_secret_ref, expires_at, quota_bytes, daily_quota_bytes,
          speed_limit_kbps, max_connections, notes, created_at, updated_at)
@@ -128,8 +138,47 @@ export function createD1Store(db) {
         account.notes ?? "", account.createdAt, account.updatedAt
       );
       const audit = auditInsert(auditEvent, account.id);
-      await db.batch([insert, db.prepare(audit.statement).bind(...audit.values)]);
+      const statements = [insert];
+      if (credentialRecord) {
+        statements.push(db.prepare(`INSERT INTO proxy_credentials
+          (id, account_id, credential_hash, created_at, revoked_at)
+          VALUES (?, ?, ?, ?, NULL)`).bind(
+          credentialRecord.id, credentialRecord.accountId,
+          credentialRecord.credentialHash, credentialRecord.createdAt
+        ));
+      }
+      statements.push(db.prepare(audit.statement).bind(...audit.values));
+      await db.batch(statements);
       return this.getAccount(account.id);
+    },
+
+    async findAccountByCredentialHash(credentialHash) {
+      if (typeof credentialHash !== "string" || !/^[0-9a-f]{64}$/.test(credentialHash)) {
+        throw new TypeError("A SHA-256 proxy credential hash is required.");
+      }
+      const row = await db.prepare(`SELECT c.id AS credential_id, a.id, a.username, a.status,
+        a.expires_at, a.quota_bytes, a.daily_quota_bytes, a.speed_limit_kbps,
+        a.max_connections, a.notes, a.created_at, a.updated_at
+        FROM proxy_credentials c JOIN proxy_accounts a ON a.id = c.account_id
+        WHERE c.credential_hash = ? AND c.revoked_at IS NULL LIMIT 1`).bind(credentialHash).first();
+      if (!row) return null;
+      return { credentialId: row.credential_id, account: toAccount(row) };
+    },
+
+    async rotateCredential(accountId, credentialRecord, auditEvent) {
+      assertAuditEvent(auditEvent);
+      assertProxyCredential(credentialRecord, accountId);
+      const revoke = db.prepare(`UPDATE proxy_credentials SET revoked_at = ?
+        WHERE account_id = ? AND revoked_at IS NULL`).bind(credentialRecord.createdAt, accountId);
+      const insert = db.prepare(`INSERT INTO proxy_credentials
+        (id, account_id, credential_hash, created_at, revoked_at)
+        VALUES (?, ?, ?, ?, NULL)`).bind(
+        credentialRecord.id, credentialRecord.accountId,
+        credentialRecord.credentialHash, credentialRecord.createdAt
+      );
+      const audit = auditInsert(auditEvent, accountId);
+      const results = await db.batch([revoke, insert, db.prepare(audit.statement).bind(...audit.values)]);
+      return (results?.[1]?.meta?.changes ?? 0) === 1;
     },
 
     async updateAccount(id, changes, auditEvent) {

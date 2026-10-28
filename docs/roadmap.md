@@ -276,3 +276,8 @@ The next implementation target is one independently written VLESS-over-WebSocket
 ## Initial protocol parser foundation — 2026-10-28
 
 The first code slice adds a pure VLESS TCP request parser and unit tests for version/command/address parsing, domain validation, incomplete headers and payload-offset preservation. This is a narrow Phase 6 foundation only: no WebSocket route, account credential lookup, upstream TCP connection, relay, quota enforcement, Cloudflare Worker smoke test, or Nova runtime comparison exists yet. Keep Phase 6 In progress and all proxy parity rows Not assessed. Next prerequisites are credential storage/lookup and a testable Worker TCP adapter; do not treat parser CI as an end-to-end proxy milestone.
+
+
+## Proxy credential foundation — 2026-10-28
+
+The current feature branch adds a hash-only proxy_credentials table, UUID issuance on account creation, hash lookup for the future data plane, and owner/admin-only credential rotation that revokes old credentials and audits the change. Raw UUIDs are returned only in create/rotate responses. Exact-head CI and real D1 validation are pending for this branch; no handler consumes these credentials yet. This removes one design blocker but does not make the proxy data plane functional. Phase 6 remains In progress.

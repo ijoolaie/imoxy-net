@@ -270,3 +270,19 @@ Every user-facing response about this repository ends with an evidence-based sch
 - The earlier statement that the parser feature branch had not yet been CI-verified is a historical checkpoint, superseded by the exact-head success above.
 - Post-merge main CI for merge commit 29bf54c78c3c5d5bcfe8eae3d8c8ec98a54ee920 has not been observed through the available workflow-run lookup.
 - Next implementation prerequisite: define credential provisioning, hash-only storage, account lookup, rotation and revocation; then implement authenticated WebSocket routing and a Cloudflare TCP adapter. Do not open upstream sockets before credential/account and destination policy checks. The controlled Worker smoke test and reference comparison remain mandatory.
+
+
+## Proxy credential lifecycle implementation — 2026-10-28 (feature branch pending)
+
+- PR #49 hand-off correction merged as 6303aeabf1e576231c2291b42d1a5c9f036ff0be. Its exact-head CI passed on ff98985eea6ee94f865b63b691df55a8e544eee4 in run #457 / workflow ID 40634795963, including npm run verify. Post-merge main CI for that merge commit has not been observed in the available workflow lookup.
+- Active branch: feat/proxy-credential-lifecycle. Added migration 0005_proxy_credentials.sql, random UUID credential generation, SHA-256 hash-only persistence, account-creation one-time credential return, hash lookup, owner/admin-only rotation with prior-credential revocation and audit, and tests for API/RBAC/storage/schema behavior.
+- Raw credentials are not intended for account list/get or audit logs. The proxy handler is not yet wired to the credential lookup. The legacy proxy_accounts.credential_secret_ref field remains unused.
+- This branch is not yet PR-head CI verified. Inspect the full diff and run exact-head CI before merging. SQLite migration tests do not prove real D1 batch atomicity/foreign-key behavior.
+- Prior PR #48 merged as 29bf54c78c3c5d5bcfe8eae3d8c8ec98a54ee920; exact-head CI run #455 / workflow ID 40634698040 passed on da3259ad4c870388ed418aababf3476680a78bc4. The parser remains parser-only: no WebSocket handler, TCP socket, relay, quota enforcement, live traffic test, Nova runtime comparison or deployment.
+
+
+## Credential lifecycle CI failure and correction — 2026-10-28
+
+- Initial exact-head workflow run #477 / ID 40635058518 failed: 128 tests passed and 2 tests failed because two read-only service test doubles (cross-interface and Telegram) lacked the newly required rotateCredential storage method. The failure was in test fixture contracts, not in credential hashing or SQL assertions.
+- Updated test/cross-interface.test.js and test/telegram-webhook.test.js to provide an explicit unused rotateCredential stub. The corrected exact head is 856a00ada6b5cdf9dfc02b7b22e1f3663ab1d98d; CI run #482 / workflow ID 40635123544 passed, including npm run verify.
+- The failure is resolved. Review this exact head and merge only with the CI result above; the main branch has not yet consumed this PR. Real Cloudflare D1 atomicity remains unverified.

@@ -74,11 +74,15 @@ test("create mutation batches account insert with an audit insert", async () => 
     max_connections: null, notes: "", created_at: audit.createdAt, updated_at: audit.createdAt
   }});
   const store = createD1Store(db);
+  const credentialRecord = {
+    id: "credential-1", accountId: "acct-1", credentialHash: "a".repeat(64), createdAt: audit.createdAt
+  };
   const account = await store.createAccount({
     id: "acct-1", username: "customer_1", createdAt: audit.createdAt, updatedAt: audit.createdAt
-  }, audit);
+  }, audit, credentialRecord);
   assert.equal(account.id, "acct-1");
-  assert.deepEqual(db.calls.find((call) => call.batch), { batch: 2 });
+  assert.deepEqual(db.calls.find((call) => call.batch), { batch: 3 });
+  assert.ok(db.calls.some((call) => call.sql?.includes("INSERT INTO proxy_credentials")));
   assert.ok(db.calls.some((call) => call.sql?.includes("INSERT INTO audit_events")));
 });
 
@@ -200,4 +204,37 @@ test("subscription revocation batches state change and audit", async () => {
   });
   assert.equal(result, true);
   assert.deepEqual(db.calls.find((call) => call.batch), { batch: 2 });
+});
+
+test("proxy credential lookup hashes only and returns the account without exposing the hash", async () => {
+  const db = makeDb({ firstRow: {
+    credential_id: "credential-1", id: "acct-1", username: "customer_1", status: "active",
+    expires_at: null, quota_bytes: 500, daily_quota_bytes: null, speed_limit_kbps: null,
+    max_connections: null, notes: "", created_at: audit.createdAt, updated_at: audit.createdAt
+  }});
+  const store = createD1Store(db);
+  const result = await store.findAccountByCredentialHash("a".repeat(64));
+  assert.equal(result.credentialId, "credential-1");
+  assert.equal(result.account.id, "acct-1");
+  assert.equal(result.account.quotaBytes, 500);
+  assert.equal(Object.hasOwn(result.account, "credentialHash"), false);
+  assert.equal(db.calls[0].values[0], "a".repeat(64));
+  assert.match(db.calls[0].sql, /revoked_at IS NULL/);
+  await assert.rejects(() => store.findAccountByCredentialHash("not-a-hash"), TypeError);
+});
+
+test("credential rotation revokes old credentials, inserts a new hash and audits atomically", async () => {
+  const db = makeDb();
+  const store = createD1Store(db);
+  const credentialRecord = {
+    id: "credential-2", accountId: "acct-1", credentialHash: "b".repeat(64), createdAt: audit.createdAt
+  };
+  const rotated = await store.rotateCredential("acct-1", credentialRecord, {
+    ...audit, action: "account.credential.rotated"
+  });
+  assert.equal(rotated, true);
+  assert.deepEqual(db.calls.find((call) => call.batch), { batch: 3 });
+  assert.ok(db.calls.some((call) => call.sql?.includes("UPDATE proxy_credentials SET revoked_at")));
+  assert.ok(db.calls.some((call) => call.sql?.includes("INSERT INTO proxy_credentials")));
+  assert.ok(db.calls.some((call) => call.sql?.includes("INSERT INTO audit_events")));
 });
