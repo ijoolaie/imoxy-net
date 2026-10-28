@@ -501,6 +501,9 @@ export function createVlessWebSocketHandler({
               await closeSession(1008, "destination_not_allowed");
               return;
             }
+            // The handshake timer may close the session while DNS is pending.
+            // Never open an upstream socket after the client session has closed.
+            if (state.closed) return;
             const socket = await connectTcp({ hostname: destinationAddress, port: parsed.port }, env);
             if (state.closed) {
               try { await socket?.close?.(); } catch {}
