@@ -98,3 +98,8 @@ Executable repository tests currently cover API/auth/session behavior, account-d
 
 
 - Migration `0004_usage_daily_safe_integer_guards.sql` must apply successfully and reject direct insert/update attempts that exceed safe-integer bounds for upload, download, request count, or combined daily bytes. SQLite CI covers the migration and trigger behavior; run the same cases on a disposable Cloudflare D1 database before release certification.
+
+
+## Future usage event ledger and quota reservation contract (design only)
+
+Before implementation is accepted, cover stable producer-scoped event IDs, same-ID/same-payload replay no-op, same-ID/different-payload conflict, two different IDs with identical deltas both counting, missing/invalid IDs rejected before storage, safe-integer overflow, retry after ambiguous outcomes using the same ID, and storage failure without partial aggregate mutation. Reservation tests must cover concurrent boundary claims, duplicate reservation IDs, insufficient quota, expiry/disabled accounts, completion reconciliation, idempotent release, and abandoned-reservation recovery. A disposable real Cloudflare D1 integration gate must verify migrations/triggers, batch rollback, uniqueness races, aggregate exact-once behavior, concurrent reservation semantics, and backup/restore/reconciliation. Until these pass, usage-event idempotency and hard quota enforcement remain unimplemented and unverified. See [usage-event-atomicity-design.md](usage-event-atomicity-design.md).
