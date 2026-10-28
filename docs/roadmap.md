@@ -107,7 +107,7 @@ Exit gate:
 - Every mutation is authorized, validated, auditable, and safe to retry where promised.
 
 ### Phase 6 — Subscription and proxy compatibility
-**State:** In progress — subscription token generation/storage/revocation, account-expiry caps, provisional Auto/Base64/Clash rendering, and clean-room VLESS/Trojan/Shadowsocks URI plus Clash YAML generators are implemented with tests. Public delivery, persistent proxy-node configuration, target-client smoke tests and reference output comparison remain.
+**State:** In progress — subscription token generation/storage/revocation, account-expiry caps, provisional Auto/Base64/Clash rendering, clean-room URI/YAML generators, and a restricted VLESS-over-WebSocket TCP prototype with credential checks, destination allowlists, reserve-before-forward quota integration, and a default idle-session timeout are implemented with tests. DNS rebinding/private-network resolution, robust backpressure, speed/concurrency limits, real Worker/D1 smoke tests, public delivery, target-client tests, and reference output comparison remain.
 
 Deliver:
 - Subscription tokens/access rules, expiry/revocation, and supported output formats.
@@ -311,3 +311,8 @@ PR #54 merged as `f9bc9bd790357521caad938a5de22026c242383d`; exact-head CI passe
 ## Quota SQL integration coverage — 2026-10-28
 
 PR #56 adds SQLite-backed integration tests for the actual D1 adapter SQL. Exact-head CI passed in run #564, and post-merge main CI passed in run #565. Covered: concurrent reservation denial at the daily limit, event replay suppression and conflict rejection, reservation settlement/release, and rollback on aggregate overflow. This is not a real Cloudflare D1 integration. Phase 5 remains In progress until disposable D1 concurrency/rollback/trigger tests and a controlled Worker smoke test pass.
+
+
+### VLESS idle-session resource control — 2026-10-28
+
+Branch `fix/vless-idle-session-timeout` adds a default 120-second inactivity timeout for authenticated VLESS WebSocket sessions, resets it on upload/download activity, guards against stale timer callbacks, and closes the upstream socket on timeout. Unit tests cover timeout, activity reset, stale timer behavior and invalid configuration. This does not complete Phase 6: DNS rebinding/private-network protections, backpressure, connection/speed limits, live Worker/D1 validation and Nova black-box parity remain open. Await exact-head CI before merge; Phase 5 and Phase 6 remain **In progress**, and Phase 12 remains **Blocked**.
