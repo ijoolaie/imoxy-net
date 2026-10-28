@@ -91,9 +91,14 @@ async function settle() {
   for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = () => NOW, timerCallbacks = null, idleTimeoutMs = 120_000, quotaAllowed = true, quotaSettleFails = false, quotaReserveFails = false, quotaReserveConflict = false } = {}) {
+function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = () => NOW, timerCallbacks = null, idleTimeoutMs = 120_000, quotaAllowed = true, quotaSettleFails = false, quotaReserveFails = false, quotaReserveConflict = false, downstreamSendFails = false } = {}) {
   const client = new FakeWebSocket();
   const server = new FakeWebSocket();
+  const originalSend = server.send.bind(server);
+  server.send = (data) => {
+    if (downstreamSendFails && data?.[0] === 0xa1) throw new Error("injected downstream send failure");
+    originalSend(data);
+  };
   const connectCalls = [];
   const storeCalls = [];
   const quotaCalls = { reserve: [], settle: [], release: [] };
@@ -605,6 +610,25 @@ test("ambiguous settlement failure closes the session and does not release the r
   assert.equal(h.quotaCalls.reserve.length, 1);
   assert.equal(h.quotaCalls.settle.length, 1);
   assert.ok(h.server.closeCalls.some((item) => item.code === 1011 && item.reason === "usage_settlement_failed"));
+});
+
+test("downstream send failure closes the relay and retains the quota reservation", async () => {
+  const upstream = fakeSocket();
+  const h = harness({ downstreamSendFails: true, connectTcp: async () => upstream.socket });
+
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  upstream.push([0xa1, 0xa2]);
+  await settle();
+
+  assert.equal(h.quotaCalls.reserve.length, 1);
+  assert.equal(h.quotaCalls.reserve[0].reservedBytes, 2);
+  assert.equal(h.quotaCalls.settle.length, 0);
+  assert.equal(h.quotaCalls.release.length, 0);
+  assert.ok(h.server.closeCalls.some((item) => item.code === 1011 && item.reason === "downstream_write_failed"));
+  assert.equal(upstream.closed, true);
 });
 
 test("download settlement failure closes the relay before forwarding a later queued chunk", async () => {
