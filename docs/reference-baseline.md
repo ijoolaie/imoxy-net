@@ -59,3 +59,8 @@ The imoxy D1 adapter now rejects combined deltas outside the safe-integer range 
 ## Schema counter guard note — 2026-10-27
 
 Imoxy migration 0004 adds schema-level triggers rejecting daily usage counters or combined daily bytes above JavaScript's safe-integer range. This is an imoxy storage-integrity choice, not a verified Nova behavior. Migration tests use SQLite; Cloudflare D1 compatibility and pinned-reference accounting semantics remain unverified.
+
+
+## Quota integration boundary audit — 2026-10-28
+
+Source inspection found that the quota domain service is not wired into the HTTP API, while the API capability report still lists quota enforcement and usage accounting as pending. No trusted proxy/data-plane event producer was identified in the inspected source tree. The current usage table and overflow guards are control-plane storage foundations only; they do not establish measured proxy traffic, pre-forwarding quota enforcement, replay safety, or Nova parity. REF-007–008 remain unrun against the pinned Nova Proxy 5.0.0 runtime. Do not implement authoritative usage ingestion from arbitrary client reports; define the trusted producer and stable event-ID/retry contract first.

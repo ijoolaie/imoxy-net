@@ -195,3 +195,13 @@ Every user-facing response about this repository ends with an evidence-based sch
 - The repository's current structure contains a quota domain service and D1 aggregate store, but no confirmed trusted proxy/data-plane usage event producer was found in the inspected source tree. Do not invent producer IDs at the management API. Before wiring idempotent usage ingestion, establish the authenticated event source and its stable ID lifecycle; otherwise a ledger API would be disconnected from actual traffic.
 - Next implementation slice should start with a source/contract investigation: trace all calls to `createQuotaService`, identify whether any trusted usage reporter exists, and define the integration boundary. If none exists, document that the management plane alone cannot truthfully enforce or meter real proxy traffic, and keep event ledger/reservation implementation blocked until the data-plane integration path is selected.
 - The current note will trigger another main CI run; check it before asserting the hand-off is fully verified.
+
+
+## Next-source audit — quota producer gap (2026-10-28)
+
+- Created branch `docs/quota-data-plane-gap` from main after PR #43 merged.
+- Source inspected: `src/http/api.js`, `src/domain/quota-service.js`, `src/storage/d1-store.js`, `docs/architecture.md`, `docs/reference-baseline.md`, and `docs/parity-matrix.md`.
+- Finding: `src/http/api.js` does not import or instantiate `createQuotaService`; the API capability report explicitly leaves quota enforcement/usage accounting pending. No trusted proxy/data-plane usage producer was identified in the inspected source tree. Therefore quota policy/service and `usage_daily` are currently foundations, not live traffic metering or hard enforcement.
+- Added docs in this branch to record the integration precondition. No runtime code, API endpoint, database migration, or production setting is changed.
+- PR #43 was merged as `1ded95232255aae591508e46f86d095c2be8283f`. Its exact head CI passed in run #433 / `40631341345`. Main hand-off commit `bd8923751d435ab0d38a3ec0a67fcfd1b09f40aa` passed CI run #436 / `40631481882`. The current update's CI run #437 / `40631523297` had `npm run verify` completed successfully; verify the run concludes successfully before merge.
+- Next: review the six-file documentation diff, create PR, require exact-head CI, merge only if passing, verify post-merge CI. Then choose/characterize the trusted proxy usage source and define the control-plane integration contract before implementing event ledger or reservations. Do not claim Nova parity, real D1 verification, or hard enforcement.

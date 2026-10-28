@@ -53,3 +53,8 @@ The quota service now rejects a usage report when individually safe upload/downl
 ## Additional D1 usage-counter guard (2026-10-27)
 
 The D1 adapter now rejects combined upload/download deltas outside the JavaScript safe-integer range and guards daily counter increments in the atomic upsert. If an existing daily row would exceed the supported safe-integer range, the upsert makes no change and the adapter reports a range error. Unit tests cover the SQL guard contract and zero-change failure path. This does not provide idempotency, lifetime-total reservation, real D1 evidence, or Nova parity.
+
+
+## Quota/data-plane boundary audit — 2026-10-28
+
+The current repository exposes account usage summaries and has a quota domain service/storage primitives, but `createQuotaService` is not wired into `src/http/api.js`, and the capabilities endpoint explicitly lists quota enforcement and usage accounting as pending. No trusted proxy/data-plane usage reporter was identified in the inspected source tree. Therefore quota enforcement, measured proxy traffic, and Nova parity remain **Not assessed**; the existing SQLite/adapter tests only verify imoxy-local arithmetic and storage behavior. Before changing the quota row to In progress/Verified on behavioral parity, identify the trusted usage source and exercise the same scenarios against pinned Nova Proxy 5.0.0 and imoxy. See [architecture.md](architecture.md) and [usage-event-atomicity-design.md](usage-event-atomicity-design.md).
