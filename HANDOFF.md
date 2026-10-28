@@ -391,3 +391,13 @@ Every user-facing response about this repository ends with an evidence-based sch
 - PR #64 merged as `7a1856f311840466d080ed0606b1555474579584`; exact-head documentation CI passed in run `40643283669`.
 - Post-merge main CI for PR #63 (run `40643515543`) and PR #64 (run `40643555979`) was still in progress at the time of this note; do not claim post-merge verification until both complete successfully.
 - No deployment or live Cloudflare resource writes occurred. DNS answer pinning, disposable D1/Worker smoke tests, proxy resource limits/backpressure and Nova black-box comparison remain open.
+
+
+## Latest work session — 2026-10-28 (DNS destination pinning)
+
+- PR #65 documentation status note merged; its mainline evidence was checked before continuing.
+- PR #66, [fix(proxy): pin TCP dials to validated DNS answers](https://github.com/ijoolaie/imoxy-net/pull/66), merged as `471e3a0d0cd9d0fc0fd2292b450e9a95aa026198`. Exact-head `npm run verify` passed on `c874882ae9179446cddad6ba1f2504c93dd8e063` (PR CI run `40647440374`; push CI run `40647434071`).
+- Implementation resolves hostnames via Cloudflare DNS-over-HTTPS, normalizes the selected public numeric answer, connects directly to that IP, and requires the socket-reported peer to match before writer creation, quota reservation or forwarding. Resolver failures, invalid/private-only answers and peer mismatches fail closed. Tests cover public-answer selection, private answers, resolver failure, canonical numeric targets, timeout while DNS is pending, and connected-peer mismatch.
+- Merge commit CI and this handoff update's own CI must still be verified after the documentation commit. No deployment or live Cloudflare resource writes occurred.
+- Limitations: this application-level pinning depends on DNS-over-HTTPS availability and the Worker runtime's supported outbound fetch/TCP behavior. The selected-address policy is still not a complete maintained IANA special-purpose registry; mixed answer sets and IPv4/IPv6 fallback behavior require further review. No controlled Worker/D1 smoke test or Nova black-box comparison has been performed. Do not mark Phase 6 complete or claim production readiness.
+- Next: verify main CI for the PR #66 merge commit; finish review of resolver edge cases and destination allowlist semantics; prepare a controlled non-production Worker/D1 smoke-test plan. Do not deploy or write live resources without explicit approval.
