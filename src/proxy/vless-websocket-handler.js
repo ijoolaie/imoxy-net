@@ -208,9 +208,12 @@ export async function resolvePublicDestinations(host, fetchImpl = globalThis.fet
     for (const answer of result.value) {
       if (answer?.type !== 1 && answer?.type !== 28) continue;
       const address = normalizeNumericAddress(answer.data);
-      if (address && !isClearlyPrivateDestination(address)) {
-        addresses.push(address);
-      }
+      if (!address) continue;
+      const isIPv4Address = address.includes(".");
+      // DNS JSON records must match their declared address family. Do not
+      // accept malformed/mislabelled answers as a validated dial candidate.
+      if ((answer.type === 1 && !isIPv4Address) || (answer.type === 28 && isIPv4Address)) continue;
+      if (!isClearlyPrivateDestination(address)) addresses.push(address);
     }
   }
   const uniqueAddresses = [...new Set(addresses)];
