@@ -13,9 +13,13 @@ function fixture({ allowed = true, existing = null } = {}) {
       calls.push({ method: "listAccounts", args });
       return { items: [], nextCursor: null };
     },
-    async createAccount(account, audit) {
-      calls.push({ method: "createAccount", account, audit });
+    async createAccount(account, audit, credentialRecord) {
+      calls.push({ method: "createAccount", account, audit, credentialRecord });
       return account;
+    },
+    async rotateCredential(id, credentialRecord, audit) {
+      calls.push({ method: "rotateCredential", id, credentialRecord, audit });
+      return existing?.id === id;
     },
     async updateAccount(id, changes, audit) {
       calls.push({ method: "updateAccount", id, changes, audit });
@@ -33,6 +37,8 @@ function fixture({ allowed = true, existing = null } = {}) {
       return allowed ? { id: "principal-1", role: "owner" } : null;
     },
     idFactory: (() => { let id = 0; return () => `generated-${++id}`; })(),
+    credentialFactory: () => "123e4567-e89b-12d3-a456-426614174000",
+    credentialHasher: async () => "a".repeat(64),
     now: () => "2026-10-27T00:00:00.000Z"
   });
   return { service, calls };
@@ -48,10 +54,13 @@ test("create validates inputs, assigns server-controlled fields, and records aud
   assert.equal(account.id, "generated-1");
   assert.equal(account.status, "active");
   assert.equal(account.quotaBytes, 500);
+  assert.equal(account.credential, "123e4567-e89b-12d3-a456-426614174000");
   const mutation = calls.find((call) => call.method === "createAccount");
   assert.equal(mutation.audit.actorPrincipalId, "principal-1");
   assert.equal(mutation.audit.requestId, "req-1");
   assert.equal(mutation.audit.action, "account.created");
+  assert.equal(mutation.credentialRecord.credentialHash, "a".repeat(64));
+  assert.equal(Object.hasOwn(mutation.credentialRecord, "credential"), false);
 });
 
 test("denied requests do not reach the storage adapter", async () => {
@@ -96,4 +105,21 @@ test("list pagination validation returns a client error before persistence", asy
     return true;
   });
   assert.equal(calls.some((call) => call.method === "listAccounts"), false);
+});
+
+test("credential rotation is authorized and returns a new credential once", async () => {
+  const existing = { id: "acct-1", username: "customer_01", status: "active" };
+  const { service, calls } = fixture({ existing });
+  const result = await service.rotateCredential("acct-1", { requestId: "req-rotate" });
+  assert.equal(result.accountId, "acct-1");
+  assert.equal(result.credential, "123e4567-e89b-12d3-a456-426614174000");
+  const mutation = calls.find((call) => call.method === "rotateCredential");
+  assert.equal(mutation.credentialRecord.credentialHash, "a".repeat(64));
+  assert.equal(mutation.audit.action, "account.credential.rotated");
+  assert.equal(mutation.audit.requestId, "req-rotate");
+});
+
+test("credential rotation refuses missing accounts", async () => {
+  const { service } = fixture();
+  await assert.rejects(() => service.rotateCredential("missing"), (error) => error.code === "not_found");
 });
