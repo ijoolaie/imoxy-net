@@ -154,6 +154,57 @@ async function cloudflareTcpConnect({ hostname, port }) {
   return connect({ hostname, port });
 }
 
+function sameNumericAddress(left, right) {
+  if (!isValidNumericAddress(left) || !isValidNumericAddress(right)) return false;
+  const leftV4 = left.split(".");
+  const rightV4 = right.split(".");
+  if (leftV4.length === 4 && rightV4.length === 4) {
+    return leftV4.every((part, index) => Number(part) === Number(rightV4[index]));
+  }
+  const leftV6 = parseIPv6Groups(left);
+  const rightV6 = parseIPv6Groups(right);
+  return Boolean(leftV6 && rightV6 && leftV6.every((group, index) => group === rightV6[index]));
+}
+
+async function resolvePublicDestination(host, fetchImpl = globalThis.fetch) {
+  if (isValidNumericAddress(host)) {
+    if (isClearlyPrivateDestination(host)) throw new TypeError("Destination address is not public.");
+    return host;
+  }
+  if (typeof host !== "string" ||
+      !/^(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(host) ||
+      host.split(".").some((label) => !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label))) {
+    throw new TypeError("Destination hostname is invalid.");
+  }
+
+  const query = async (type) => {
+    const url = `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(host)}&type=${type}`;
+    const response = await fetchImpl(url, {
+      headers: { accept: "application/dns-json" },
+      redirect: "error"
+    });
+    if (!response?.ok) throw new TypeError("DNS resolution failed.");
+    const body = await response.json();
+    if (body?.Status !== 0) throw new TypeError("DNS resolution failed.");
+    return Array.isArray(body.Answer) ? body.Answer : [];
+  };
+
+  const answers = await Promise.allSettled([query("A"), query("AAAA")]);
+  const addresses = [];
+  for (const result of answers) {
+    if (result.status !== "fulfilled") continue;
+    for (const answer of result.value) {
+      if (answer?.type !== 1 && answer?.type !== 28) continue;
+      const address = answer.data;
+      if (isValidNumericAddress(address) && !isClearlyPrivateDestination(address)) {
+        addresses.push(address);
+      }
+    }
+  }
+  if (addresses.length === 0) throw new TypeError("No public destination address was resolved.");
+  return addresses[0];
+}
+
 function createWebSocketPair() {
   if (typeof globalThis.WebSocketPair !== "function") {
     throw new TypeError("The Cloudflare WebSocketPair runtime is unavailable.");
@@ -180,6 +231,7 @@ export function createVlessWebSocketHandler({
   quotaServiceFactory = ({ store }) => createQuotaReservationService({ store }),
   idFactory = () => globalThis.crypto.randomUUID(),
   connectTcp = cloudflareTcpConnect,
+  resolveDestination = resolvePublicDestination,
   webSocketPairFactory = createWebSocketPair,
   upgradeResponseFactory = createUpgradeResponse,
   now = () => Date.now(),
@@ -425,7 +477,20 @@ export function createVlessWebSocketHandler({
               return;
             }
 
-            const socket = await connectTcp({ hostname: parsed.host, port: parsed.port }, env);
+            // Resolve hostnames first and connect to the selected numeric address.
+            // This pins the dial target so a second DNS lookup cannot rebind it.
+            let destinationAddress;
+            try {
+              destinationAddress = await resolveDestination(parsed.host, env);
+            } catch {
+              await closeSession(1008, "destination_not_allowed");
+              return;
+            }
+            if (!isValidNumericAddress(destinationAddress) || isClearlyPrivateDestination(destinationAddress)) {
+              await closeSession(1008, "destination_not_allowed");
+              return;
+            }
+            const socket = await connectTcp({ hostname: destinationAddress, port: parsed.port }, env);
             if (state.closed) {
               try { await socket?.close?.(); } catch {}
               return;
@@ -446,7 +511,8 @@ export function createVlessWebSocketHandler({
             // Fail closed unless the runtime reports a valid public peer address.
             // This checks the connected peer, not the hostname's prior DNS answer.
             if (!isValidNumericAddress(socketInfo?.remoteAddress) ||
-                isClearlyPrivateDestination(socketInfo.remoteAddress)) {
+                isClearlyPrivateDestination(socketInfo.remoteAddress) ||
+                !sameNumericAddress(destinationAddress, socketInfo.remoteAddress)) {
               await closeSession(1008, "destination_not_allowed");
               return;
             }
