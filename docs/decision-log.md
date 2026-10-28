@@ -79,3 +79,7 @@ A future usage report must carry a stable caller-provided event ID from the trus
 Inspection of the pinned Nova Proxy 5.0.0 README/deployment guide and the current imoxy entry point identified an architecture mismatch: the reference documents one Cloudflare Worker serving admin UI, subscription delivery, and proxy traffic, while imoxy's `worker.js` currently dispatches to static assets or the management API. The inspected API has no WebSocket upgrade/proxy protocol handler and does not instantiate the quota service.
 
 Decision: do not implement a disconnected usage ledger/reservation subsystem next. First specify black-box scenarios and implement the smallest independently written end-to-end proxy traffic path; identify the trusted measurement point and its account/subscription identity. Then design event identity and pre-forwarding reservation against that real boundary. This is a priority decision, not a claim that Nova runtime behavior has been verified. Do not copy protected upstream source or assets; licensing/distribution remains a release gate.
+
+### Decision — conservative connected IPv6 peer filtering (2026-10-28)
+
+Fail closed when the TCP runtime reports a malformed peer address or an IPv6 address outside global-unicast space; additionally block selected special-purpose, transition and documentation prefixes. PR #62 is merged and PR #63 is pending exact-head CI. This reduces obvious bypasses but is not a complete maintained IANA registry, does not pin hostname DNS answers to the connected peer, and is not Nova parity evidence.
