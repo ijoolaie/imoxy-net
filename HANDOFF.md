@@ -216,3 +216,9 @@ Every user-facing response about this repository ends with an evidence-based sch
 - Post-merge CI for the merge commit is not yet observable at the time of this note; verify before claiming it passed.
 - Next active work: select and characterize the actual proxy/data-plane source that measures traffic. Current source has no identified trusted usage reporter, and `createQuotaService` is not wired into the API. Do not add a raw client-supplied usage endpoint or implement an unconnected ledger/reservation layer. First establish source, authentication, account mapping, stable event IDs, and the pre-forwarding reservation boundary; then create black-box tests against pinned Nova Proxy 5.0.0 where feasible.
 - This hand-off update itself triggers main CI and requires its own verification.
+
+
+## PR #44 post-merge CI confirmation — 2026-10-28
+
+- Merge commit `9cfa5e6f2cc17f659c68767ef87b85926decb8f6` passed main CI run #440 / workflow run ID `40631704573`, including `npm run verify`: https://github.com/ijoolaie/imoxy-net/actions/runs/40631704573.
+- PR #44 exact-head CI passed in run #439 / `40631667645`. The hand-off commit immediately preceding this note is `291e4aa009e16f399a91735ea6767e0a991245c9`; its CI run #441 is queued at this checkpoint and must be checked before claiming this latest hand-off revision passed.
