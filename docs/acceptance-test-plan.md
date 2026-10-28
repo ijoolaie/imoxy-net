@@ -111,3 +111,7 @@ Before implementing usage-event ingestion, document and test the authenticated t
 ### Proxy connected-peer IPv6 regression cases — 2026-10-28
 
 CI regression cases cover malformed IPv6 syntax, compressed public IPv6, documentation space, and (in PR #63 pending exact-head CI) loopback/mapped, NAT64 well-known, IETF protocol-assignment, 6to4 and documentation prefixes. These tests use injected socket adapters; they do not replace a controlled Cloudflare Worker/D1 smoke test or DNS-rebinding test.
+
+### PR #63 connected IPv6 regression status — 2026-10-28
+
+PR #63 is merged after exact-head CI passed (run `40643131921`). Adapter-based regression tests cover malformed IPv6, compressed public IPv6, documentation ranges, loopback/mapped IPv4, NAT64 well-known prefix, IETF protocol assignments and 6to4. A real Cloudflare Worker/D1 smoke test and DNS-rebinding validation remain separate acceptance gates.
