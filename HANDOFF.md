@@ -457,3 +457,28 @@ This section supersedes stale pending-merge notes above where they conflict with
 - The handler races TCP connection creation and the socket `opened` promise against session closure, tracks the pending socket for cleanup, and closes a socket that resolves after the session has timed out. Two regression tests cover stalled `opened` and delayed connect resolution.
 - These tests are adapter-based. They do not establish cancellation guarantees or cleanup behavior in the actual Cloudflare runtime; that remains an integration validation item.
 - No deployment or live Cloudflare resource changes occurred.
+
+
+## Verified status refresh — PRs #71–#73 (2026-10-28)
+
+This update supersedes earlier pending-status notes where they conflict with the verified repository state.
+
+- PR #71, [docs: record PR 70 merge and CI evidence](https://github.com/ijoolaie/imoxy-net/pull/71), is merged as `40b0d8b9805ff2764ad0c8049870c8913172c1cf`. Its exact-head CI passed in [run 40658106547](https://github.com/ijoolaie/imoxy-net/actions/runs/40658106547); post-merge main CI passed in [run 40658457456](https://github.com/ijoolaie/imoxy-net/actions/runs/40658457456).
+- PR #72, [fix(proxy): close pending TCP dials on session timeout](https://github.com/ijoolaie/imoxy-net/pull/72), is merged as `6e3af7b8d0470f64d355fc6afcf81f23b45f0282`. Exact-head CI passed in [run 40657561213](https://github.com/ijoolaie/imoxy-net/actions/runs/40657561213), and post-merge main CI passed on that SHA in [run 40658000714](https://github.com/ijoolaie/imoxy-net/actions/runs/40658000714).
+- PR #73, [fix(proxy): stop pending auth and DNS work on timeout](https://github.com/ijoolaie/imoxy-net/pull/73), is merged as `e7e57dc4d564a6876994bd6179fe4b0957487d7e`. Exact-head CI passed on `34c4bfdef82d9324ce8c6b90aeab43bc93bc48f2` in [run 40658310914](https://github.com/ijoolaie/imoxy-net/actions/runs/40658310914) and [run 40658329194](https://github.com/ijoolaie/imoxy-net/actions/runs/40658329194). Post-merge main CI passed on the current main SHA in [run 40697860018](https://github.com/ijoolaie/imoxy-net/actions/runs/40697860018).
+- PR #73 races credential hashing, account lookup, and destination resolution against the session-close signal. If the handshake closes while one of these promises is pending, subsequent processing stops; the added regression test covers a DNS promise that never settles. This is adapter-level evidence, not a real Cloudflare runtime guarantee.
+- PR #72 covers a stalled TCP `opened` promise and a connect promise that resolves after timeout. The pending socket is tracked for cleanup and late-created sockets are closed. Runtime cancellation/cleanup still needs integration validation.
+- PR #70's eight-candidate sequential DNS fallback cap remains merged and covered by exact-head and post-merge CI, as recorded above.
+- Latest verified `main` SHA at this update: `e7e57dc4d564a6876994bd6179fe4b0957487d7e`; latest main CI run [40697860018](https://github.com/ijoolaie/imoxy-net/actions/runs/40697860018) completed **success** on that exact SHA.
+- No Cloudflare deployment or live resource changes occurred. No real Worker/D1 smoke test or Nova runtime comparison was performed.
+
+### Current remaining gates
+
+1. Validate connect/open timeout and cleanup behavior in a disposable real Cloudflare Worker environment.
+2. Test D1 durability, transaction/concurrency behavior, quota reservation recovery, idempotency and hard data-plane enforcement.
+3. Review downstream backpressure and memory bounds under slow-client/slow-upstream conditions.
+4. Complete maintained special-purpose IPv4/IPv6 destination filtering and SSRF-focused tests.
+5. Obtain authorized, pinned Nova reference scenarios and complete the behavior-parity matrix.
+6. Resolve distribution-license review; complete panel, Telegram bot and Android client E2E and release certification.
+
+Phase status remains unchanged: phases 0–11 In progress, phase 12 Blocked, phase 13 Not started; no phase is declared Complete. Do not deploy or mutate live Cloudflare resources without explicit approval.
