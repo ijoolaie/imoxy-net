@@ -76,13 +76,22 @@ function isClearlyPrivateDestination(host) {
 
 function isValidNumericAddress(address) {
   if (typeof address !== "string" || !address || address.includes("%")) return false;
-  const ipv4 = /^(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})$/.exec(address);
-  if (ipv4) return ipv4.slice(1).every((part) => Number(part) <= 255);
+  const octets = address.split(".");
+  if (octets.length === 4 && octets.every((part) =>
+    part.length > 0 && part.length <= 3 &&
+    [...part].every((character) => character >= "0" && character <= "9") &&
+    Number(part) <= 255
+  )) return true;
   if (!address.includes(":") || address.includes(".")) return false;
   const halves = address.split("::");
   if (halves.length > 2) return false;
   const groups = address.split(":").filter(Boolean);
-  if (groups.some((group) => !/^[0-9a-fA-F]{1,4}$/.test(group))) return false;
+  const isHexGroup = (group) => group.length >= 1 && group.length <= 4 &&
+    [...group].every((character) =>
+      (character >= "0" && character <= "9") ||
+      (character.toLowerCase() >= "a" && character.toLowerCase() <= "f")
+    );
+  if (groups.some((group) => !isHexGroup(group))) return false;
   return halves.length === 2 ? groups.length < 8 : groups.length === 8;
 }
 
