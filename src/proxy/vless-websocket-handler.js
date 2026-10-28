@@ -231,7 +231,7 @@ export function createVlessWebSocketHandler({
   quotaServiceFactory = ({ store }) => createQuotaReservationService({ store }),
   idFactory = () => globalThis.crypto.randomUUID(),
   connectTcp = cloudflareTcpConnect,
-  resolveDestination = resolvePublicDestination,
+  resolveDestination = (host) => resolvePublicDestination(host),
   webSocketPairFactory = createWebSocketPair,
   upgradeResponseFactory = createUpgradeResponse,
   now = () => Date.now(),
