@@ -43,3 +43,10 @@
 - Test password hash version migration and session invalidation.
 - Run dependency and static checks plus a reviewed threat-model update before release.
 - Do not enable production or live provider writes until the security and recovery gates are satisfied.
+
+
+## Proxy protocol credentials — 2026-10-28
+
+Account creation now generates a random UUID credential, stores only its lowercase SHA-256 hash in the proxy_credentials table, and returns the raw credential only in the creation response. Account list/get responses do not include it. The authenticated credential-rotation route returns a replacement once, revokes previous active credentials in the same D1 batch, and is restricted to owner/admin roles. Account deletion cascades credentials when foreign-key enforcement is active. Audit records contain the action and account ID, never the raw credential or hash.
+
+The store exposes lookup by hash for a future data-plane handler. It is not yet wired into a proxy route. Real D1 migration/batch rollback behavior is unverified; SQLite migration tests and mocked adapter tests are not proof of Cloudflare D1 behavior. Do not open upstream sockets before credential lookup, account status/expiry checks, and destination policy are enforced.
