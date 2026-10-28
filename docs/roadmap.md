@@ -306,3 +306,8 @@ PR #53 merged the reservation/event-ledger primitives and exact-head CI plus pos
 ## VLESS quota integration merged — 2026-10-28
 
 PR #54 merged as `f9bc9bd790357521caad938a5de22026c242383d`; exact-head CI passed on `6e58695155d2a2ed76acf5f6961b03ba6f44dca1` in runs #557/#558. Main now integrates per-chunk reserve-before-forward and settle-after-forward into VLESS upload/download. Phase 5 remains In progress because real D1 transaction/trigger/concurrency/recovery tests and quota-boundary validation are not done. Phase 6 remains In progress because real Worker smoke tests, DNS/private-network hardening, resource limits and Nova behavior comparison are missing. Phase 12 remains Blocked. No deployment occurred.
+
+
+## Quota SQL integration coverage — 2026-10-28
+
+PR #56 adds SQLite-backed integration tests for the actual D1 adapter SQL. Exact-head CI passed in run #564, and post-merge main CI passed in run #565. Covered: concurrent reservation denial at the daily limit, event replay suppression and conflict rejection, reservation settlement/release, and rollback on aggregate overflow. This is not a real Cloudflare D1 integration. Phase 5 remains In progress until disposable D1 concurrency/rollback/trigger tests and a controlled Worker smoke test pass.

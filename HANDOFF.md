@@ -343,3 +343,11 @@ Every user-facing response about this repository ends with an evidence-based sch
 - Required Worker binding: `PROXY_USAGE_PRODUCER_ID`, a stable installation/producer identifier (1–128 ASCII letters, digits, dot, underscore, colon or hyphen). It is not a secret. Configure it before enabling the route; missing/invalid values fail closed.
 - PR #53's migration 0006 and event/reservation triggers are present in main, with SQLite migration/trigger tests. No real Cloudflare D1 test has been run. Before production use, validate migration application, `db.batch` rollback, trigger semantics, reservation races, replay/conflicting payloads and quota boundaries on a disposable D1 database.
 - No deployment occurred. Main CI after PR #54 was not yet confirmed at handoff update time. DNS rebinding/private-network protection, idle timeout, robust backpressure, connection/speed limits, live Worker smoke tests and Nova black-box parity remain open. Do not mark Phase 5/6 complete or call the proxy production-ready.
+
+
+## Quota storage integration tests — 2026-10-28
+
+- PR #56 merged as `2eecb715ec993400d989d9a0faf4ec145ede82a1`. Exact-head CI passed on `cc4c64f036a2acb0cfaa20a2dbbabd3ecb47fbd3` in run #564 (`npm run verify`), and post-merge `main` CI passed on `2eecb715ec993400d989d9a0faf4ec145ede82a1` in run #565 (`40637275161`).
+- `test/quota-reservation-store.integration.test.js` now exercises the actual D1 adapter SQL with a SQLite-backed implementation of the D1 `prepare/bind/first/all/run/batch` surface. It covers concurrent daily reservations, one-time settlement, replay/conflicting event payloads, unused reservation capacity and rollback on aggregate overflow.
+- This materially improves SQL coverage but is **not** a real Cloudflare D1 test. No Cloudflare D1 credentials/connection or disposable D1 database is available through the current connected tools, so D1 transaction/trigger/batch semantics and live Worker behavior remain unverified. Do not deploy based on SQLite CI alone.
+- Next gate: run migration 0006 and the same replay/concurrency/rollback scenarios against a disposable non-production D1 database, then perform a controlled Worker smoke test. Use a least-privilege Cloudflare token and do not touch production resources. No deployment has occurred.

@@ -125,3 +125,8 @@ Important limits:
 - `releaseQuotaReservation` is only safe when the caller knows no bytes were forwarded.
 - SQLite migration/trigger tests and mocked D1 adapter tests do not prove D1 batch/trigger semantics. Run a controlled real D1 concurrency, rollback, replay and trigger smoke test before enabling the feature.
 - The producer identity must be trusted and stable for retries; never expose this service as an arbitrary client-supplied usage-report endpoint.
+
+
+## SQLite adapter test evidence — 2026-10-28
+
+PR #56 adds an integration-style suite that runs the real `createD1Store` SQL through a SQLite-backed adapter matching the D1 statement and batch interface. The suite passes CI and checks concurrent quota reservation, event replay/conflict, settlement, and rollback on aggregate overflow. This validates SQL shape and trigger behavior under SQLite, but it does not prove Cloudflare D1's deployed SQLite version, D1 `batch()` behavior, or Worker runtime. A disposable real-D1 test remains a hard release gate.
