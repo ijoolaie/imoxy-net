@@ -83,16 +83,22 @@ function isValidNumericAddress(address) {
     Number(part) <= 255
   )) return true;
   if (!address.includes(":") || address.includes(".")) return false;
-  const halves = address.split("::");
-  if (halves.length > 2) return false;
-  const groups = address.split(":").filter(Boolean);
   const isHexGroup = (group) => group.length >= 1 && group.length <= 4 &&
     [...group].every((character) =>
       (character >= "0" && character <= "9") ||
       (character.toLowerCase() >= "a" && character.toLowerCase() <= "f")
     );
-  if (groups.some((group) => !isHexGroup(group))) return false;
-  return halves.length === 2 ? groups.length < 8 : groups.length === 8;
+  const halves = address.split("::");
+  if (halves.length > 2) return false;
+  if (halves.length === 2) {
+    const left = halves[0] ? halves[0].split(":") : [];
+    const right = halves[1] ? halves[1].split(":") : [];
+    const groups = [...left, ...right];
+    // Compression must replace at least one of the eight 16-bit groups.
+    return groups.length < 8 && groups.every(isHexGroup);
+  }
+  const groups = address.split(":");
+  return groups.length === 8 && groups.every(isHexGroup);
 }
 
 function destinationAllowed(host, port, env) {
