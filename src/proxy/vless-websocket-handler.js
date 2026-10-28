@@ -6,6 +6,7 @@ import { parseVlessRequest, VlessProtocolError } from "./vless-parser.js";
 const DEFAULT_PATH = "/proxy/vless";
 const MAX_INITIAL_BUFFER_BYTES = 64 * 1024;
 const DEFAULT_INITIAL_HANDSHAKE_TIMEOUT_MS = 10_000;
+const DEFAULT_IDLE_TIMEOUT_MS = 120_000;
 
 function jsonError(code, message, status) {
   return new Response(JSON.stringify({ error: { code, message } }), {
@@ -111,8 +112,10 @@ function createUpgradeResponse(client) {
  * Restricted VLESS-over-WebSocket TCP prototype.
  *
  * Requires explicit host/port allowlists and authenticates the credential before
- * opening an upstream TCP socket. This is not a full Nova-compatible proxy and
- * intentionally does not claim quota enforcement or usage accounting.
+ * opening an upstream TCP socket. It reserves and settles usage around each
+ * forwarded chunk, but remains a restricted prototype pending real D1/Worker
+ * validation, stronger destination resolution controls, backpressure and limits.
+ * It is not a full Nova-compatible proxy and is not production-ready.
  */
 export function createVlessWebSocketHandler({
   storeFactory = (env) => createD1Store(env.DB),
@@ -124,6 +127,7 @@ export function createVlessWebSocketHandler({
   upgradeResponseFactory = createUpgradeResponse,
   now = () => Date.now(),
   initialHandshakeTimeoutMs = DEFAULT_INITIAL_HANDSHAKE_TIMEOUT_MS,
+  idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS,
   setTimeoutImpl = globalThis.setTimeout,
   clearTimeoutImpl = globalThis.clearTimeout
 } = {}) {
@@ -191,6 +195,8 @@ export function createVlessWebSocketHandler({
         requestCountClaimed: false
       };
       let handshakeTimer = null;
+      let idleTimer = null;
+      let idleTimerGeneration = 0;
 
       const closeSession = async (code = 1000, reason = "closed") => {
         if (state.closed) return;
@@ -199,10 +205,29 @@ export function createVlessWebSocketHandler({
           try { clearTimeoutImpl(handshakeTimer); } catch {}
           handshakeTimer = null;
         }
+        idleTimerGeneration += 1;
+        if (idleTimer !== null) {
+          try { clearTimeoutImpl(idleTimer); } catch {}
+          idleTimer = null;
+        }
         try { server.close(code, reason); } catch {}
         try { await state.reader?.cancel(); } catch {}
         try { await state.writer?.abort(); } catch {}
         try { await state.socket?.close(); } catch {}
+      };
+
+      const resetIdleTimeout = () => {
+        if (!state.authenticated || state.closed) return;
+        idleTimerGeneration += 1;
+        const generation = idleTimerGeneration;
+        if (idleTimer !== null) {
+          try { clearTimeoutImpl(idleTimer); } catch {}
+        }
+        idleTimer = setTimeoutImpl(() => {
+          if (generation === idleTimerGeneration && state.authenticated && !state.closed) {
+            void closeSession(1001, "idle_timeout");
+          }
+        }, idleTimeoutMs);
       };
 
       const releaseBeforeForward = async (reservationId) => {
@@ -290,6 +315,7 @@ export function createVlessWebSocketHandler({
             const { value, done } = await state.reader.read();
             if (done) break;
             if (value?.byteLength && !state.closed) {
+              resetIdleTimeout();
               const forwarded = await reserveAndSettle(value, "download");
               if (!forwarded) return;
             }
@@ -364,6 +390,7 @@ export function createVlessWebSocketHandler({
               handshakeTimer = null;
             }
             state.authenticated = true;
+            resetIdleTimeout();
             server.send(Uint8Array.from([parsed.version, 0]));
             state.buffer = new Uint8Array();
             state.reader = socket.readable.getReader();
@@ -374,6 +401,7 @@ export function createVlessWebSocketHandler({
           return;
         }
 
+        resetIdleTimeout();
         await reserveAndSettle(bytes, "upload");
       };
 
@@ -384,6 +412,7 @@ export function createVlessWebSocketHandler({
       server.addEventListener("error", () => { void closeSession(1011, "websocket_error"); });
 
       if (!Number.isSafeInteger(initialHandshakeTimeoutMs) || initialHandshakeTimeoutMs < 1 ||
+          !Number.isSafeInteger(idleTimeoutMs) || idleTimeoutMs < 1 ||
           typeof setTimeoutImpl !== "function" || typeof clearTimeoutImpl !== "function") {
         await closeSession(1011, "proxy_timeout_config_invalid");
         return jsonError("proxy_timeout_config_invalid", "The proxy timeout configuration is invalid.", 503);
