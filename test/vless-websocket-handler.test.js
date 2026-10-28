@@ -706,3 +706,27 @@ test("handshake timeout closes a TCP socket that resolves after session closure"
   assert.equal(closed, true, "late-created TCP socket must be closed");
   assert.equal(h.quotaCalls.reserve.length, 0);
 });
+
+
+
+test("handshake timeout releases the message queue when DNS never settles", async () => {
+  const timerCallbacks = [];
+  const h = harness({
+    timerCallbacks,
+    resolveDestination: () => new Promise(() => {})
+  });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  assert.equal(h.connectCalls.length, 0);
+  timerCallbacks[0]();
+  await settle();
+  assert.ok(h.server.closeCalls.some((item) => item.reason === "initial_request_timeout"));
+
+  // A subsequent queued event must not be trapped behind the unresolved DNS promise.
+  h.server.receive(Uint8Array.from([0x33]));
+  await settle();
+  assert.equal(h.connectCalls.length, 0);
+  assert.equal(h.quotaCalls.reserve.length, 0);
+});
