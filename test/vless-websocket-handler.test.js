@@ -355,6 +355,29 @@ test("rejects compressed IPv6 documentation addresses", async () => {
   assert.equal(upstream.closed, true);
 });
 
+test("rejects non-global and special-purpose IPv6 connected peers", async () => {
+  const blocked = [
+    "::1",
+    "::ffff:7f00:1",
+    "64:ff9b::7f00:1",
+    "2001:20::1",
+    "2002:7f00:1::1",
+    "3fff::1"
+  ];
+  for (const remoteAddress of blocked) {
+    const upstream = fakeSocket(remoteAddress);
+    const h = harness({ connectTcp: async () => upstream.socket });
+    await h.handler.fetch(request(), h.env);
+    h.server.receive(vlessRequest({ payload: [] }));
+    await settle();
+    assert.equal(h.quotaCalls.reserve.length, 0, `${remoteAddress} must be rejected before quota reservation`);
+    assert.ok(h.server.closeCalls.some((item) =>
+      item.code === 1008 && item.reason === "destination_not_allowed"
+    ), `${remoteAddress} must be rejected`);
+    assert.equal(upstream.closed, true, `${remoteAddress} socket must close`);
+  }
+});
+
 test("upstream connect failure closes the session without leaking details", async () => {
   const h = harness({ connectTcp: async () => { throw new Error("sensitive socket detail"); } });
   await h.handler.fetch(request(), h.env);
