@@ -486,10 +486,16 @@ export function createVlessWebSocketHandler({
           }
 
           try {
-            const credentialHash = await credentialHasher(parsed.uuid);
-            if (state.closed) return;
-            const match = await store.findAccountByCredentialHash(credentialHash);
-            if (state.closed) return;
+            const credentialHash = await Promise.race([
+              Promise.resolve().then(() => credentialHasher(parsed.uuid)),
+              sessionClosed.then(() => SESSION_CLOSED)
+            ]);
+            if (credentialHash === SESSION_CLOSED || state.closed) return;
+            const match = await Promise.race([
+              Promise.resolve().then(() => store.findAccountByCredentialHash(credentialHash)),
+              sessionClosed.then(() => SESSION_CLOSED)
+            ]);
+            if (match === SESSION_CLOSED || state.closed) return;
             const account = match?.account;
             if (!accountIsUsable(account, now())) {
               await closeSession(1008, "invalid_credential");
@@ -504,9 +510,14 @@ export function createVlessWebSocketHandler({
             // This pins the dial target so a second DNS lookup cannot rebind it.
             let resolvedAddresses;
             try {
-              const resolved = await resolveDestination(parsed.host, env);
+              const resolved = await Promise.race([
+                Promise.resolve().then(() => resolveDestination(parsed.host, env)),
+                sessionClosed.then(() => SESSION_CLOSED)
+              ]);
+              if (resolved === SESSION_CLOSED || state.closed) return;
               resolvedAddresses = Array.isArray(resolved) ? resolved : [resolved];
             } catch {
+              if (state.closed) return;
               await closeSession(1008, "destination_not_allowed");
               return;
             }
