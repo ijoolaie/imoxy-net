@@ -338,7 +338,7 @@ test("accepts a valid compressed public IPv6 peer address", async () => {
   await h.handler.fetch(request(), h.env);
   h.server.receive(vlessRequest({ payload: [] }));
   await settle();
-  assert.ok(h.server.sendCalls.some((item) => item instanceof Uint8Array && item[0] === 1));
+  assert.ok(h.server.sent.some((item) => item.length === 2 && item[1] === 0));
   assert.equal(upstream.closed, false);
 });
 
