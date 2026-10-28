@@ -6,6 +6,7 @@ import { parseVlessRequest, VlessProtocolError } from "./vless-parser.js";
 const DEFAULT_PATH = "/proxy/vless";
 const MAX_INITIAL_BUFFER_BYTES = 64 * 1024;
 const MAX_QUEUED_CLIENT_BYTES = 1024 * 1024;
+const MAX_DIAL_CANDIDATES = 8;
 const DEFAULT_INITIAL_HANDSHAKE_TIMEOUT_MS = 10_000;
 const DEFAULT_IDLE_TIMEOUT_MS = 120_000;
 
@@ -515,7 +516,7 @@ export function createVlessWebSocketHandler({
             let destinationAddress = null;
             let socket = null;
             let socketInfo = null;
-            for (const candidate of candidates) {
+            for (const candidate of candidates.slice(0, MAX_DIAL_CANDIDATES)) {
               if (state.closed) return;
               let candidateSocket;
               try {

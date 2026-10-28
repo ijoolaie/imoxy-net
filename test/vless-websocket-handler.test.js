@@ -630,3 +630,30 @@ test("a reservation ID conflict never releases a potentially pre-existing reserv
   assert.deepEqual(upstream.writes, []);
   assert.ok(h.server.closeCalls.some((item) => item.code === 1011 && item.reason === "quota_reservation_failed"));
 });
+
+
+test("bounds sequential DNS fallback attempts to a fixed maximum", async () => {
+  const candidates = [
+    "93.184.216.34",
+    "1.1.1.1",
+    "8.8.8.8",
+    "9.9.9.9",
+    "76.76.2.0",
+    "208.67.222.222",
+    "4.2.2.1",
+    "64.6.64.6",
+    "94.140.14.14"
+  ];
+  const h = harness({
+    resolveDestination: async () => candidates,
+    connectTcp: async () => { throw new Error("connection unavailable"); }
+  });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+  assert.equal(h.connectCalls.length, 8);
+  assert.deepEqual(h.connectCalls.map((call) => call.hostname), candidates.slice(0, 8));
+  assert.ok(h.server.closeCalls.some((item) =>
+    item.code === 1011 && item.reason === "upstream_unavailable"
+  ));
+});
