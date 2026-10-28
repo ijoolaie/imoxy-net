@@ -365,3 +365,13 @@ Every user-facing response about this repository ends with an evidence-based sch
 - Branch `fix/vless-inbound-queue-bound` caps queued binary client WebSocket messages at 1 MiB before they enter the serialized handler queue. If an incoming message would exceed the cap, the session closes with `client_write_queue_full`; non-binary frames are rejected before queueing.
 - This limits application-level queued inbound payload memory and prevents unbounded accumulation while an upstream write/reservation is slow. Tests cover burst overflow and text-frame rejection.
 - This is not full backpressure: it does not bound Cloudflare's internal WebSocket receive buffers or downstream `server.send` buffering, and it does not impose per-account connection/speed limits. Await exact-head CI before merge. No deployment or live Worker/D1 test occurred.
+
+
+## Verified follow-up — PR #60 (2026-10-28)
+
+- PR #60, `fix(proxy): reject special-use destination literals`, merged by squash as `3f63f97b55b2ea19e771ae18a7c3f9b8e9eb3931`: https://github.com/ijoolaie/imoxy-net/pull/60.
+- Exact-head CI run #597 / workflow ID `40640361156` passed on `55776b816c2b74216840d4838ed704105ce98e09`; `npm run verify` succeeded.
+- Added connected-peer validation before creating the writer or forwarding initial VLESS payload. The handler fails closed if `socket.opened` rejects, `remoteAddress` is missing/malformed, or the reported peer matches a blocked literal range. Regression tests verify private/malformed peers do not receive payload and do not reserve quota.
+- Expanded IPv4 special-use literal filtering and documented that hostname allowlisting is not complete DNS-rebinding protection.
+- Evidence boundary: Node CI uses injected socket/WebSocket adapters. No real Cloudflare Worker or D1 smoke test, DNS-rebinding end-to-end test, deployment, or Nova runtime comparison was performed. Do not claim the route is production-ready or Nova-compatible.
+- Next: review the connected-peer address parser for complete IPv4/IPv6 normalization and special-use handling; then obtain an authorized disposable Cloudflare D1/Worker environment for controlled, non-production tests. Do not perform live writes or deploy without explicit approval.
