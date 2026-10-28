@@ -329,3 +329,10 @@ PR #62 strict numeric IPv6 parsing is merged as `26dba7efa45d58de5982c1ffcdf5c5f
 ### PR #63/#64 final status — 2026-10-28
 
 PR #63 merged as `29fa597c5c649552d827396a218609ce895724f4`; exact-head CI run `40643131921` passed. It normalizes IPv6 and conservatively rejects non-global plus selected special-purpose/transition/documentation ranges. PR #64 documentation update merged as `7a1856f311840466d080ed0606b1555474579584`; exact-head CI run `40643283669` passed. Post-merge main CI runs `40643515543` and `40643555979` were still in progress when this note was written. Phase 6 remains **In progress**; DNS pinning, real Worker/D1 validation, backpressure/connection limits and Nova comparison remain open. Phase 12 remains **Blocked**.
+
+
+## DNS pinning milestone — 2026-10-28
+
+PR #66 merged as `471e3a0d0cd9d0fc0fd2292b450e9a95aa026198`; exact-head CI passed on `c874882ae9179446cddad6ba1f2504c93dd8e063` (PR run `40647440374`, push run `40647434071`). Hostnames are resolved through DNS-over-HTTPS, validated public numeric answers are normalized and used directly as TCP dial targets, and the reported connected peer must match the pinned address before forwarding/quota reservation. Regression tests cover resolver failures, private-only answers, canonical targets, timeout during resolution and peer mismatch.
+
+This remains unverified in the actual Cloudflare Worker/D1 runtime. DNS-over-HTTPS availability, Worker socket semantics, complete special-purpose address coverage, destination allowlist behavior, connection/resource limits, backpressure and Nova black-box parity remain open. Phase 6 stays **In progress** and Phase 12 stays **Blocked**. No deployment or live Cloudflare writes occurred.
