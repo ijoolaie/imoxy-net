@@ -107,3 +107,7 @@ Before implementation is accepted, cover stable producer-scoped event IDs, same-
 ## Quota integration precondition (2026-10-28)
 
 Before implementing usage-event ingestion, document and test the authenticated trusted producer boundary. Required evidence includes: where byte counts are measured, how the producer authenticates to imoxy, who authorizes the account mapping, when stable event IDs are generated, how retries preserve IDs, how an event is tied to a reservation before traffic is forwarded, and how producer outages/ambiguous responses are handled. A management API accepting caller-supplied byte counts is not an acceptable substitute. The quota service must be wired through the intended domain/API boundary, and the capability report must not claim enforcement until end-to-end tests prove it. Nova parity additionally requires executing REF-007–008 against pinned Nova 5.0.0; imoxy-only unit tests are insufficient.
+
+### Proxy connected-peer IPv6 regression cases — 2026-10-28
+
+CI regression cases cover malformed IPv6 syntax, compressed public IPv6, documentation space, and (in PR #63 pending exact-head CI) loopback/mapped, NAT64 well-known, IETF protocol-assignment, 6to4 and documentation prefixes. These tests use injected socket adapters; they do not replace a controlled Cloudflare Worker/D1 smoke test or DNS-rebinding test.

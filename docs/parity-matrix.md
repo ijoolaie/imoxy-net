@@ -68,3 +68,7 @@ The pinned reference documentation describes a single Cloudflare Worker serving 
 ## Restricted VLESS handler evidence — 2026-10-28
 
 Main now contains a testable VLESS-over-WebSocket TCP prototype at /proxy/vless with hash-based credential lookup, account status/expiry checks, a strict host/port allowlist, and a Cloudflare TCP socket adapter. Tests use injected WebSocket/socket adapters; no live Cloudflare Worker/D1 smoke test or pinned Nova runtime comparison has been performed. Therefore all protocol/transport compatibility rows remain **Not assessed**, and this prototype must not be counted as verified Nova parity.
+
+### Connected-peer IPv6 policy — 2026-10-28
+
+imoxy now validates the syntax of the connected TCP peer address and (in PR #63, pending exact-head CI) rejects non-global IPv6 space plus selected special-purpose, transition and documentation prefixes. This is an imoxy security policy, not evidence of Nova behavioral parity. Hostname DNS rebinding, complete IANA special-purpose coverage, real Cloudflare runtime behavior and reference black-box comparison remain **Not assessed**.

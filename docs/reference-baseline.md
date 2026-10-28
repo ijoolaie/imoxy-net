@@ -64,3 +64,7 @@ Imoxy migration 0004 adds schema-level triggers rejecting daily usage counters o
 ## Quota integration boundary audit — 2026-10-28
 
 Source inspection found that the quota domain service is not wired into the HTTP API, while the API capability report still lists quota enforcement and usage accounting as pending. No trusted proxy/data-plane event producer was identified in the inspected source tree. The current usage table and overflow guards are control-plane storage foundations only; they do not establish measured proxy traffic, pre-forwarding quota enforcement, replay safety, or Nova parity. REF-007–008 remain unrun against the pinned Nova Proxy 5.0.0 runtime. Do not implement authoritative usage ingestion from arbitrary client reports; define the trusted producer and stable event-ID/retry contract first.
+
+### Connected-peer address validation evidence — 2026-10-28
+
+PR #62 strict IPv6 syntax validation passed exact-head CI and post-merge main CI. PR #63 expands connected-peer classification to normalized IPv6 and selected special-purpose ranges; its exact-head CI was pending at handoff time. These are implementation/security regression tests only. No authorized Nova runtime comparison or real Cloudflare Worker/D1 validation was performed; the corresponding parity rows must remain unverified.
