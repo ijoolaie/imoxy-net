@@ -72,3 +72,7 @@ PR #62 strict IPv6 syntax validation passed exact-head CI and post-merge main CI
 ## VLESS backpressure status — 2026-10-28
 
 A 1 MiB downstream WebSocket buffered-byte guard is an imoxy safety decision. It has not been observed in the pinned Nova Proxy runtime and must not be presented as compatible behavior. The Cloudflare Worker `bufferedAmount` behavior and real slow-client behavior remain unverified pending a disposable Worker smoke test and authorized reference comparison.
+
+## Correction — no downstream backpressure parity claim
+
+The previously described `bufferedAmount` guard is not valid evidence of Cloudflare Worker behavior because that property is absent from the documented Worker WebSocket properties. Follow-up PR #77 removes the unsupported assumption. Downstream flow control and Nova reference behavior remain unverified.
