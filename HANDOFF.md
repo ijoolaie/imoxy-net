@@ -384,3 +384,10 @@ Every user-facing response about this repository ends with an evidence-based sch
 - PR #63, https://github.com/ijoolaie/imoxy-net/pull/63, proposes a normalized IPv6 parser and fail-closed policy for non-global and selected special-purpose/transition/documentation ranges. Exact-head CI on `66f2e90fc2ff7dc0b58b17900408bcacfe3a24d2`, run `40643131921`, was **in progress** at this handoff update; do not merge until it passes and the diff is reviewed.
 - Evidence boundary: these are adapter-based Node tests only. No real Cloudflare Worker/D1 test, DNS-answer pinning, deployment, or Nova runtime comparison occurred. Phase 6 remains In progress; Phase 12 remains Blocked.
 - Next: finish PR #63 exact-head CI/review; then address hostname DNS rebinding and bounded relay/backpressure with a controlled, disposable Worker/D1 test plan. No live Cloudflare writes or deployment without explicit approval.
+
+### Final status update — PR #63 and #64 (2026-10-28)
+
+- PR #63 merged as `29fa597c5c649552d827396a218609ce895724f4`. Exact-head CI passed on `66f2e90fc2ff7dc0b58b17900408bcacfe3a24d2` (run `40643131921`). It normalizes IPv6 groups and rejects non-global IPv6 plus selected special-purpose, transition and documentation prefixes before forwarding. This remains conservative, selected-range filtering, not a complete IANA registry.
+- PR #64 merged as `7a1856f311840466d080ed0606b1555474579584`; exact-head documentation CI passed in run `40643283669`.
+- Post-merge main CI for PR #63 (run `40643515543`) and PR #64 (run `40643555979`) was still in progress at the time of this note; do not claim post-merge verification until both complete successfully.
+- No deployment or live Cloudflare resource writes occurred. DNS answer pinning, disposable D1/Worker smoke tests, proxy resource limits/backpressure and Nova black-box comparison remain open.
