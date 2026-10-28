@@ -130,3 +130,15 @@ The controlled staging runbook is [nonprod-vless-smoke-gate.md](nonprod-vless-sm
 ## Correction — Worker WebSocket bufferedAmount assumption
 
 The earlier adapter test for `server.bufferedAmount` is superseded: Cloudflare Workers' official WebSocket API reference lists `readyState` and `binaryType` but does not document `bufferedAmount`. Do not use an adapter-only fake property as evidence of runtime support. A disposable Worker smoke test must first establish supported telemetry and slow-client behavior. Downstream queue bounding/backpressure remains **Not verified**.
+
+
+## Follow-up — downstream WebSocket acceptance evidence (2026-10-28)
+
+The official [Workers WebSocket runtime API](https://developers.cloudflare.com/workers/runtime-apis/websockets/) documents synchronous `send()` and `readyState`, but does not document `bufferedAmount`, a drain event, or an awaitable send result. Treat the following as separate acceptance gates:
+
+- **Application-managed work:** the selected policy must put a hard, testable bound on data read/retained by the handler and define when a slow/non-reading session is terminated. Do not silently introduce a throughput-breaking download cap; document and approve its product impact first.
+- **Quota integrity:** test the exact reserve-before-forward / settle-after-forward sequence, including send/settlement errors, retained ambiguous reservations, and ensuring no later chunks are forwarded after a fail-closed condition.
+- **Runtime evidence:** in an explicitly authorized disposable staging Worker, run the bounded reading-client baseline and separate non-reading-client probe. Record runtime/version, attempted and received bytes, send latency/errors, close behavior, stop reason, and cleanup. Do not infer internal buffer size from client backlog.
+- **Completion claim:** if no authoritative runtime queue/drain signal is available, explicitly leave Worker-internal buffer boundedness unproven even if the bounded probe appears stable. Issue #78 and Phase 6 must not be marked complete solely on unit tests or this probe.
+
+No live runtime test is authorized or implied by this checklist. See [vless-runtime-backpressure-probe.md](vless-runtime-backpressure-probe.md) for isolation and cleanup gates.
