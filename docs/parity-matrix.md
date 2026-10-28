@@ -81,3 +81,7 @@ PR #63 is merged as `29fa597c5c649552d827396a218609ce895724f4` after exact-head 
 ### VLESS Worker runtime validation gate — 2026-10-28
 
 DNS answer pinning is implemented and covered by Node tests with injected adapters, but actual Cloudflare Worker/D1 runtime behavior remains **Not assessed**. The [non-production VLESS smoke gate](nonprod-vless-smoke-gate.md) is a prepared runbook, not an executed test. Do not mark proxy transport or quota enforcement as Verified until controlled staging evidence and the required pinned Nova black-box scenarios are recorded. No live deployment or Cloudflare resource write has been performed.
+
+## VLESS downstream buffering guard — 2026-10-28
+
+Imoxy's restricted VLESS prototype now fails closed when WebSocket `bufferedAmount` cannot be measured or the next download chunk would exceed a 1 MiB queued-byte budget. Adapter tests cover both cases and assert no quota reservation or payload send occurs. This is an imoxy resource-safety guard, not Nova parity evidence. Runtime behavior on Cloudflare Workers and reference buffering semantics remain Not assessed.
