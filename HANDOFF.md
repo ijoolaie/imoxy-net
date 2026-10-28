@@ -457,3 +457,14 @@ This section supersedes stale pending-merge notes above where they conflict with
 - The handler races TCP connection creation and the socket `opened` promise against session closure, tracks the pending socket for cleanup, and closes a socket that resolves after the session has timed out. Two regression tests cover stalled `opened` and delayed connect resolution.
 - These tests are adapter-based. They do not establish cancellation guarantees or cleanup behavior in the actual Cloudflare runtime; that remains an integration validation item.
 - No deployment or live Cloudflare resource changes occurred.
+
+
+## Verified follow-up — PR #73 (2026-10-28)
+
+- PR #73, [fix(proxy): stop pending auth and DNS work on timeout](https://github.com/ijoolaie/imoxy-net/pull/73), was squash-merged after exact-head CI success.
+- Exact PR head: `34c4bfdef82d9324ce8c6b90aeab43bc93bc48f2`; PR CI [40658310914](https://github.com/ijoolaie/imoxy-net/actions/runs/40658310914) and the additional exact-head workflow run [40658329194](https://github.com/ijoolaie/imoxy-net/actions/runs/40658329194) both completed successfully.
+- Main merge commit: `e7e57dc4d564a6876994bd6179fe4b0957487d7e`. Post-merge main CI [40697860018](https://github.com/ijoolaie/imoxy-net/actions/runs/40697860018) was still in progress when this note was prepared; verify it reaches success before treating mainline validation as complete.
+- The handler races credential hashing, account lookup and destination DNS resolution against the session-close signal. A regression test covers a DNS resolver promise that never settles, asserting timeout closes the session and no TCP dial or quota reservation follows.
+- This prevents the session's serialized message queue from remaining blocked by these promises, but it does not cancel the underlying resolver/hasher/store operation itself. Late results are ignored. Runtime cancellation and cleanup still require real Cloudflare integration testing.
+- No deployment or live Cloudflare resource changes occurred.
+- Remaining high-priority validation: real Worker/D1 behavior, TCP/WebSocket lifecycle under the Cloudflare runtime, relay backpressure, quota reservation reconciliation, complete special-purpose IP policy, authorized Nova reference scenarios, and licensing/distribution review.
