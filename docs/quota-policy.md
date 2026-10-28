@@ -84,3 +84,7 @@ The actual `createD1Store` reservation/settlement SQL is now exercised by a SQLi
 ## Current handler integration correction — 2026-10-28
 
 The older note above about the handler not calling the reservation service has been superseded by PRs #53 and #54. Main integrates atomic reservation/event settlement at the VLESS forwarding boundary, and PR #56 adds SQLite-backed tests of the actual adapter SQL. Real Cloudflare D1 validation and a controlled Worker smoke test are still mandatory; SQLite is not equivalent to D1. Hard quota behavior must not be represented as production-verified until those gates pass.
+
+## Downstream send-queue guard — 2026-10-28
+
+The VLESS handler checks the WebSocket `bufferedAmount` before reserving quota for a download chunk. Missing/invalid buffering telemetry or a next chunk that would exceed 1 MiB closes the session before reservation and send. This is a resource guard, not a guarantee of complete transport backpressure; real Worker behavior and queue accounting remain to be validated.
