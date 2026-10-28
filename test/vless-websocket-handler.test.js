@@ -211,7 +211,7 @@ test("bounds queued client messages and closes before the queue can grow without
   await settle();
 
   assert.ok(h.server.closeCalls.some((item) => item.code === 1009 && item.reason === "client_write_queue_full"));
-  assert.equal(h.quotaCalls.reserve.length, 1, "queued uploads must not reach quota reservation after the queue limit is crossed");
+  assert.equal(h.quotaCalls.reserve.length, 0, "queued uploads must not reach quota reservation after the queue limit is crossed");
 });
 
 test("rejects text WebSocket messages before queueing or forwarding", async () => {
