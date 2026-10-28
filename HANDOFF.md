@@ -187,3 +187,11 @@ Every user-facing response about this repository ends with an evidence-based sch
 - This confirms repository verification on the hand-off update commit. It does not verify Cloudflare D1 runtime behavior or quota reservation, because those remain design-only and no real D1 integration tests were run.
 - PR #43 head CI also passed on `c22f6b6a4610426b9d4261d0f02dc82f5063a04d` (run #433 / `40631341345`), and PR #43 was squash-merged as `1ded95232255aae591508e46f86d095c2be8283f`.
 - This note itself changes `HANDOFF.md` and therefore triggers another main CI run; record its result in a subsequent update before claiming the hand-off is fully current.
+
+
+## Final hand-off CI confirmation — 2026-10-28
+
+- The follow-up hand-off commit `bd8923751d435ab0d38a3ec0a67fcfd1b09f40aa` also passed GitHub Actions CI: run #436, workflow run ID `40631481882`, job `test`, step `npm run verify`: https://github.com/ijoolaie/imoxy-net/actions/runs/40631481882.
+- The repository's current structure contains a quota domain service and D1 aggregate store, but no confirmed trusted proxy/data-plane usage event producer was found in the inspected source tree. Do not invent producer IDs at the management API. Before wiring idempotent usage ingestion, establish the authenticated event source and its stable ID lifecycle; otherwise a ledger API would be disconnected from actual traffic.
+- Next implementation slice should start with a source/contract investigation: trace all calls to `createQuotaService`, identify whether any trusted usage reporter exists, and define the integration boundary. If none exists, document that the management plane alone cannot truthfully enforce or meter real proxy traffic, and keep event ledger/reservation implementation blocked until the data-plane integration path is selected.
+- The current note will trigger another main CI run; check it before asserting the hand-off is fully verified.
