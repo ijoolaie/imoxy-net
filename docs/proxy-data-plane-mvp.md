@@ -1,6 +1,6 @@
 # Proxy data-plane MVP — acceptance-first implementation plan
 
-**Status:** A restricted VLESS-over-WebSocket TCP handler prototype is now implemented in the current feature branch. Exact-head CI and real Cloudflare Worker/D1 smoke tests are still required; it is not a production proxy or Nova parity claim.  
+**Status:** A restricted VLESS-over-WebSocket TCP handler prototype is now implemented in the current feature branch. Exact-head Node CI run #510 passed, but real Cloudflare Worker/D1 smoke tests are still required; it is not a production proxy or Nova parity claim.  
 **Reference:** Nova Proxy 5.0.0, pinned commit ad2116aa89f8c7db8248f8142c1432900d835eb7.  
 **Purpose:** Replace management-only progress with the smallest verifiable end-to-end proxy path, implemented independently.
 
