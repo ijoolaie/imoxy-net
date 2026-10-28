@@ -190,6 +190,7 @@ const ROLE_PERMISSIONS = Object.freeze({
   owner: new Set(["*"]),
   admin: new Set([
     "account.list", "account.read", "account.create", "account.update", "account.delete",
+    "account.credential.rotate",
     "usage.read", "settings.read", "settings.update", "provider.read", "provider.preview",
     "provider.apply", "audit.read", "principal.read",
     "subscription.read", "subscription.create", "subscription.revoke"
