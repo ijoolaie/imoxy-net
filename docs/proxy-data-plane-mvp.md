@@ -1,6 +1,6 @@
 # Proxy data-plane MVP — acceptance-first implementation plan
 
-**Status:** Design and test plan only; no proxy traffic handler is implemented.  
+**Status:** A restricted VLESS-over-WebSocket TCP handler prototype is now implemented in the current feature branch. Exact-head CI and real Cloudflare Worker/D1 smoke tests are still required; it is not a production proxy or Nova parity claim.  
 **Reference:** Nova Proxy 5.0.0, pinned commit ad2116aa89f8c7db8248f8142c1432900d835eb7.  
 **Purpose:** Replace management-only progress with the smallest verifiable end-to-end proxy path, implemented independently.
 
@@ -17,7 +17,7 @@ Implement one independently authored, testable VLESS-over-WebSocket TCP path fir
 The vertical slice must connect these boundaries end to end:
 
 1. **Worker routing:** distinguish normal panel/API requests from the configured proxy WebSocket endpoint; reject wrong methods, paths, and upgrade headers safely.
-2. **Credential/account lookup:** authenticate the protocol credential against an active account; reject disabled/expired/unknown credentials before opening an upstream socket. Credential provisioning, hash-only storage, hash lookup, and owner/admin rotation/revocation are now implemented in the current feature branch through a proxy_credentials table; raw UUIDs are returned only once. This foundation still requires exact-head CI and real D1 validation, and it is not yet wired to the proxy handler. The legacy proxy_accounts.credential_secret_ref field remains unused.
+2. **Credential/account lookup:** authenticate the protocol credential against an active account; reject disabled/expired/unknown credentials before opening an upstream socket. Credential provisioning, hash-only storage, hash lookup, and owner/admin rotation/revocation are merged through a proxy_credentials table; raw UUIDs are returned only once. The current prototype consumes the lookup, but real D1 validation remains pending. The legacy proxy_accounts.credential_secret_ref field remains unused.
 3. **Protocol parser:** validate version, UUID/credential, command, address type, destination address and port with strict bounds; reject malformed or unsupported requests without dialing upstream.
 4. **Upstream adapter:** use the Cloudflare Workers TCP socket capability behind a small adapter so parsing and policy can be unit-tested without a live socket. No arbitrary destination is contacted until authentication and all parser/policy checks pass.
 5. **Bidirectional relay:** preserve byte order, propagate close/error/half-close behavior where the runtime supports it, handle backpressure, and close sockets on timeout, cancellation or failed handshake.
@@ -55,3 +55,10 @@ The vertical slice must connect these boundaries end to end:
 ## Exit gate
 
 The slice is complete only when the parser and handler acceptance tests pass, the controlled Worker smoke test proves bidirectional traffic, failure cases prove cleanup/no unauthenticated dial, and the parity matrix records the exact evidence and remaining differences. A green Node CI run alone is not sufficient evidence of Cloudflare socket/runtime behavior.
+
+
+## Restricted handler prototype — 2026-10-28
+
+The current feature branch adds a Worker route at /proxy/vless (overridable with PROXY_WS_PATH; default /proxy/vless). It authenticates the parsed UUID using the SHA-256 credential lookup, rejects inactive/expired accounts, requires PROXY_ALLOWED_HOSTS and PROXY_ALLOWED_PORTS, blocks obvious private/local destination literals, and opens a Cloudflare TCP socket only after those checks. It relays the initial payload and subsequent binary WebSocket messages to TCP, and TCP bytes back to WebSocket, with basic close/error cleanup.
+
+This remains a restricted prototype. Host allowlists do not by themselves prevent DNS rebinding to private addresses; do not use a user-controlled or broad allowlist in production. No quota reservation/accounting, speed or connection limits, robust backpressure policy, DNS/private-network enforcement, D1 runtime test, controlled Worker smoke test, or Nova black-box comparison has been completed. A Node test passing with injected WebSocket/socket adapters is not proof of Cloudflare runtime correctness.
