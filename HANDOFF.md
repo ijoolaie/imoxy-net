@@ -582,3 +582,13 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Next safe step: continue static review and deterministic tests against the open #78 acceptance criteria. Any runtime probe remains gated on explicit owner approval of a disposable staging Worker/hostname, hard byte/time/frame/concurrency limits, and cleanup.
 - Current verified main SHA before this handoff refresh: `0840c650ce69b4fc2217dc1916b80f62176376d1`; post-merge CI run `40844388178` passed on that exact SHA. This handoff refresh requires its own PR-head CI and post-merge main CI verification.
 - Phase audit: phases 0–11 **In progress**; phase 12 **Blocked**; phase 13 **Not started**. No phase is Complete.
+
+
+## Verified follow-up — PR #96 and post-merge CI (2026-10-29)
+
+- PR #96 records the verification evidence for PRs #94–#95 and the remaining Cloudflare runtime buffering limitation. Its exact-head CI run [40845813269](https://github.com/ijoolaie/imoxy-net/actions/runs/40845813269) passed on `9cc2c6dfa16350eee3627d173a3d3194d2eb91dd`; PR #96 was squash-merged as `2f9303a5ca6cb2ec532b6654458fd8968fc1ce69`.
+- Post-merge main CI run [40846117876](https://github.com/ijoolaie/imoxy-net/actions/runs/40846117876) completed **success** on exact main SHA `2f9303a5ca6cb2ec532b6654458fd8968fc1ce69`; `npm run verify` passed.
+- Issue [#78](https://github.com/ijoolaie/imoxy-net/issues/78) remains open. Existing tests prove application-level fail-closed behavior and stop subsequent TCP reads after settlement failure; they do not prove a bounded Cloudflare internal WebSocket buffer. The runtime probe remains unexecuted pending explicit approval of a disposable staging Worker, limits, and cleanup.
+- No Worker deployment, route mutation, D1 write, or live probe occurred. No open PRs were present at this check.
+- Next safe work: continue static review and deterministic Phase 6 tests without inventing an unsupported drain signal or imposing an unapproved download cap. Phase 6 remains active.
+- Phase audit unchanged: phases 0–11 **In progress**; phase 12 **Blocked**; phase 13 **Not started**. No phase is Complete.
