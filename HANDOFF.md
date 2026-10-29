@@ -592,3 +592,14 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - No Worker deployment, route mutation, D1 write, or live probe occurred. No open PRs were present at this check.
 - Next safe work: continue static review and deterministic Phase 6 tests without inventing an unsupported drain signal or imposing an unapproved download cap. Phase 6 remains active.
 - Phase audit unchanged: phases 0–11 **In progress**; phase 12 **Blocked**; phase 13 **Not started**. No phase is Complete.
+
+## Latest work session — 2026-10-29 (PR #97 post-merge verification)
+
+- PR #97 (documentation-only handoff refresh) merged: https://github.com/ijoolaie/imoxy-net/pull/97.
+- PR #97 exact-head CI passed on `2ba43188f48a9d4100cf4b9b01de14ef2d03dc87` (run 40847215058).
+- Post-merge `main` CI passed on exact commit `f94cdb6d709f78095d49b9e9fa4890c4ac09cc24` (run 40847648565): https://github.com/ijoolaie/imoxy-net/actions/runs/40847648565.
+- No open pull requests were observed at this check.
+- Issue #78 remains open. Its bounded downstream WebSocket runtime probe is a plan only; no Worker, route, D1, or production resource was created or changed.
+- Rechecked the official Cloudflare Workers WebSockets runtime documentation on 2026-10-29: https://developers.cloudflare.com/workers/runtime-apis/websockets/ (page says last updated 2026-10-12). The documented WebSocket surface includes synchronous `send()`, `readyState`, and close/error/message events, but does not document `bufferedAmount`, an awaitable send/drain API, or a send-buffer size. This supports continuing to treat runtime-internal buffering as unproven; it does not prove the runtime has no internal flow control.
+- Cloudflare TCP Sockets documentation describes readable/writable streams and awaitable `writer.write()`, but that flow control is on the TCP side and does not itself provide a downstream WebSocket drain signal: https://developers.cloudflare.com/workers/runtime-apis/tcp-sockets/.
+- Remaining next step: choose and test an explicit slow/non-reading-client policy using bounded application-managed work; any live probe remains gated on explicit owner authorization and a disposable staging target.
