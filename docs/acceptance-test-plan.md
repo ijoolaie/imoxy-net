@@ -121,11 +121,9 @@ PR #63 is merged after exact-head CI passed (run `40643131921`). Adapter-based r
 
 The controlled staging runbook is [nonprod-vless-smoke-gate.md](nonprod-vless-smoke-gate.md). Its status is **prepared, not executed**. Required evidence includes actual deployed Worker/D1 migration and persistence behavior, authenticated WebSocket handshake, DoH resolution and numeric TCP peer pinning, bidirectional bytes, timeout/close behavior, and reservation/usage consistency. No production environment may be used for this gate. Passing Node adapter tests or CI is not a substitute for running the gate in a dedicated disposable Cloudflare environment. No Worker/D1 deployment or live Cloudflare resource mutation has been performed.
 
-## VLESS downstream backpressure guard — 2026-10-28
+## Superseded VLESS downstream queue guard — historical only
 
-- Before forwarding a TCP download chunk to WebSocket, require a measurable non-negative integer `bufferedAmount` and keep queued bytes within 1 MiB.
-- If the current buffered amount is unavailable, malformed, or would exceed the bound with the next chunk, close with `downstream_write_queue_full` before quota reservation and before `send()`.
-- Unit tests use an injected WebSocket adapter. This is not proof of Cloudflare Worker buffering semantics or full end-to-end backpressure; validate the property and behavior in the disposable Worker smoke test.
+The former `bufferedAmount`/1 MiB guard and `downstream_write_queue_full` behavior were removed because the property is not documented by the current Cloudflare Workers WebSocket API. Do not implement or test this as current expected behavior. An injected adapter cannot establish runtime API support. Downstream runtime-buffer boundedness remains **Not verified**; see the follow-up acceptance evidence below.
 
 ## Correction — Worker WebSocket bufferedAmount assumption
 
