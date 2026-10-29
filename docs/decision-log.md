@@ -93,9 +93,9 @@ The PR #63 policy is merged as `29fa597c5c649552d827396a218609ce895724f4` after 
 
 PR #66 is merged as `471e3a0d0cd9d0fc0fd2292b450e9a95aa026198` after exact-head CI passed. Hostnames are resolved through a fixed DNS-over-HTTPS endpoint; a normalized public numeric address is selected and passed directly to the TCP adapter, and the runtime-reported peer must match before any payload is forwarded or quota is reserved. Fail closed on resolution failure, invalid/private-only answers, invalid numeric destinations or peer mismatch. This narrows DNS-rebinding risk by preventing a second hostname lookup at dial time, but is not proof of complete SSRF protection or Nova parity. Actual Cloudflare Worker/D1 smoke tests, complete maintained special-purpose IP coverage, fallback behavior and resource/backpressure limits remain required; no deployment was performed.
 
-## 2026-10-28 — bound queued VLESS download bytes
+## 2026-10-28 — superseded VLESS download queue guard (historical)
 
-The Worker WebSocket send path has no awaitable write promise in this implementation. Before reserving quota for a downstream TCP chunk, the handler now checks the WebSocket's `bufferedAmount` and fails closed if it is missing/invalid or if adding the chunk would exceed 1 MiB. This bounds application-level queued bytes but is not a complete backpressure mechanism: Cloudflare runtime behavior, chunk-size behavior, and Nova reference semantics require smoke/black-box validation. Unit tests must prove over-budget chunks are neither reserved nor sent.
+An earlier implementation attempted to bound downstream queued bytes by reading `server.bufferedAmount` and enforcing a 1 MiB threshold. This approach was removed because the current Cloudflare Workers WebSocket API documentation does not document `bufferedAmount`; a fake adapter property is not runtime evidence. Do not reintroduce this guard unless supported by authoritative runtime documentation and a reproducible Worker test. Current downstream runtime-buffer boundedness remains unproven; see the correction and follow-up decision below.
 
 ## Correction — do not assume Worker bufferedAmount support
 
