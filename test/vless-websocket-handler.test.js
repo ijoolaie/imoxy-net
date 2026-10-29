@@ -834,3 +834,38 @@ test("DNS resolution rejects address data that conflicts with the DNS record typ
     /No public destination address was resolved/
   );
 });
+
+
+test("download settlement failure stops the TCP reader before it requests another chunk", async () => {
+  let readCalls = 0;
+  let readerCancelled = false;
+  const upstream = {
+    opened: Promise.resolve({ remoteAddress: "93.184.216.34", localAddress: null }),
+    readable: {
+      getReader() {
+        return {
+          async read() {
+            readCalls += 1;
+            if (readCalls === 1) return { value: Uint8Array.from([0xa1, 0xa2]), done: false };
+            return new Promise(() => {});
+          },
+          async cancel() { readerCancelled = true; },
+          releaseLock() {}
+        };
+      }
+    },
+    writable: new WritableStream({ write() {} }),
+    async close() { readerCancelled = true; }
+  };
+  const h = harness({ quotaSettleFails: true, connectTcp: async () => upstream });
+
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  assert.equal(readCalls, 1, "the reader should have requested only the first download chunk");
+  assert.ok(h.server.closeCalls.some((item) => item.reason === "usage_settlement_failed"));
+  assert.equal(readerCancelled, true, "the failed session should cancel the upstream reader");
+  assert.equal(h.quotaCalls.settle.length, 1);
+  assert.equal(h.quotaCalls.settle[0].downloadBytes, 2);
+});
