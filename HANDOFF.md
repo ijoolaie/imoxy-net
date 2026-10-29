@@ -560,3 +560,14 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - No open pull requests were found at the time of this audit. Issue [#78](https://github.com/ijoolaie/imoxy-net/issues/78) remains open; no approved disposable staging Worker/hostname or cleanup authorization has been supplied, so the slow-reader runtime probe remains unexecuted. No Worker deployment, route binding, D1 mutation, or live smoke test occurred.
 - Next safe work: continue static review and deterministic tests for Phase 6 without choosing an unapproved session byte/time policy. Before any live probe, obtain explicit owner approval for the disposable staging resource, test limits, and cleanup procedure.
 - Phase audit remains: phases 0–11 **In progress**; phase 12 **Blocked**; phase 13 **Not started**. No phase is Complete.
+
+
+## Verified proxy follow-up — PRs #90–#92 (2026-10-29)
+
+- PR #90 refreshed the handoff with the main-CI evidence and the unresolved downstream WebSocket backpressure issue. It merged as `0b2c1ddfe661e3ef623ae09cf1149786b2965bdb`; main CI run [40723571897](https://github.com/ijoolaie/imoxy-net/actions/runs/40723571897) passed on that exact SHA.
+- PR #91 added regression assertions that both A and AAAA DoH requests use the fixed `https://cloudflare-dns.com` origin and `redirect: "error"`. It merged as `d3cc84f43b10933d2d0790783d4a3085835c3b27`; post-merge main CI [40726276770](https://github.com/ijoolaie/imoxy-net/actions/runs/40726276770) passed on that exact SHA.
+- PR #92 added a deterministic downstream `server.send()` failure test. It verifies the relay closes with `downstream_write_failed`, no settlement is recorded for the failed chunk, and the ambiguous reservation is not released. PR-head CI [40726755197](https://github.com/ijoolaie/imoxy-net/actions/runs/40726755197) passed on exact head `4ebeaada50479be9ce91170b3165946cf0c0c026`; PR #92 was then squash-merged as `55de20c97df471bd60510c0ecf021e5a3417b095`.
+- Post-merge main CI for PR #92's merge commit has not yet been observed in the workflow-run listing; do not claim it passed until a run on the exact merge SHA is confirmed.
+- These are unit/regression tests and repository CI evidence only. They do not prove Cloudflare's internal WebSocket send buffer is bounded, and they do not establish Nova parity or production readiness. Issue [#78](https://github.com/ijoolaie/imoxy-net/issues/78) remains open; the disposable slow-reader Worker probe is still a plan and has not been executed. No Worker deployment, route binding, D1 mutation, or live smoke test was performed.
+- Next: verify post-merge CI on the current main SHA; then continue static proxy review and deterministic tests. Keep the live probe gated on explicit approval of a disposable staging Worker/hostname, byte/time/frame/concurrency caps, and cleanup.
+- Phase audit unchanged: phases 0–11 **In progress**; phase 12 **Blocked**; phase 13 **Not started**. No phase is Complete.
