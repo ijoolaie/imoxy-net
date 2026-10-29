@@ -571,3 +571,14 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - These are unit/regression tests and repository CI evidence only. They do not prove Cloudflare's internal WebSocket send buffer is bounded, and they do not establish Nova parity or production readiness. Issue [#78](https://github.com/ijoolaie/imoxy-net/issues/78) remains open; the disposable slow-reader Worker probe is still a plan and has not been executed. No Worker deployment, route binding, D1 mutation, or live smoke test was performed.
 - Next: verify post-merge CI on the current main SHA; then continue static proxy review and deterministic tests. Keep the live probe gated on explicit approval of a disposable staging Worker/hostname, byte/time/frame/concurrency caps, and cleanup.
 - Phase audit unchanged: phases 0–11 **In progress**; phase 12 **Blocked**; phase 13 **Not started**. No phase is Complete.
+
+
+## Verified follow-up — PRs #94–#95 (2026-10-29)
+
+- PR #94 removed stale documentation instructions requiring the undocumented Workers WebSocket `bufferedAmount` guard and marked runtime-buffer boundedness as unresolved. It merged as `520c9ce1bf5c08919f9b061420609bd3cd81b8b9`; post-merge main CI run [40840562813](https://github.com/ijoolaie/imoxy-net/actions/runs/40840562813) passed on that exact SHA.
+- PR #95 added a deterministic regression test proving that when download quota settlement fails, the relay closes the session and cancels the upstream reader before another read. It merged as `0840c650ce69b4fc2217dc1916b80f62176376d1`; post-merge main CI run [40844388178](https://github.com/ijoolaie/imoxy-net/actions/runs/40844388178) completed **success** on that exact SHA.
+- These tests establish application-level failure handling and read serialization only. They do **not** establish that Cloudflare's internal WebSocket send buffer is bounded or drained, and they are not Nova runtime parity evidence.
+- Issue [#78](https://github.com/ijoolaie/imoxy-net/issues/78) remains open. The disposable slow/non-reading-client runtime probe remains a plan and has not been executed; no Worker deployment, route binding, D1 mutation, or live runtime smoke test was performed.
+- Next safe step: continue static review and deterministic tests against the open #78 acceptance criteria. Any runtime probe remains gated on explicit owner approval of a disposable staging Worker/hostname, hard byte/time/frame/concurrency limits, and cleanup.
+- Current verified main SHA before this handoff refresh: `0840c650ce69b4fc2217dc1916b80f62176376d1`; post-merge CI run `40844388178` passed on that exact SHA. This handoff refresh requires its own PR-head CI and post-merge main CI verification.
+- Phase audit: phases 0–11 **In progress**; phase 12 **Blocked**; phase 13 **Not started**. No phase is Complete.
