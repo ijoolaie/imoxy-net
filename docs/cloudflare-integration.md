@@ -44,9 +44,11 @@ Authentication remains enabled in every mode. Mode changes require a reviewed de
 
 ## Restricted VLESS Worker session settings
 
-The VLESS WebSocket handler requires two non-secret variables before it will accept sessions:
+The VLESS WebSocket handler requires four non-secret variables before it will accept sessions:
 
 - PROXY_MAX_DOWNLOAD_BYTES: maximum cumulative download payload bytes forwarded per session.
 - PROXY_MAX_SESSION_DURATION_MS: maximum authenticated session lifetime in milliseconds.
+- PROXY_MAX_CONCURRENT_SESSIONS: mandatory installation-wide maximum number of active VLESS session leases.
+- PROXY_SESSION_LEASE_GRACE_MS: positive cleanup grace added after the maximum session lifetime and bounded initial handshake/setup window before a stale lease stops counting.
 
-Both must be positive base-10 safe integers; the duration must fit the platform timer range. Missing or invalid values cause the VLESS route to fail closed with HTTP 503. Do not apply values to the currently observed bootstrap Worker: it is not aligned with the reviewed repository build, and its existing D1 contains data. Select values only for an explicitly isolated disposable environment after reviewing client impact, concurrent-session exposure, and cleanup. No values are set or deployed by this change.
+All four must be positive base-10 safe integers; duration and grace must fit the platform timer range. Missing or invalid values cause the VLESS route to fail closed with HTTP 503. Account-level `max_connections` is enforced separately: NULL means no account-specific cap and zero denies new sessions. The Worker acquires a D1 lease before dialing upstream and releases it on close; failed/ambiguous release leaves the lease counted until expiry. Do not apply values to the currently observed bootstrap Worker: it is not aligned with the reviewed repository build, and its existing D1 contains data. Select values only for an explicitly isolated disposable environment after reviewing client impact, capacity, and cleanup. No values are set or deployed by this change.
