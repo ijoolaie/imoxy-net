@@ -163,3 +163,8 @@ The VLESS relay reads upstream TCP data sequentially and awaits the send+quota-s
 ## 2026-10-30 — PR #121 downstream serialization test merged
 
 PR #121 added a deterministic non-reading-peer/held-settlement test proving the handler does not issue another upstream TCP read/send before quota settlement completes and rejects the next over-budget chunk before forwarding. PR #121 squash-merged as `5f63b03f4bbee2dfd473317b22166b1bce5206b3`. Exact-head CI run `41077238216` passed on `96db6e27a6242b36957a6f6b345494644017d7c8`; post-merge main CI run `41077371663` passed on the exact merge commit, including `npm run verify`. Cloudflare-internal WebSocket buffer behavior and Nova REF-032 remain unverified.
+
+
+## 2026-10-30 — D1Store admission SQL exercised through the production wrapper
+
+PR #123 adds a Node 22 SQLite integration test that applies the checked-in initial schema and migration 0007, then executes the production createD1Store admission/release/cleanup methods through a D1-compatible adapter. The test covers per-account and installation caps, duplicate lease idempotency, expiry cleanup, and restrictive account deletion. Exact-head CI run 41080879160 passed on 78d988687e508944271ad9babfa042b9bc9f04b5, including npm run verify. This closes the local SQL-wrapper execution gap left by the mock-only D1Store unit tests. It does not establish Cloudflare D1 concurrency semantics, deployed Worker integration, Cloudflare WebSocket backpressure, or Nova REF-032. Keep Issues #106 and #78 open. No Cloudflare resources or staging data were changed.

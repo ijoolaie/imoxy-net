@@ -801,3 +801,13 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Final PR-head `96db6e27a6242b36957a6f6b345494644017d7c8` passed exact-head CI run `41077238216`; job `test` and `npm run verify` passed.
 - Post-merge main CI run `41077371663` passed on the exact merge commit `5f63b03f4bbee2dfd473317b22166b1bce5206b3`; job `test` and `npm run verify` passed.
 - Main is at `5f63b03f4bbee2dfd473317b22166b1bce5206b3`. No open PRs remained immediately after merge. Issues #106 and #78 remain open for production Worker invocation, runtime slow-reader evidence and Nova REF-032.
+
+## PR #123 — D1Store SQLite integration coverage — 2026-10-30
+
+- Reviewed the current src/storage/d1-store.js, test/d1-store.test.js, VLESS handler configuration, migration 0007, and the existing disposable-D1 validation evidence.
+- Identified a concrete test-coverage gap: existing D1Store unit tests use a SQL-call mock, so they do not execute the production admission SQL through the JavaScript wrapper against a SQL engine.
+- Added test/d1-store-sqlite.test.js using Node 22's built-in node:sqlite, the checked-in initial schema, migration 0007, and a small D1-compatible adapter. It exercises per-account and installation caps, duplicate lease idempotency, expiry cleanup, release, and restrictive account deletion through createD1Store.
+- Exact PR-head CI run 41080879160 passed on 78d988687e508944271ad9babfa042b9bc9f04b5; job test and step npm run verify passed. This is SQLite wrapper evidence only, not Cloudflare D1 concurrency, Worker invocation, or Nova REF-032 evidence.
+- PR #123 is open for review: https://github.com/ijoolaie/imoxy-net/pull/123. No merge or post-merge CI is claimed here.
+- No Cloudflare resources, staging data, bindings, routes, or deployments were changed. Issues #106 and #78 remain open for their separate runtime/reference gates.
+- Next: review PR #123's exact diff and CI, merge only while the exact head remains unchanged and checks are green, then verify post-merge main CI. Continue investigating lease/configuration edge cases only if code evidence identifies a defect.
