@@ -712,3 +712,14 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - No live D1/Worker runtime test, Cloudflare mutation, deployment, migration, route/DNS change, or environment-setting change occurred.
 - Issue #106 remains open for live disposable D1/Worker tests and Nova `max_connections = 0` semantics. Issue #78 remains open for downstream Worker buffering behavior.
 - Next: only continue to live runtime validation after an explicitly authorized disposable Worker and D1 target is available. Otherwise continue static/code and reference analysis without touching current Cloudflare resources.
+
+
+## Final verification checkpoint — 2026-10-30
+
+- Current main: `63ea239fe08ad32bffbc1a5171ed79ee3262441a`.
+- PR #112 merged the lease-cleanup design, acceptance, decision-log and HANDOFF updates.
+- Exact-head PR CI run `41041302739`: **success**. Post-merge main CI run `41041363490`: **success**.
+- The full `npm run verify` workflow completed with **198 tests passed, 0 failed**.
+- No open PRs remain. Open issues: #106 (real D1/Worker admission validation and Nova zero-cap semantics) and #78 (downstream Worker WebSocket buffering/resource bounds).
+- Cloudflare read-only inventory still shows no dedicated disposable imoxy Worker/D1 pair. Existing `imoxy-net-api-staging` and its 11-table `imoxy-net-staging-identity` D1 remain untouched; unrelated D1 databases are not candidates.
+- Phase 6 remains In progress; Phase 12 remains Blocked. Do not mark session concurrency or Nova parity complete until the live D1/Worker and reference gates pass.
