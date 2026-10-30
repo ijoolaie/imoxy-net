@@ -134,3 +134,8 @@ This is a design choice, not an implemented or D1-verified guarantee. The final 
 PR #108 merged as `8bc11df4aa6c5a8ae77d28a3b77312c35c33b8b9`. The handler now acquires a D1-backed active-session lease before opening upstream TCP and releases it once after local/upstream cleanup. One conditional `INSERT ... SELECT` checks the current active account, optional per-account `max_connections`, and required installation-wide `PROXY_MAX_CONCURRENT_SESSIONS`. Lease expiry includes the bounded initial handshake/setup interval, maximum session duration, and required grace. Migration 0007 uses a restrictive account FK so account deletion cannot silently free a live lease.
 
 Exact-head PR CI, same-head push CI, and post-merge main CI passed. SQLite-backed actual-SQL and handler lifecycle tests passed. Real disposable Cloudflare D1 race/expiry tests and Worker runtime validation remain mandatory; no Cloudflare resource or D1 data was changed. The current `max_connections = 0` behavior is fail-closed, not verified against Nova 5.0.0.
+
+
+## 2026-10-30 — Bounded stale VLESS lease cleanup
+
+PR #111 adds best-effort cleanup of at most 100 expired session leases before each new admission and rejects a lease whose expiry is already at/before its admission time. Expired leases remain excluded from the atomic account/global capacity predicates even if cleanup fails. Account deletion separately cleans at most 1,000 expired leases for that account and remains blocked by any remaining live lease. Exact-head PR, same-head push, and post-merge main CI passed. Real D1 runtime validation remains pending.

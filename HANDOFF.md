@@ -697,3 +697,18 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - No D1 query, migration, seed, delete, Worker setting update, deploy, route/DNS change, or resource creation occurred during this audit.
 - PR #108 implementation remains merged and automated CI remains green. Issue #106 stays open because real D1 concurrency/expiry and Worker runtime gates cannot safely run without an explicitly isolated disposable target. Nova `max_connections = 0` semantics are also unverified.
 - Next: identify/provision a dedicated disposable Worker + D1 pair with explicit authorization and cleanup proof; then run the D1 race/expiry tests and controlled Worker lifecycle smoke. Until then, do not use the existing staging or unrelated databases.
+
+
+## Latest work session — 2026-10-30 (VLESS lease cleanup hardening)
+
+- Main at start: `4df6762fc34980457e275238fd380f39e6606894`.
+- PR #111 merged: https://github.com/ijoolaie/imoxy-net/pull/111.
+- Exact PR-head CI run `41041117714`: **success** on `3d5a8871729a2eeaf7676b5c33139459482414b0`.
+- Same-head push CI run `41041095771`: **success**.
+- Post-merge main CI run `41041196795`: **success** on `4df6762fc34980457e275238fd380f39e6606894`.
+- New admission best-effort prunes at most 100 expired session leases. Expired rows are excluded from the capacity predicates even if pruning fails. Requests with an expiry at/before admission time are rejected.
+- Added SQLite-backed test coverage for opportunistic cleanup and bounded pruning. Full repository verification passes.
+- Existing Cloudflare inventory blocker remains: no dedicated disposable imoxy Worker/D1 pair; `imoxy-net-api-staging` remains bound to the 11-table `imoxy-net-staging-identity` database and untouched.
+- No live D1/Worker runtime test, Cloudflare mutation, deployment, migration, route/DNS change, or environment-setting change occurred.
+- Issue #106 remains open for live disposable D1/Worker tests and Nova `max_connections = 0` semantics. Issue #78 remains open for downstream Worker buffering behavior.
+- Next: only continue to live runtime validation after an explicitly authorized disposable Worker and D1 target is available. Otherwise continue static/code and reference analysis without touching current Cloudflare resources.
