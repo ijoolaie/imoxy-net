@@ -684,3 +684,16 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - No Cloudflare Worker was deployed; no D1 database was migrated or mutated; no route/DNS changes or production setting changes occurred. The bootstrap staging Worker and its non-empty D1 remain untouched.
 - Current phase: Phase 6 — Subscription/proxy compatibility, In progress. Phase 12 remains Blocked.
 - Next: validate the atomic admission race, expiry and release against a separately provisioned disposable Cloudflare D1 and controlled Worker. Do not use the bootstrap staging target. Before that live gate, establish the exact Nova 5.0.0 `max_connections = 0` semantics from an authoritative reference or black-box scenario.
+
+
+## Latest work session — 2026-10-30 (Cloudflare disposable target audit)
+
+- Main at start: `099422495b0820a4d548c98fb32f1530a7a76d44`.
+- PR #109 merged the implementation status and roadmap documentation. Exact-head CI run `41040744220` passed; post-merge main CI run `41040854968` passed on `099422495b0820a4d548c98fb32f1530a7a76d44`.
+- Performed read-only Cloudflare account, Worker script, Worker binding and D1 metadata inspection.
+- Found `imoxy-net-api-staging` bound to `imoxy-net-staging-identity` through `IDENTITY_DB`; Cloudflare reports 11 tables. This is the bootstrap staging target and remains untouched.
+- No separate imoxy test Worker/D1 pair was present in the listed resources. Other D1 databases belong to separately named resources or lack evidence of being disposable; they are not candidates.
+- Updated `docs/nonprod-vless-smoke-gate.md` with the inventory and explicit no-mutation decision. Added the same blocker to Issue #106.
+- No D1 query, migration, seed, delete, Worker setting update, deploy, route/DNS change, or resource creation occurred during this audit.
+- PR #108 implementation remains merged and automated CI remains green. Issue #106 stays open because real D1 concurrency/expiry and Worker runtime gates cannot safely run without an explicitly isolated disposable target. Nova `max_connections = 0` semantics are also unverified.
+- Next: identify/provision a dedicated disposable Worker + D1 pair with explicit authorization and cleanup proof; then run the D1 race/expiry tests and controlled Worker lifecycle smoke. Until then, do not use the existing staging or unrelated databases.
