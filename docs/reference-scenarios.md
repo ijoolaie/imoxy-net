@@ -69,3 +69,6 @@ The current Worker/API source has no confirmed proxy traffic handler, so add the
 | REF-039 | P1 | Resource limits | Slow initial frame, fragmented messages, concurrent sessions and maximum header sizes | Bounded resource use and no parser bypass | Not run |
 
 See [proxy-data-plane-mvp.md](proxy-data-plane-mvp.md) for the acceptance-first MVP boundary and explicit non-goals. These scenarios are requirements to execute, not evidence that Nova behavior has been verified.
+
+
+| REF-032 | P0 | Accounts / proxy admission | Set account `max_connections` to NULL, 0, 1 and 2; open parallel VLESS sessions using one account; attempt one above the limit; close one and retry; repeat after expiry/revocation | Whether the field is exposed/editable, default and NULL meaning, zero meaning, exact admitted count, whether count is per TCP tunnel or another unit, rejection behavior, slot-release timing, reconnect races and treatment of existing sessions after lowering the cap | **Not run.** Pinned README and GUIDE do not document `max_connections` semantics; protected worker artifact is not treated as source evidence. |
