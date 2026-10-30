@@ -768,3 +768,12 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - No open PRs remained at this checkpoint. Issues #106 and #78 remain open; the focused review findings and remaining runtime requirements were added as issue comments.
 - No confirmed defect was found in the D1 admission/lease code. The live disposable D1 race/expiry test, Nova REF-032, and real disposable Worker slow-reader/backpressure probe remain release gates.
 - No Cloudflare resources, existing staging data, environment settings, routes, DNS, or deployments were changed.
+
+## Disposable Cloudflare D1 validation — 2026-10-30
+
+- Created isolated temporary resources `imoxy-net-validation-db` and `imoxy-net-validation-worker`; the Worker had only a D1 binding to the disposable database. Existing staging and unrelated resources were not changed.
+- Real Cloudflare D1 API/primary tests used the production account/session schema and the production conditional `INSERT ... SELECT` admission predicate. 20 concurrent attempts with account cap 3 admitted exactly 3; 12 concurrent attempts across two accounts with global cap 2 admitted exactly 2.
+- Release changed one row; repeated release changed zero; a new admission succeeded after release. Disabled, expired, and zero-cap accounts admitted no new session. Bounded expiry cleanup removed one expired lease. Deleting an account with a live lease was rejected by the restrictive FK.
+- The temporary Worker upload and its D1 binding were verified in Cloudflare settings, but invocation was blocked: outbound requests to its `workers.dev` URL returned 403 from the available execution environment. Thus this is direct real-D1 API evidence, not an end-to-end production Worker test. No WebSocket slow-reader/runtime-buffer probe was completed.
+- Both temporary resources were deleted and resource-list checks confirmed their absence. No staging or existing user resource was modified.
+- Evidence and limitations: [docs/d1-runtime-validation-2026-10-30.md](docs/d1-runtime-validation-2026-10-30.md). Issue #106 and #78 remain open; Nova REF-032 remains unverified. Do not mark either issue complete.
