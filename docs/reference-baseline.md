@@ -96,3 +96,8 @@ The imoxy VLESS handler currently does not enforce the persisted `max_connection
 ## Concurrent-session implementation update — 2026-10-30
 
 Imoxy now enforces an installation-wide VLESS session ceiling and an account-level cap for positive `max_connections` values through D1 leases (PR #108). This is implementation evidence only, not Nova compatibility evidence. The pinned Nova Proxy 5.0.0 artifact is protected/minified and the exact behavior of `max_connections = 0`, including whether zero means unlimited or deny-all, has not been characterized. Keep the parity row unverified until the reference runtime or authoritative source establishes the semantics and boundary behavior.
+
+
+## Concurrent-session limit — evidence gap (2026-10-30)
+
+The pinned Nova 5.0.0 README and GUIDE do not document a per-account `max_connections` contract or define the zero value. The pinned `version.json` marks the shipped worker artifact as protected; the release metadata, package manifest and user guide are not evidence of its runtime semantics. Do not infer whether zero means unlimited or deny-all, what counts as one connection, or how existing sessions are handled when a limit changes. REF-032 defines the required controlled black-box scenarios. Status remains **Not documented / Not run / Not verified**.
