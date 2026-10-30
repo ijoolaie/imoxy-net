@@ -10,6 +10,13 @@ const MAX_DIAL_CANDIDATES = 8;
 const SESSION_CLOSED = Symbol("session_closed");
 const DEFAULT_INITIAL_HANDSHAKE_TIMEOUT_MS = 10_000;
 const DEFAULT_IDLE_TIMEOUT_MS = 120_000;
+const MAX_SESSION_TIMER_MS = 2_147_483_647;
+
+function positiveIntegerSetting(value, maximum = Number.MAX_SAFE_INTEGER) {
+  if (typeof value !== "string" || !/^[1-9][0-9]*$/.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed <= maximum ? parsed : null;
+}
 
 function jsonError(code, message, status) {
   return new Response(JSON.stringify({ error: { code, message } }), {
@@ -276,6 +283,12 @@ export function createVlessWebSocketHandler({
       if (url.pathname !== path) return null;
       if (request.method !== "GET") return jsonError("method_not_allowed", "The method is not allowed for this route.", 405);
       if (!isWebSocketUpgrade(request)) return jsonError("websocket_upgrade_required", "A valid WebSocket upgrade is required.", 426);
+      const maxDownloadBytes = positiveIntegerSetting(env.PROXY_MAX_DOWNLOAD_BYTES);
+      const maxSessionDurationMs = positiveIntegerSetting(env.PROXY_MAX_SESSION_DURATION_MS, MAX_SESSION_TIMER_MS);
+      if (maxDownloadBytes === null || maxSessionDurationMs === null) {
+        return jsonError("proxy_limits_not_configured", "Positive safe-integer PROXY_MAX_DOWNLOAD_BYTES and PROXY_MAX_SESSION_DURATION_MS settings are required.", 503);
+      }
+
       if (!env.DB || typeof env.PROXY_ALLOWED_HOSTS !== "string" ||
           !env.PROXY_ALLOWED_HOSTS.trim() || typeof env.PROXY_ALLOWED_PORTS !== "string" ||
           !env.PROXY_ALLOWED_PORTS.trim() || typeof env.PROXY_USAGE_PRODUCER_ID !== "string" ||
@@ -328,11 +341,13 @@ export function createVlessWebSocketHandler({
         writer: null,
         writeQueue: Promise.resolve(),
         queuedClientBytes: 0,
+        downloadBytesForwarded: 0,
         accountId: null,
         requestCountClaimed: false
       };
       let handshakeTimer = null;
       let idleTimer = null;
+      let sessionTimer = null;
       let idleTimerGeneration = 0;
 
       const closeSession = async (code = 1000, reason = "closed") => {
@@ -344,6 +359,10 @@ export function createVlessWebSocketHandler({
           handshakeTimer = null;
         }
         idleTimerGeneration += 1;
+        if (sessionTimer !== null) {
+          try { clearTimeoutImpl(sessionTimer); } catch {}
+          sessionTimer = null;
+        }
         if (idleTimer !== null) {
           try { clearTimeoutImpl(idleTimer); } catch {}
           idleTimer = null;
@@ -368,6 +387,8 @@ export function createVlessWebSocketHandler({
             void closeSession(1001, "idle_timeout");
           }
         }, idleTimeoutMs);
+        // Node-only timer handles should not keep test processes alive; Workers handles are numeric.
+        idleTimer?.unref?.();
       };
 
       const releaseBeforeForward = async (reservationId) => {
@@ -456,8 +477,13 @@ export function createVlessWebSocketHandler({
             if (done) break;
             if (value?.byteLength && !state.closed) {
               resetIdleTimeout();
+              if (value.byteLength > maxDownloadBytes - state.downloadBytesForwarded) {
+                await closeSession(1008, "download_limit_exceeded");
+                return;
+              }
               const forwarded = await reserveAndSettle(value, "download");
               if (!forwarded) return;
+              state.downloadBytesForwarded += value.byteLength;
             }
           }
           await closeSession(1000, "upstream_closed");
@@ -617,6 +643,11 @@ export function createVlessWebSocketHandler({
             }
             state.authenticated = true;
             resetIdleTimeout();
+            sessionTimer = setTimeoutImpl(() => {
+              void closeSession(1001, "session_duration_exceeded");
+            }, maxSessionDurationMs);
+            // Avoid keeping Node test processes alive; Workers timer handles are numeric.
+            sessionTimer?.unref?.();
             server.send(Uint8Array.from([parsed.version, 0]));
             state.buffer = new Uint8Array();
             state.reader = socket.readable.getReader();

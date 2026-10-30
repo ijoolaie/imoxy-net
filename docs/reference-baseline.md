@@ -76,3 +76,8 @@ A 1 MiB downstream WebSocket buffered-byte guard is an imoxy safety decision. It
 ## Correction — no downstream backpressure parity claim
 
 The previously described `bufferedAmount` guard is not valid evidence of Cloudflare Worker behavior because that property is absent from the documented Worker WebSocket properties. Follow-up PR #77 removes the unsupported assumption. Downstream flow control and Nova reference behavior remain unverified.
+
+
+## Imoxy VLESS session budget policy — 2026-10-30
+
+A per-session cumulative download-byte budget and maximum session lifetime are being implemented as an imoxy fail-closed resource policy because the documented Workers WebSocket API does not expose an authoritative send-buffer/drain signal. The policy is not attributed to Nova Proxy 5.0.0 and must not be counted as behavioral parity. The corresponding Nova slow-client, termination, quota and concurrency semantics remain uncharacterized.

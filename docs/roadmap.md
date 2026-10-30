@@ -374,3 +374,9 @@ The active branch `fix/vless-downstream-buffer-bound` adds a fail-closed 1 MiB b
 ## Correction — Worker downstream flow control is still open
 
 The 1 MiB downstream guard added in PR #76 relied on `server.bufferedAmount`, which is not documented in Cloudflare Workers' WebSocket API. Follow-up PR #77 removes this unsupported assumption. Do not count downstream backpressure as implemented or verified: a supported mechanism and disposable Worker slow-client test are still required. Phase 6 remains In progress; Phase 12 remains Blocked.
+
+## VLESS per-session budget implementation — 2026-10-30
+
+The active branch `fix/vless-session-download-budget` introduces mandatory finite per-session download-byte and session-duration settings. The handler fails closed when either setting is absent/invalid, stops before reserving/sending a download chunk that would exceed the cumulative budget, and terminates the session with upstream cleanup at the lifetime ceiling. Deterministic Node coverage is added for missing configuration, non-reading downstream peers, exact byte boundaries, and session timeout.
+
+This is an application-level bound per session, not proof of Worker-internal WebSocket buffer size or a global aggregate bound across concurrent sessions. No production/staging values are configured, no Worker was deployed, and no live runtime or D1 test was run. Phase 6 remains **In progress**; Issue #78 and Phase 12 remain open/blocked pending CI, controlled runtime evidence, concurrency policy, D1 validation and Nova comparison.
