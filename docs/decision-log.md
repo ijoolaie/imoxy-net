@@ -139,3 +139,8 @@ Exact-head PR CI, same-head push CI, and post-merge main CI passed. SQLite-backe
 ## 2026-10-30 — Bounded stale VLESS lease cleanup
 
 PR #111 adds best-effort cleanup of at most 100 expired session leases before each new admission and rejects a lease whose expiry is already at/before its admission time. Expired leases remain excluded from the atomic account/global capacity predicates even if cleanup fails. Account deletion separately cleans at most 1,000 expired leases for that account and remains blocked by any remaining live lease. Exact-head PR, same-head push, and post-merge main CI passed. Real D1 runtime validation remains pending.
+
+
+## 2026-10-30 — Nova per-account session-limit evidence remains unknown
+
+Inspected the pinned Nova Proxy 5.0.0 README, GUIDE, package manifest and version metadata. The user-facing docs do not specify `max_connections`, the unit counted, zero semantics, slot-release timing, or behavior after cap changes. The shipped worker is marked protected; no implementation behavior was inferred from that artifact. Added REF-032 to define the required controlled black-box cases. Imoxy's zero=deny-all behavior is an explicit fail-closed choice, not a Nova parity finding. PR #114 merged this evidence update; exact-head and post-merge CI passed.
