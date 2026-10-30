@@ -664,3 +664,23 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Updated the session-admission design, decision log, acceptance plan, architecture, parity matrix, reference baseline, and roadmap on branch `docs/vless-session-admission-design`.
 - Current active phase: Phase 6 — Subscription/proxy compatibility. Per-account and installation-wide concurrent-session admission remain unimplemented; downstream Worker-internal WebSocket buffering remains unproven; no Nova parity claim is made.
 - Next: review the exact documentation diff, obtain exact-head CI, then implement migration + atomic D1 lease acquire/release and handler lifecycle integration with SQLite-backed actual-SQL concurrency tests. Only after that, run the controlled real-D1/Worker gate against a proven disposable target. Preserve the bootstrap staging Worker and its non-empty D1.
+
+
+## Latest work session — 2026-10-30 (VLESS concurrent-session admission implementation)
+
+- Starting main: `8bc11df4aa6c5a8ae77d28a3b77312c35c33b8b9`.
+- PR #108 merged: https://github.com/ijoolaie/imoxy-net/pull/108.
+- Exact PR-head CI run `41040392148`: **success** on `ed7d27a92907157260552c2f868eb151221f7fa4`.
+- Push CI run `41040222126`: **success** on the same head.
+- Post-merge main CI run `41040478912`: **success** on merge commit `8bc11df4aa6c5a8ae77d28a3b77312c35c33b8b9`.
+- Added migration `0007_proxy_active_sessions.sql` with account FK `ON DELETE RESTRICT`, active-lease timestamps and expiry indexes.
+- Added D1 methods `acquireProxySession`, `releaseProxySession`, and bounded `cleanupExpiredProxySessions`. Admission uses one parameterized conditional `INSERT ... SELECT` that checks account state/expiry, positive per-account `max_connections`, and mandatory installation-wide `PROXY_MAX_CONCURRENT_SESSIONS` in the same SQL statement.
+- VLESS handler now acquires a lease before outbound TCP dial. Lease expiry includes the initial handshake/setup timeout, maximum session duration and required `PROXY_SESSION_LEASE_GRACE_MS`. Release is one-shot and occurs after local/upstream cleanup; ambiguous admission/release remains fail-closed and can leave a lease counted until expiry.
+- Automated tests now cover per-account/global caps, last-slot racing attempts, NULL/zero behavior, disabled/expired accounts, duplicate/conflicting IDs, expiry and bounded cleanup, restrictive account deletion, admission-before-dial, denial/error, setup failure, session timeout, quota/download termination, and release failure.
+- Exact-head PR CI, same-head push CI, and post-merge main CI all pass. This validates the repo test suite and SQLite-backed actual adapter SQL, **not** real Cloudflare D1 concurrency or Worker runtime behavior.
+- New required non-secret Worker settings: `PROXY_MAX_CONCURRENT_SESSIONS` and `PROXY_SESSION_LEASE_GRACE_MS`, in addition to the existing byte/lifetime settings. No values have been configured in Cloudflare.
+- Issue #106 remains open for real disposable D1/Worker validation and Nova reference semantics. `max_connections = 0` is currently fail-closed in imoxy; the pinned Nova 5.0.0 meaning is not verified and no parity claim is made.
+- Issue #78 remains open for downstream WebSocket buffering/resource behavior.
+- No Cloudflare Worker was deployed; no D1 database was migrated or mutated; no route/DNS changes or production setting changes occurred. The bootstrap staging Worker and its non-empty D1 remain untouched.
+- Current phase: Phase 6 — Subscription/proxy compatibility, In progress. Phase 12 remains Blocked.
+- Next: validate the atomic admission race, expiry and release against a separately provisioned disposable Cloudflare D1 and controlled Worker. Do not use the bootstrap staging target. Before that live gate, establish the exact Nova 5.0.0 `max_connections = 0` semantics from an authoritative reference or black-box scenario.
