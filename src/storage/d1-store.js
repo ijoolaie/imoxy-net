@@ -390,12 +390,14 @@ export function createD1Store(db) {
       }
     },
 
-    async acquireProxySession({ sessionId, accountId, createdAt, expiresAt, maxConcurrentSessions }) {
+    async acquireProxySession({ sessionId, accountId, createdAt, expiresAt, at = createdAt, maxConcurrentSessions }) {
       const validId = (value) => typeof value === "string" && value.length > 0 && value.length <= 128;
       const createdTimestamp = typeof createdAt === "string" ? Date.parse(createdAt) : NaN;
       const expiryTimestamp = typeof expiresAt === "string" ? Date.parse(expiresAt) : NaN;
+      const currentTimestamp = typeof at === "string" ? Date.parse(at) : NaN;
       if (!validId(sessionId) || !validId(accountId) ||
           !Number.isFinite(createdTimestamp) || !Number.isFinite(expiryTimestamp) ||
+          !Number.isFinite(currentTimestamp) || currentTimestamp < createdTimestamp ||
           expiryTimestamp <= createdTimestamp ||
           !Number.isSafeInteger(maxConcurrentSessions) || maxConcurrentSessions < 1) {
         throw new TypeError("Proxy session admission fields are invalid.");
@@ -414,19 +416,25 @@ export function createD1Store(db) {
             WHERE s.expires_at > ?) < ?
         ON CONFLICT(session_id) DO NOTHING`).bind(
         sessionId, createdAt, expiresAt, accountId,
-        createdAt, createdAt, createdAt, maxConcurrentSessions
+        at, at, at, maxConcurrentSessions
       ).run();
 
-      const row = await db.prepare(`SELECT session_id, account_id, created_at, expires_at
-        FROM proxy_active_sessions WHERE session_id = ? LIMIT 1`).bind(sessionId).first();
+      const row = await db.prepare(`SELECT s.session_id, s.account_id, s.created_at, s.expires_at,
+          a.status AS account_status, a.expires_at AS account_expires_at
+        FROM proxy_active_sessions s
+        JOIN proxy_accounts a ON a.id = s.account_id
+        WHERE s.session_id = ? LIMIT 1`).bind(sessionId).first();
       if (!row) {
         return { allowed: false, duplicate: false, conflict: false, reason: "account_unavailable_or_session_limit" };
       }
       if (row.account_id !== accountId || row.created_at !== createdAt || row.expires_at !== expiresAt) {
         return { allowed: false, duplicate: true, conflict: true, reason: "session_id_conflict" };
       }
-      if (Date.parse(row.expires_at) <= createdTimestamp) {
-        return { allowed: false, duplicate: true, conflict: false, reason: "session_lease_expired" };
+      if (row.account_status !== "active" ||
+          (row.account_expires_at !== null && row.account_expires_at !== undefined &&
+           Date.parse(row.account_expires_at) <= currentTimestamp) ||
+          Date.parse(row.expires_at) <= currentTimestamp) {
+        return { allowed: false, duplicate: true, conflict: false, reason: "session_lease_expired_or_account_unusable" };
       }
       return {
         allowed: true,
