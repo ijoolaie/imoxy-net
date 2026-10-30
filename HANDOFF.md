@@ -760,3 +760,11 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Review outcome: no confirmed code defect found in the inspected admission/lease lifecycle. No code change or deployment was justified. Keep Issue #106 open for real disposable D1 race/expiry tests and Nova REF-032; keep Issue #78 open for slow-reader/backpressure and disposable Worker runtime proof.
 - Current main is ea066417ac22d0da1062732dae1b0b7c5cc47edb. PR #115 is merged. The available combined-status query returned no status entries for this SHA and the commit-workflow lookup only exposes PR-triggered runs; therefore this session does not independently certify CI for the latest main commit. The previous recorded main CI evidence must not be generalized to this new commit.
 - No Cloudflare resources, D1 data, environment variables, routes, DNS, or deployments were changed.
+
+## 2026-10-30 — PR #116 merged; runtime gates unchanged
+
+- PR #116 (`docs(review): record VLESS session lease audit`) was squash-merged into `main` as `373948bc8f8495d2e8a970bf618355e2dd57b0f8`.
+- Exact PR-head CI run `41069802838` completed successfully; job `test` and step `npm run verify` both succeeded. This is PR-head CI evidence. The connector did not return a post-merge workflow run for the squash commit, so do not describe this as post-merge CI.
+- No open PRs remained at this checkpoint. Issues #106 and #78 remain open; the focused review findings and remaining runtime requirements were added as issue comments.
+- No confirmed defect was found in the D1 admission/lease code. The live disposable D1 race/expiry test, Nova REF-032, and real disposable Worker slow-reader/backpressure probe remain release gates.
+- No Cloudflare resources, existing staging data, environment settings, routes, DNS, or deployments were changed.
