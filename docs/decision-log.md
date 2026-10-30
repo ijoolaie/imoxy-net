@@ -149,3 +149,8 @@ Inspected the pinned Nova Proxy 5.0.0 README, GUIDE, package manifest and versio
 ## 2026-10-30 — VLESS session-lease code review
 
 Reviewed the current D1 admission SQL, migration 0007, handler lifecycle and SQLite-backed integration tests. The single conditional INSERT ... SELECT is consistent with D1's documented single-threaded per-database query processing and primary-routed writes; the live D1 race/expiry test remains required. Current call paths use canonical UTC ISO timestamps, lease expiry covers handshake + max session duration + grace, ambiguous release remains counted until expiry, and cap reductions affect new admissions only. No confirmed defect was found; no code change was warranted. SQLite concurrency tests do not establish live D1 behavior. Issue #106 and #78 remain open. Latest main SHA is ea066417ac22d0da1062732dae1b0b7c5cc47edb; CI for that exact commit was not independently confirmed in this session. No Cloudflare mutation or deployment occurred.
+
+
+## 2026-10-30 — PR #116 merge and CI evidence
+
+PR #116 recorded the focused VLESS session-lease code review and was squash-merged as `373948bc8f8495d2e8a970bf618355e2dd57b0f8`. Exact PR-head CI run `41069802838` passed, including `npm run verify`. The connector returned no post-merge workflow run for the squash commit, so this is not claimed as post-merge CI. No confirmed code defect was found. Issue #106 and #78 remain open for disposable D1/Nova reference and real Worker slow-reader runtime validation. No Cloudflare resources or existing staging data were changed.
