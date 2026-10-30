@@ -169,4 +169,13 @@ Before accepting the implementation:
 - Verify stale lease expiry and bounded cleanup: each admission best-effort prunes at most 100 expired rows, expired rows never count toward capacity, and a lease already expired at admission is rejected. Include worker termination/restart behavior.
 - Repeat concurrency and lifecycle tests against a dedicated disposable Cloudflare D1 database; SQLite tests are not sufficient to pass the runtime gate.
 
-SQLite-backed actual-SQL and handler tests pass, and PR #108 is merged. A real disposable Cloudflare D1 concurrency/expiry test, controlled Worker smoke test, and Nova comparison remain required. No Worker deployment or Cloudflare mutation was performed.
+SQLite-backed actual-SQL and handler tests pass, and PR #108 is merged. A disposable real-Cloudflare-D1 direct-SQL concurrency/expiry test passed on 2026-10-30 (see `docs/d1-runtime-validation-2026-10-30.md`); this does not exercise the production D1Store wrapper or deployed Worker. Production Worker invocation, Nova comparison and a controlled slow-reader runtime probe remain required. No production/staging Worker was deployed or changed.
+
+
+## VLESS downstream send serialization and finite application-submitted byte bound — 2026-10-30
+
+The VLESS relay's upstream pump performs exactly one `reader.read()`, then awaits `reserveAndSettle()` before requesting another chunk. For download traffic, `reserveAndSettle()` calls synchronous `server.send(bytes)` and then awaits quota settlement; if send or settlement fails, the session closes and the pump does not read/forward another chunk. The handler rejects a whole chunk before reservation/send if it would exceed the remaining `PROXY_MAX_DOWNLOAD_BYTES` budget. A deterministic test with a deliberately non-consuming WebSocket and a held settlement promise proves no second TCP read/send proceeds while settlement is pending.
+
+For configured positive safe-integer values, the application-submitted downstream payload is bounded per admitted session by `PROXY_MAX_DOWNLOAD_BYTES` plus the two-byte VLESS response header. The mandatory global D1 lease ceiling bounds the aggregate application-submitted payload by at most `PROXY_MAX_CONCURRENT_SESSIONS * (PROXY_MAX_DOWNLOAD_BYTES + 2)` bytes, excluding WebSocket framing/runtime copies and implementation overhead. This is a bound on bytes submitted by the application, **not** a measurement or proof of Cloudflare's internal WebSocket buffer or total Worker memory. The D1 lease expiry is designed to outlive the active session by handshake/setup + maximum lifetime + grace, so it conservatively limits simultaneous admitted sessions.
+
+Keep the disposable Worker slow-reader probe open to observe runtime send latency/errors/close behavior; do not infer internal buffer capacity from client-side backlog. Keep Nova parity separate and unverified.
