@@ -639,3 +639,13 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - This policy bounds cumulative bytes and lifetime per session only. It does not prove Worker-internal WebSocket buffer size or a global bound across unlimited concurrent sessions. Nova slow-client behavior remains uncharacterized.
 - No Cloudflare values were configured; no Worker deployment, route/DNS change, D1 mutation, or live runtime probe occurred. The existing bootstrap staging Worker and non-empty D1 remain untouched. Issue #78 stays open.
 - Local full-suite verification passed: 187/187 tests, 0 failures; worker.js syntax check passed; git diff --check passed. PR-head CI run 41037356708 completed success on exact commit 7c320f42e85102ee0c7fffe0cc62103172227352, including npm run verify. PR #104 remains open pending final review/merge. Next: define aggregate concurrency policy and complete the disposable Worker/D1 runtime gates; no live resources were changed.
+
+
+## Post-merge verification — PR #104 (2026-10-30)
+
+- PR #104 is merged into main as b5c44b16132c9f540de16ab9d4ce54ab5fa01fa4: https://github.com/ijoolaie/imoxy-net/pull/104.
+- Exact PR-head CI run 41037647099 passed on 1a2e18948a41c7cb5f79ec72368e263451c603c3. Post-merge main CI run 41037834214 passed on the exact merge commit b5c44b16132c9f540de16ab9d4ce54ab5fa01fa4; npm run verify succeeded.
+- Local full Node suite passed 187/187 with 0 failures; node --check worker.js and git diff --check passed.
+- Issue #78 remains open. The merged per-session budget policy requires PROXY_MAX_DOWNLOAD_BYTES and PROXY_MAX_SESSION_DURATION_MS and is fail-closed when either is missing/invalid. No values were configured in Cloudflare.
+- This is not proof of Worker-internal WebSocket buffering or aggregate bounds across concurrent sessions. No Worker deployment, route/DNS change, D1 mutation, or live probe occurred. The bootstrap staging Worker and its non-empty D1 remain untouched.
+- Next gates: define aggregate concurrent-session resource policy; identify and prove an isolated disposable Worker/hostname and disposable D1; select approved byte/time/frame/concurrency limits and cleanup; then run the controlled slow-reader and Worker/D1 smoke probes. Phase 6 remains In progress and Phase 12 remains Blocked.
