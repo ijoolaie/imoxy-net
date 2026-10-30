@@ -103,6 +103,6 @@ The per-session download-byte and maximum-lifetime policy described above is now
 
 ## VLESS concurrent-session limits — 2026-10-30
 
-Source inspection found that `max_connections` is persisted and mapped by the D1 adapter but is not read by the current VLESS handler. Therefore per-account concurrent-session enforcement is **Not assessed / not implemented**. The installation-wide concurrent-session bound is also absent. A Worker-global map is not a valid cross-isolate enforcement mechanism.
+Per-account and installation-wide session admission are now implemented using D1-backed leases (PR #108, migration 0007). Automated SQLite-backed actual-SQL and handler lifecycle tests pass. The feature is **implemented but not reference/runtime verified**: real D1 concurrency/expiry and Worker lifecycle tests remain pending. The current imoxy policy treats `max_connections = 0` as fail-closed; Nova 5.0.0's exact zero semantics are still unknown. A Worker-global map is not a valid cross-isolate enforcement mechanism.
 
 Issue #106 tracks a proposed D1-backed lease design and its exact-capacity, concurrent-admission, release, expiry, real-D1 and Nova comparison gates. No concurrency or connection-limit parity claim is permitted until those tests pass against the pinned reference. This finding does not change the status of the other protocol rows.
