@@ -144,3 +144,8 @@ PR #111 adds best-effort cleanup of at most 100 expired session leases before ea
 ## 2026-10-30 — Nova per-account session-limit evidence remains unknown
 
 Inspected the pinned Nova Proxy 5.0.0 README, GUIDE, package manifest and version metadata. The user-facing docs do not specify `max_connections`, the unit counted, zero semantics, slot-release timing, or behavior after cap changes. The shipped worker is marked protected; no implementation behavior was inferred from that artifact. Added REF-032 to define the required controlled black-box cases. Imoxy's zero=deny-all behavior is an explicit fail-closed choice, not a Nova parity finding. PR #114 merged this evidence update; exact-head and post-merge CI passed.
+
+
+## 2026-10-30 — VLESS session-lease code review
+
+Reviewed the current D1 admission SQL, migration 0007, handler lifecycle and SQLite-backed integration tests. The single conditional INSERT ... SELECT is consistent with D1's documented single-threaded per-database query processing and primary-routed writes; the live D1 race/expiry test remains required. Current call paths use canonical UTC ISO timestamps, lease expiry covers handshake + max session duration + grace, ambiguous release remains counted until expiry, and cap reductions affect new admissions only. No confirmed defect was found; no code change was warranted. SQLite concurrency tests do not establish live D1 behavior. Issue #106 and #78 remain open. Latest main SHA is ea066417ac22d0da1062732dae1b0b7c5cc47edb; CI for that exact commit was not independently confirmed in this session. No Cloudflare mutation or deployment occurred.
