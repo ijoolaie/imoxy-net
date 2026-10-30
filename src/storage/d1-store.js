@@ -398,10 +398,14 @@ export function createD1Store(db) {
       if (!validId(sessionId) || !validId(accountId) ||
           !Number.isFinite(createdTimestamp) || !Number.isFinite(expiryTimestamp) ||
           !Number.isFinite(currentTimestamp) || currentTimestamp < createdTimestamp ||
-          expiryTimestamp <= createdTimestamp ||
+          expiryTimestamp <= createdTimestamp || expiryTimestamp <= currentTimestamp ||
           !Number.isSafeInteger(maxConcurrentSessions) || maxConcurrentSessions < 1) {
         throw new TypeError("Proxy session admission fields are invalid.");
       }
+
+      // Opportunistically prune a bounded batch. Expired leases are excluded
+      // from the atomic admission predicate even if cleanup is unavailable.
+      try { await this.cleanupExpiredProxySessions({ at, limit: 100 }); } catch {}
 
       const admission = await db.prepare(`INSERT INTO proxy_active_sessions
         (session_id, account_id, created_at, expires_at)

@@ -254,9 +254,10 @@ test("session admission uses one parameterized conditional INSERT and verifies t
     at: "2026-10-27T12:00:00.000Z", maxConcurrentSessions: 4
   });
   assert.equal(result.allowed, true);
-  assert.equal(db.calls.length, 2);
-  assert.match(db.calls[0].sql, /INSERT INTO proxy_active_sessions[\s\S]*SELECT \?[\s\S]*a\.max_connections[\s\S]*ON CONFLICT\(session_id\) DO NOTHING/);
-  assert.deepEqual(db.calls[0].values, [
+  assert.equal(db.calls.length, 3);
+  assert.match(db.calls[0].sql, /DELETE FROM proxy_active_sessions/);
+  assert.match(db.calls[1].sql, /INSERT INTO proxy_active_sessions[\s\S]*SELECT \?[\s\S]*a\.max_connections[\s\S]*ON CONFLICT\(session_id\) DO NOTHING/);
+  assert.deepEqual(db.calls[1].values, [
     "session-1", "2026-10-27T12:00:00.000Z", "2026-10-27T13:00:00.000Z",
     "acct-1", "2026-10-27T12:00:00.000Z", "2026-10-27T12:00:00.000Z",
     "2026-10-27T12:00:00.000Z", 4

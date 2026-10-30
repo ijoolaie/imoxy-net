@@ -197,6 +197,14 @@ test("D1 session admission excludes expired leases and cleanup is bounded", asyn
     expiresAt: "2026-10-27T13:02:00.000Z", at: "2026-10-27T12:02:00.000Z", maxConcurrentSessions: 2
   };
   assert.equal((await store.acquireProxySession(later)).allowed, true);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM proxy_active_sessions").get().n, 1,
+    "admission should opportunistically remove the expired lease before inserting the replacement");
+
+  db.prepare(`INSERT INTO proxy_active_sessions (session_id, account_id, created_at, expires_at)
+    VALUES (?, ?, ?, ?)`).run("stale-2", "acct-1", "2026-10-27T10:00:00.000Z", "2026-10-27T10:01:00.000Z");
+  db.prepare(`INSERT INTO proxy_active_sessions (session_id, account_id, created_at, expires_at)
+    VALUES (?, ?, ?, ?)`).run("stale-3", "acct-1", "2026-10-27T10:02:00.000Z", "2026-10-27T10:03:00.000Z");
+  assert.equal(await store.cleanupExpiredProxySessions({ at: later.at, accountId: "acct-1", limit: 1 }), 1);
   assert.equal(await store.cleanupExpiredProxySessions({ at: later.at, accountId: "acct-1", limit: 1 }), 1);
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM proxy_active_sessions").get().n, 1);
   db.close();
