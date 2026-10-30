@@ -649,3 +649,18 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Issue #78 remains open. The merged per-session budget policy requires PROXY_MAX_DOWNLOAD_BYTES and PROXY_MAX_SESSION_DURATION_MS and is fail-closed when either is missing/invalid. No values were configured in Cloudflare.
 - This is not proof of Worker-internal WebSocket buffering or aggregate bounds across concurrent sessions. No Worker deployment, route/DNS change, D1 mutation, or live probe occurred. The bootstrap staging Worker and its non-empty D1 remain untouched.
 - Next gates: define aggregate concurrent-session resource policy; identify and prove an isolated disposable Worker/hostname and disposable D1; select approved byte/time/frame/concurrency limits and cleanup; then run the controlled slow-reader and Worker/D1 smoke probes. Phase 6 remains In progress and Phase 12 remains Blocked.
+
+
+## Latest work session — 2026-10-30 (VLESS session admission audit)
+
+- Starting main: `6b19f5762bc17b31d1202f3cd2995b58c47cda11`, PR #103 merge. PR #103 is merged; push CI run `41038724536` completed **success** on that exact main commit.
+- Audited current `src/proxy/vless-websocket-handler.js`, `src/storage/d1-store.js`, account schema, D1 quota reservation implementation, and existing VLESS tests.
+- Confirmed `proxy_accounts.max_connections` is present in migration 0001 and mapped to `account.maxConnections` by the D1 adapter, but the VLESS handler never reads `maxConnections`. No account-level concurrent-session cap is enforced.
+- Confirmed the handler allocates request-local session state. A Worker-global `Map` cannot coordinate across isolates/instances and is not durable; do not use it for admission.
+- The per-session download-byte/lifetime limits merged in PR #104 do not bound concurrent sessions or installation-wide aggregate resource use.
+- Opened Issue #106: https://github.com/ijoolaie/imoxy-net/issues/106.
+- Proposed first implementation: D1-backed active-session leases with a single conditional `INSERT ... SELECT` write that checks the active account, optional per-account `max_connections`, and mandatory positive installation-wide `PROXY_MAX_CONCURRENT_SESSIONS` in the same statement. Acquire before upstream TCP dial; release idempotently on every close path; ambiguous leases remain until expiry after a bounded grace. Durable Objects remain a per-account fallback only if real D1 concurrency/latency evidence requires them; no global singleton.
+- This is a design/documentation checkpoint only. No session lease migration, handler code, Worker binding, Cloudflare resource, D1 database, route, DNS, or deployment was changed. Real D1 concurrency and Worker runtime gates remain pending.
+- Updated the session-admission design, decision log, acceptance plan, architecture, parity matrix, reference baseline, and roadmap on branch `docs/vless-session-admission-design`.
+- Current active phase: Phase 6 — Subscription/proxy compatibility. Per-account and installation-wide concurrent-session admission remain unimplemented; downstream Worker-internal WebSocket buffering remains unproven; no Nova parity claim is made.
+- Next: review the exact documentation diff, obtain exact-head CI, then implement migration + atomic D1 lease acquire/release and handler lifecycle integration with SQLite-backed actual-SQL concurrency tests. Only after that, run the controlled real-D1/Worker gate against a proven disposable target. Preserve the bootstrap staging Worker and its non-empty D1.

@@ -45,3 +45,12 @@ This is a critical architectural mismatch, not a small missing endpoint. Before 
 ## Restricted proxy route prototype — 2026-10-28
 
 Main now routes /proxy/vless before static assets and the management API. It implements a restricted VLESS-over-WebSocket TCP path with hash-only credential lookup, account active/expiry checks, explicit host/port allowlists, and a Cloudflare TCP socket adapter. It is intentionally fail-closed when the database or allowlist is missing. This is a first vertical slice only: real Cloudflare Worker/D1 runtime behavior, DNS/private-network protections beyond the allowlist, usage metering, quota reservations, speed/concurrency enforcement, and Nova parity are unverified.
+
+
+## VLESS session admission boundary — 2026-10-30
+
+The current VLESS handler enforces per-session byte and lifetime ceilings but does not enforce the persisted account `max_connections` field or an installation-wide active-session ceiling. Its request-local state cannot provide cross-isolate coordination. Do not add a Worker-global in-memory map as the admission authority.
+
+The proposed first slice is a D1-backed active-session lease table with a single conditional write statement that checks the account's current status/expiry, its optional `max_connections` cap, and a mandatory installation-wide `PROXY_MAX_CONCURRENT_SESSIONS` cap before inserting a unique lease. The Worker must acquire before opening upstream TCP and release idempotently on all close paths. A D1 primary/concurrency race test is a mandatory gate; if D1 admission cannot meet measured correctness/latency needs, evaluate a per-account Durable Object rather than a global singleton.
+
+Design and acceptance gates: [vless-session-admission-design.md](vless-session-admission-design.md), [Issue #106](https://github.com/ijoolaie/imoxy-net/issues/106). No concurrency enforcement or runtime validation is implemented by this documentation decision.

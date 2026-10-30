@@ -86,3 +86,8 @@ A per-session cumulative download-byte budget and maximum session lifetime are b
 ## Post-merge status correction — 2026-10-30
 
 The per-session download-byte and maximum-lifetime policy described above is now merged into main as b5c44b16132c9f540de16ab9d4ce54ab5fa01fa4 (PR #104). Post-merge main CI run 41037834214 passed on that exact commit. This does not change the parity status: the policy is imoxy-specific, Worker-internal WebSocket buffering remains unproven, aggregate concurrent-session bounds remain open, and no live Worker/D1 or Nova runtime test has been run.
+
+
+## Concurrent-session compatibility gap — 2026-10-30
+
+The imoxy VLESS handler currently does not enforce the persisted `max_connections` account field or an installation-wide concurrent-session ceiling. This is an implementation gap, not a finding about Nova Proxy behavior. The pinned Nova runtime's exact cap semantics, boundary behavior, and treatment of already-open sessions remain uncharacterized. REF scenarios and repeatable black-box comparison are required before any parity claim.
