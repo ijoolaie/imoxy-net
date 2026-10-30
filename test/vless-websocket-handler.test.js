@@ -922,7 +922,7 @@ test("download settlement failure stops the TCP reader before it requests anothe
 });
 
 
-test("requires explicit finite download and session-duration budgets", async () => {
+test("requires explicit finite download, duration, concurrency and lease-grace budgets", async () => {
   for (const overrides of [
     { PROXY_MAX_DOWNLOAD_BYTES: "" },
     { PROXY_MAX_DOWNLOAD_BYTES: "0" },
@@ -1013,6 +1013,7 @@ test("session duration ceiling closes the WebSocket and upstream socket", async 
 
   assert.ok(h.server.closeCalls.some((item) => item.code === 1001 && item.reason === "session_duration_exceeded"));
   assert.equal(upstream.closed, true);
+  assert.equal(h.sessionCalls.release.length, 1);
 });
 
 
