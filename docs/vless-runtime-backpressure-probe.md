@@ -69,3 +69,8 @@ The client-side receive backlog is not a direct measurement of the Worker's inte
 - [ ] Runtime-internal buffering status described without extrapolating beyond evidence.
 - [ ] Temporary endpoint removed and cleanup verified.
 - [ ] Issue #78 and handoff updated with observed evidence and residual risk.
+
+
+## Authorization checkpoint — 2026-10-30
+
+The owner has explicitly authorized proceeding with a disposable staging runtime probe. The authorization is recorded, but the target and operational limits are not yet established. Before execution, still obtain/verify a staging-only Cloudflare account context, dedicated Worker name and hostname/path, approved byte/time/frame/concurrency ceilings, log/metrics access, and a cleanup operator/procedure. The authorization does not by itself approve creating Cloudflare resources, binding routes, changing DNS, or touching D1. Previously discussed candidate limits (10 seconds, 8 MiB, 16 KiB frames, two clients) are **not approved**. No probe has been executed as of this checkpoint.
