@@ -1,6 +1,6 @@
 # VLESS session admission and concurrency design
 
-**Status:** Design decision for the next implementation slice; not implemented or runtime-verified  
+**Status:** First implementation merged; exact-head CI and SQLite-backed actual-SQL tests pass; live D1/Worker validation and Nova parity remain pending  
 **Date:** 2026-10-30  
 **Related:** [Issue #106](https://github.com/ijoolaie/imoxy-net/issues/106), [Issue #78](https://github.com/ijoolaie/imoxy-net/issues/78)
 
@@ -13,7 +13,7 @@ The recently merged `PROXY_MAX_DOWNLOAD_BYTES` and `PROXY_MAX_SESSION_DURATION_M
 ## Semantics to preserve
 
 - `max_connections = NULL`: no per-account ceiling is configured.
-- `max_connections = 0`: deny all new sessions for that account.
+- `max_connections = 0`: the current imoxy implementation fails closed and denies new sessions. The pinned Nova 5.0.0 interpretation has not been established; this is not a parity claim.
 - Positive `max_connections`: admit only while the number of unexpired sessions for that account is below the configured value.
 - `PROXY_MAX_CONCURRENT_SESSIONS`: mandatory positive installation-wide ceiling. This is separate from the account setting and is required to bound aggregate admitted sessions across all accounts.
 - A lowered account ceiling affects new admissions; it does not evict already admitted sessions.
@@ -21,9 +21,9 @@ The recently merged `PROXY_MAX_DOWNLOAD_BYTES` and `PROXY_MAX_SESSION_DURATION_M
 
 No numeric production value is selected here. The installation-wide value must be chosen from measured capacity and approved environment-specific limits before VLESS is enabled.
 
-## Selected first implementation direction: D1-backed leases
+## Implemented first slice: D1-backed leases
 
-Use the existing D1 database as the admission authority, with a new `proxy_active_sessions` lease table and a **single conditional SQL write statement** for admission. Do not implement a separate read-then-insert sequence.
+The existing D1 database is the admission authority. Migration `0007_proxy_active_sessions.sql` adds the lease table; `createD1Store().acquireProxySession()` uses a **single conditional SQL write statement** for admission. There is no separate read-then-insert capacity check.
 
 The statement must perform an `INSERT INTO ... SELECT` from the matching active, non-expired account and include both predicates in that same statement:
 
@@ -50,7 +50,7 @@ References:
 7. If release fails or the Worker is terminated, the lease remains counted until its expiry. Never delete an uncertain lease early.
 8. Expired leases are excluded from admission counts immediately. Delete old rows with bounded opportunistic or scheduled cleanup; cleanup must not be part of the correctness predicate.
 
-The handler must guard release with a one-shot state transition so repeated close/error callbacks cannot release a different lease or cause incorrect accounting. The lease deadline must include the handler's bounded pre-session setup/handshake window; otherwise a slow DNS/TCP setup could outlive the lease before the authenticated lifetime timer starts.
+The handler now guards release with a one-shot state transition so repeated close/error callbacks cannot release a different lease or cause incorrect accounting. The lease deadline must include the handler's bounded pre-session setup/handshake window; otherwise a slow DNS/TCP setup could outlive the lease before the authenticated lifetime timer starts.
 
 ### Failure and retry rules
 
@@ -74,9 +74,9 @@ The current repository has no Durable Object binding or migration. Adding one be
 
 Reference: [Cloudflare Durable Objects — concepts](https://developers.cloudflare.com/durable-objects/concepts/what-are-durable-objects/).
 
-## Required schema direction
+## Implemented schema — migration 0007
 
-A migration should add a table equivalent to:
+Migration `0007_proxy_active_sessions.sql` adds the following table and indexes:
 
 ```sql
 CREATE TABLE proxy_active_sessions (
@@ -129,3 +129,15 @@ The exact migration must include identifier/date constraints consistent with the
 - It does not set a per-account speed cap or prove throughput shaping.
 - It does not establish Nova compatibility.
 - It does not authorize deployment, Cloudflare resource creation, D1 mutation, route/DNS changes, or production configuration.
+
+
+## Implementation checkpoint — PR #108
+
+- Merged to main: `8bc11df4aa6c5a8ae77d28a3b77312c35c33b8b9`.
+- Exact PR-head CI: run `41040392148`, success. Push CI on the same head: run `41040222126`, success. Post-merge main CI: run `41040478912`, success.
+- Added migration 0007, D1 acquire/release/cleanup methods, and VLESS handler admission before TCP dial.
+- Added SQLite-backed tests against the actual D1 adapter SQL for per-account and installation-wide caps, last-slot races, duplicate/conflict behavior, disabled/expired accounts, stale lease cleanup, idempotent release, and restrictive account deletion.
+- Added handler tests for admission-before-dial, denial/ambiguous failure, upstream setup failure, normal close, session lifetime, quota/download termination, and release failure.
+- Live Cloudflare D1 concurrency behavior, deployed Worker lifecycle, lease grace adequacy, and cleanup after isolate termination remain unverified. Do not enable this in a deployed environment until the dedicated disposable D1/Worker gate passes.
+- `PROXY_MAX_CONCURRENT_SESSIONS` and `PROXY_SESSION_LEASE_GRACE_MS` are required but have not been set in Cloudflare.
+- The current zero-cap behavior is deliberately fail-closed; Nova 5.0.0 semantics for `max_connections = 0` remain an open reference question.

@@ -127,3 +127,10 @@ Source inspection confirms that `proxy_accounts.max_connections` is stored and r
 Decision for the first implementation slice: evaluate D1-backed active-session leases with one conditional `INSERT ... SELECT` statement that atomically checks both the per-account `max_connections` value and a mandatory installation-wide `PROXY_MAX_CONCURRENT_SESSIONS` ceiling. Do not use a read-then-insert sequence. `NULL` means no account-specific cap; zero denies new sessions. Acquire before upstream TCP dial; release idempotently on all close paths; stale/ambiguous leases remain counted until expiry after maximum session lifetime plus a cleanup grace.
 
 This is a design choice, not an implemented or D1-verified guarantee. The final selection is conditional on a real disposable-D1 concurrent last-slot test and admission-latency measurement. If D1 does not meet the correctness/performance requirement, evaluate one Durable Object per account (not a global singleton). See [vless-session-admission-design.md](vless-session-admission-design.md) and [Issue #106](https://github.com/ijoolaie/imoxy-net/issues/106). No production/staging resource was changed.
+
+
+## 2026-10-30 — VLESS session lease implementation merged
+
+PR #108 merged as `8bc11df4aa6c5a8ae77d28a3b77312c35c33b8b9`. The handler now acquires a D1-backed active-session lease before opening upstream TCP and releases it once after local/upstream cleanup. One conditional `INSERT ... SELECT` checks the current active account, optional per-account `max_connections`, and required installation-wide `PROXY_MAX_CONCURRENT_SESSIONS`. Lease expiry includes the bounded initial handshake/setup interval, maximum session duration, and required grace. Migration 0007 uses a restrictive account FK so account deletion cannot silently free a live lease.
+
+Exact-head PR CI, same-head push CI, and post-merge main CI passed. SQLite-backed actual-SQL and handler lifecycle tests passed. Real disposable Cloudflare D1 race/expiry tests and Worker runtime validation remain mandatory; no Cloudflare resource or D1 data was changed. The current `max_connections = 0` behavior is fail-closed, not verified against Nova 5.0.0.
