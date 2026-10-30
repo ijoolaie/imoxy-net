@@ -48,7 +48,7 @@ References:
 5. Record lease expiry after the maximum-session deadline plus a documented cleanup grace. The current handler's initial handshake timer also covers DNS/TCP setup before the authenticated lifetime timer starts, so the lease TTL must include the bounded pre-session setup window as well as the maximum authenticated lifetime and grace. Align the timer start and lease deadline explicitly in implementation/tests; never let a lease expire while its socket may still be active. The grace prevents delayed timer callbacks from allowing a second session while the first may still be alive. It may temporarily over-count after a crash; this is intentionally fail-closed.
 6. Release the lease idempotently on every close path: client close/error, upstream close/error, idle timeout, maximum lifetime, quota denial, send/write failure, and setup failure after admission.
 7. If release fails or the Worker is terminated, the lease remains counted until its expiry. Never delete an uncertain lease early.
-8. Expired leases are excluded from admission counts immediately. Delete old rows with bounded opportunistic or scheduled cleanup; cleanup must not be part of the correctness predicate.
+8. Expired leases are excluded from admission counts immediately. Before each new admission, the D1 adapter best-effort deletes at most 100 expired leases; account deletion also prunes at most 1,000 expired leases for that account. Cleanup failure does not affect the correctness predicate. Already-expired lease requests are rejected.
 
 The handler now guards release with a one-shot state transition so repeated close/error callbacks cannot release a different lease or cause incorrect accounting. The lease deadline must include the handler's bounded pre-session setup/handshake window; otherwise a slow DNS/TCP setup could outlive the lease before the authenticated lifetime timer starts.
 
@@ -103,7 +103,8 @@ The exact migration must include identifier/date constraints consistent with the
 - NULL account cap, zero account cap, positive cap, disabled account, and expired account.
 - Duplicate same session ID and account is idempotent; same ID with a different account is a conflict.
 - Release is idempotent and scoped to both session and account.
-- Expired lease does not count; cleanup removes expired rows without changing admission behavior.
+- Expired lease does not count; each admission best-effort prunes at most 100 expired rows, and cleanup removes expired rows without changing admission behavior.
+- A request whose lease expiry is already at or before its current admission time is rejected.
 - Account deletion is rejected while a live lease exists; expired rows are cleaned before deletion. No cascade may free a slot while the old session can still forward.
 - Every SQL input is bound; no user-supplied identifier is interpolated into SQL.
 
@@ -141,3 +142,8 @@ The exact migration must include identifier/date constraints consistent with the
 - Live Cloudflare D1 concurrency behavior, deployed Worker lifecycle, lease grace adequacy, and cleanup after isolate termination remain unverified. Do not enable this in a deployed environment until the dedicated disposable D1/Worker gate passes.
 - `PROXY_MAX_CONCURRENT_SESSIONS` and `PROXY_SESSION_LEASE_GRACE_MS` are required but have not been set in Cloudflare.
 - The current zero-cap behavior is deliberately fail-closed; Nova 5.0.0 semantics for `max_connections = 0` remain an open reference question.
+
+
+## Lease cleanup hardening — PR #111
+
+PR #111 (`4df6762fc34980457e275238fd380f39e6606894`) adds bounded opportunistic cleanup before admission and rejects lease requests that are already expired at admission time. Cleanup deletes at most 100 rows per admission; capacity correctness still depends only on the atomic count predicate filtering `expires_at > at`, so a cleanup failure cannot over-admit. Exact-head PR CI, same-head push CI, and post-merge main CI passed. Real D1 behavior remains unverified.
