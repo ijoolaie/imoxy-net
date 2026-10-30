@@ -777,3 +777,10 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - The temporary Worker upload and its D1 binding were verified in Cloudflare settings, but invocation was blocked: outbound requests to its `workers.dev` URL returned 403 from the available execution environment. Thus this is direct real-D1 API evidence, not an end-to-end production Worker test. No WebSocket slow-reader/runtime-buffer probe was completed.
 - Both temporary resources were deleted and resource-list checks confirmed their absence. No staging or existing user resource was modified.
 - Evidence and limitations: [docs/d1-runtime-validation-2026-10-30.md](docs/d1-runtime-validation-2026-10-30.md). Issue #106 and #78 remain open; Nova REF-032 remains unverified. Do not mark either issue complete.
+
+## PR #118 merge and CI verification — 2026-10-30
+
+- PR #118 merged as `dfa2d1a7dcf2fa6955857de544e56299e156e86d`: https://github.com/ijoolaie/imoxy-net/pull/118.
+- Exact PR-head CI run `41074368112` passed on `c9135e6d49adffc2bb33d15d5e55a6104b33326b`; job `test` and `npm run verify` passed.
+- Post-merge main CI run `41074443500` passed on the exact merge commit `dfa2d1a7dcf2fa6955857de544e56299e156e86d`; job `test` and `npm run verify` passed.
+- PR #118 changed documentation only. Issues #106 and #78 remain open; the Worker invocation and slow-reader gates remain unresolved.
