@@ -74,3 +74,13 @@ The client-side receive backlog is not a direct measurement of the Worker's inte
 ## Authorization checkpoint — 2026-10-30
 
 The owner has explicitly authorized proceeding with a disposable staging runtime probe. The authorization is recorded, but the target and operational limits are not yet established. Before execution, still obtain/verify a staging-only Cloudflare account context, dedicated Worker name and hostname/path, approved byte/time/frame/concurrency ceilings, log/metrics access, and a cleanup operator/procedure. The authorization does not by itself approve creating Cloudflare resources, binding routes, changing DNS, or touching D1. Previously discussed candidate limits (10 seconds, 8 MiB, 16 KiB frames, two clients) are **not approved**. No probe has been executed as of this checkpoint.
+
+## Application policy implementation checkpoint — 2026-10-30
+
+Branch `fix/vless-session-download-budget` implements a fail-closed per-session policy in the VLESS handler:
+- `PROXY_MAX_DOWNLOAD_BYTES`: required positive safe integer; cumulative successfully forwarded download bytes may not exceed this value.
+- `PROXY_MAX_SESSION_DURATION_MS`: required positive safe integer and no greater than the maximum supported timer delay; starts after authentication and closes the session at expiry.
+- A TCP chunk that would exceed the remaining download budget is rejected as a whole before quota reservation and WebSocket send. Session termination cancels/closes upstream resources.
+- Missing or invalid settings return HTTP 503 before WebSocket pair allocation.
+
+No values have been selected for or applied to any Cloudflare environment. These are per-session application limits only; they do not measure the Worker's internal send buffer and do not bound aggregate resource use across an unlimited number of concurrent sessions. The real Worker slow-reader probe remains **not run** and must still use a disposable, isolated target with separately approved limits and cleanup.
