@@ -156,9 +156,9 @@ Node regression coverage must prove:
 These tests establish a per-session application policy only. They do not prove Worker-internal buffer size, aggregate resource bounds across unlimited concurrent sessions, actual Cloudflare runtime behavior, D1 integration, or Nova parity. Keep the disposable Worker slow-reader probe and controlled Worker/D1 smoke gate as separate pending gates. Do not enable VLESS in a live environment until reviewed finite settings are supplied and the target is proven isolated.
 
 
-## VLESS concurrent-session admission — 2026-10-30 (planned; not implemented)
+## VLESS concurrent-session admission — 2026-10-30 (implemented; live runtime gate pending)
 
-The current handler does not enforce persisted `max_connections`. The proposed admission contract is documented in [vless-session-admission-design.md](vless-session-admission-design.md), Issue #106.
+The handler now enforces per-account and installation-wide admission through D1-backed leases. The implementation and lifecycle contract are documented in [vless-session-admission-design.md](vless-session-admission-design.md), Issue #106.
 
 Before accepting the implementation:
 - Require a positive safe-integer installation-wide `PROXY_MAX_CONCURRENT_SESSIONS` setting; do not invent a production value or default.
@@ -169,4 +169,4 @@ Before accepting the implementation:
 - Verify stale lease expiry and bounded cleanup, including worker termination/restart behavior.
 - Repeat concurrency and lifecycle tests against a dedicated disposable Cloudflare D1 database; SQLite tests are not sufficient to pass the runtime gate.
 
-No implementation, live D1 test, Worker deployment, or Nova comparison is implied by this planned acceptance section.
+SQLite-backed actual-SQL and handler tests pass, and PR #108 is merged. A real disposable Cloudflare D1 concurrency/expiry test, controlled Worker smoke test, and Nova comparison remain required. No Worker deployment or Cloudflare mutation was performed.
