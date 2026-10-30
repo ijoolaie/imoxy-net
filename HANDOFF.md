@@ -157,7 +157,8 @@ Every user-facing response about this repository ends with an evidence-based sch
 
 ## Latest work session — 2026-10-28 (usage-event atomicity design)
 
-- Objective: resume from the quota-accounting checkpoint and define stable usage-event identity, idempotent reporting, and atomic reservation semantics before implementation.- Branch: `docs/usage-event-atomicity-design` (documentation-only slice).
+- Objective: resume from the quota-accounting checkpoint and define stable usage-event identity, idempotent reporting, and atomic reservation semantics before implementation.
+- Branch: `docs/usage-event-atomicity-design` (documentation-only slice).
 - Added `docs/usage-event-atomicity-design.md`: stable producer-scoped caller-provided event ID; same-ID/same-payload replay no-op; same-ID/different-payload conflict; event ledger + daily aggregate atomicity; safe-integer/failure semantics; distinct reservation lifecycle; and required disposable real-D1 integration gates.
 - Updated `docs/decision-log.md`, `docs/quota-policy.md`, `docs/acceptance-test-plan.md`, and `docs/roadmap.md` to align the decision, limitations, and acceptance requirements. No application code, migration, ledger, reservation, or API behavior was changed.
 - Public documentation check: Cloudflare D1 Worker API page (last updated 2026-06-22) describes `db.batch([...])` as batched SQL transactions that roll back the sequence if a statement fails. This is an external documentation finding, not runtime verification; the exact design must still be tested on an isolated disposable D1 database.
@@ -316,6 +317,7 @@ Every user-facing response about this repository ends with an evidence-based sch
 
 
 ## Atomic quota reservation branch — 2026-10-28 (pending CI/review)
+
 - Active branch: `feat/atomic-quota-reservations`.
 - Added migration `0006_atomic_quota_reservations.sql`: `quota_reservations`, `usage_events`, payload immutability checks, and a trigger that applies the daily aggregate and settles the matching reservation when a claimed event transitions to applied.
 - Added `createQuotaReservationService`, requiring caller-supplied stable reservation/event IDs and hashing canonical event fields. Settlement takes the reservation's original `usageDate`, so a chunk reserved before UTC midnight does not silently move into the next day.
@@ -475,7 +477,8 @@ This update supersedes earlier pending-status notes where they conflict with the
 1. Validate connect/open timeout and cleanup behavior in a disposable real Cloudflare Worker environment.
 2. Test D1 durability, transaction/concurrency behavior, quota reservation recovery, idempotency and hard data-plane enforcement.
 3. Review downstream backpressure and memory bounds under slow-client/slow-upstream conditions.
-4. Complete maintained special-purpose IPv4/IPv6 destination filtering and SSRF-focused tests.5. Obtain authorized, pinned Nova reference scenarios and complete the behavior-parity matrix.
+4. Complete maintained special-purpose IPv4/IPv6 destination filtering and SSRF-focused tests.
+5. Obtain authorized, pinned Nova reference scenarios and complete the behavior-parity matrix.
 6. Resolve distribution-license review; complete panel, Telegram bot and Android client E2E and release certification.
 
 Phase status remains unchanged: phases 0–11 In progress, phase 12 Blocked, phase 13 Not started; no phase is declared Complete. Do not deploy or mutate live Cloudflare resources without explicit approval.
@@ -635,6 +638,136 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Updated decision log, acceptance plan, parity matrix, reference baseline, roadmap and runtime probe documentation. Added required VLESS settings to Cloudflare integration docs. Duplicate appended documentation blocks were removed during local cleanup.
 - This policy bounds cumulative bytes and lifetime per session only. It does not prove Worker-internal WebSocket buffer size or a global bound across unlimited concurrent sessions. Nova slow-client behavior remains uncharacterized.
 - No Cloudflare values were configured; no Worker deployment, route/DNS change, D1 mutation, or live runtime probe occurred. The existing bootstrap staging Worker and non-empty D1 remain untouched. Issue #78 stays open.
+- Local full-suite verification passed: 187/187 tests, 0 failures; worker.js syntax check passed; git diff --check passed. PR-head CI run 41037356708 completed success on exact commit 7c320f42e85102ee0c7fffe0cc62103172227352, including npm run verify. PR #104 remains open pending final review/merge. Next: define aggregate concurrency policy and complete the disposable Worker/D1 runtime gates; no live resources were changed.
+
+
+## Post-merge verification — PR #104 (2026-10-30)
+
+- PR #104 is merged into main as b5c44b16132c9f540de16ab9d4ce54ab5fa01fa4: https://github.com/ijoolaie/imoxy-net/pull/104.
+- Exact PR-head CI run 41037647099 passed on 1a2e18948a41c7cb5f79ec72368e263451c603c3. Post-merge main CI run 41037834214 passed on the exact merge commit b5c44b16132c9f540de16ab9d4ce54ab5fa01fa4; npm run verify succeeded.
+- Local full Node suite passed 187/187 with 0 failures; node --check worker.js and git diff --check passed.
+- Issue #78 remains open. The merged per-session budget policy requires PROXY_MAX_DOWNLOAD_BYTES and PROXY_MAX_SESSION_DURATION_MS and is fail-closed when either is missing/invalid. No values were configured in Cloudflare.
+- This is not proof of Worker-internal WebSocket buffering or aggregate bounds across concurrent sessions. No Worker deployment, route/DNS change, D1 mutation, or live probe occurred. The bootstrap staging Worker and its non-empty D1 remain untouched.
+- Next gates: define aggregate concurrent-session resource policy; identify and prove an isolated disposable Worker/hostname and disposable D1; select approved byte/time/frame/concurrency limits and cleanup; then run the controlled slow-reader and Worker/D1 smoke probes. Phase 6 remains In progress and Phase 12 remains Blocked.
+
+
+## Latest work session — 2026-10-30 (VLESS session admission audit)
+
+- Starting main: `6b19f5762bc17b31d1202f3cd2995b58c47cda11`, PR #103 merge. PR #103 is merged; push CI run `41038724536` completed **success** on that exact main commit.
+- Audited current `src/proxy/vless-websocket-handler.js`, `src/storage/d1-store.js`, account schema, D1 quota reservation implementation, and existing VLESS tests.
+- Confirmed `proxy_accounts.max_connections` is present in migration 0001 and mapped to `account.maxConnections` by the D1 adapter, but the VLESS handler never reads `maxConnections`. No account-level concurrent-session cap is enforced.
+- Confirmed the handler allocates request-local session state. A Worker-global `Map` cannot coordinate across isolates/instances and is not durable; do not use it for admission.
+- The per-session download-byte/lifetime limits merged in PR #104 do not bound concurrent sessions or installation-wide aggregate resource use.
+- Opened Issue #106: https://github.com/ijoolaie/imoxy-net/issues/106.
+- Proposed first implementation: D1-backed active-session leases with a single conditional `INSERT ... SELECT` write that checks the active account, optional per-account `max_connections`, and mandatory positive installation-wide `PROXY_MAX_CONCURRENT_SESSIONS` in the same statement. Acquire before upstream TCP dial; release idempotently on every close path; ambiguous leases remain until expiry after a bounded grace. Durable Objects remain a per-account fallback only if real D1 concurrency/latency evidence requires them; no global singleton.
+- This is a design/documentation checkpoint only. No session lease migration, handler code, Worker binding, Cloudflare resource, D1 database, route, DNS, or deployment was changed. Real D1 concurrency and Worker runtime gates remain pending.
+- Updated the session-admission design, decision log, acceptance plan, architecture, parity matrix, reference baseline, and roadmap on branch `docs/vless-session-admission-design`.
+- Current active phase: Phase 6 — Subscription/proxy compatibility. Per-account and installation-wide concurrent-session admission remain unimplemented; downstream Worker-internal WebSocket buffering remains unproven; no Nova parity claim is made.
+- Next: review the exact documentation diff, obtain exact-head CI, then implement migration + atomic D1 lease acquire/release and handler lifecycle integration with SQLite-backed actual-SQL concurrency tests. Only after that, run the controlled real-D1/Worker gate against a proven disposable target. Preserve the bootstrap staging Worker and its non-empty D1.
+
+
+## Latest work session — 2026-10-30 (VLESS concurrent-session admission implementation)
+
+- Starting main: `8bc11df4aa6c5a8ae77d28a3b77312c35c33b8b9`.
+- PR #108 merged: https://github.com/ijoolaie/imoxy-net/pull/108.
+- Exact PR-head CI run `41040392148`: **success** on `ed7d27a92907157260552c2f868eb151221f7fa4`.
+- Push CI run `41040222126`: **success** on the same head.
+- Post-merge main CI run `41040478912`: **success** on merge commit `8bc11df4aa6c5a8ae77d28a3b77312c35c33b8b9`.
+- Added migration `0007_proxy_active_sessions.sql` with account FK `ON DELETE RESTRICT`, active-lease timestamps and expiry indexes.
+- Added D1 methods `acquireProxySession`, `releaseProxySession`, and bounded `cleanupExpiredProxySessions`. Admission uses one parameterized conditional `INSERT ... SELECT` that checks account state/expiry, positive per-account `max_connections`, and mandatory installation-wide `PROXY_MAX_CONCURRENT_SESSIONS` in the same SQL statement.
+- VLESS handler now acquires a lease before outbound TCP dial. Lease expiry includes the initial handshake/setup timeout, maximum session duration and required `PROXY_SESSION_LEASE_GRACE_MS`. Release is one-shot and occurs after local/upstream cleanup; ambiguous admission/release remains fail-closed and can leave a lease counted until expiry.
+- Automated tests now cover per-account/global caps, last-slot racing attempts, NULL/zero behavior, disabled/expired accounts, duplicate/conflicting IDs, expiry and bounded cleanup, restrictive account deletion, admission-before-dial, denial/error, setup failure, session timeout, quota/download termination, and release failure.
+- Exact-head PR CI, same-head push CI, and post-merge main CI all pass. This validates the repo test suite and SQLite-backed actual adapter SQL, **not** real Cloudflare D1 concurrency or Worker runtime behavior.
+- New required non-secret Worker settings: `PROXY_MAX_CONCURRENT_SESSIONS` and `PROXY_SESSION_LEASE_GRACE_MS`, in addition to the existing byte/lifetime settings. No values have been configured in Cloudflare.
+- Issue #106 remains open for real disposable D1/Worker validation and Nova reference semantics. `max_connections = 0` is currently fail-closed in imoxy; the pinned Nova 5.0.0 meaning is not verified and no parity claim is made.
+- Issue #78 remains open for downstream WebSocket buffering/resource behavior.
+- No Cloudflare Worker was deployed; no D1 database was migrated or mutated; no route/DNS changes or production setting changes occurred. The bootstrap staging Worker and its non-empty D1 remain untouched.
+- Current phase: Phase 6 — Subscription/proxy compatibility, In progress. Phase 12 remains Blocked.
+- Next: validate the atomic admission race, expiry and release against a separately provisioned disposable Cloudflare D1 and controlled Worker. Do not use the bootstrap staging target. Before that live gate, establish the exact Nova 5.0.0 `max_connections = 0` semantics from an authoritative reference or black-box scenario.
+
+
+## Latest work session — 2026-10-30 (Cloudflare disposable target audit)
+
+- Main at start: `099422495b0820a4d548c98fb32f1530a7a76d44`.
+- PR #109 merged the implementation status and roadmap documentation. Exact-head CI run `41040744220` passed; post-merge main CI run `41040854968` passed on `099422495b0820a4d548c98fb32f1530a7a76d44`.
+- Performed read-only Cloudflare account, Worker script, Worker binding and D1 metadata inspection.
+- Found `imoxy-net-api-staging` bound to `imoxy-net-staging-identity` through `IDENTITY_DB`; Cloudflare reports 11 tables. This is the bootstrap staging target and remains untouched.
+- No separate imoxy test Worker/D1 pair was present in the listed resources. Other D1 databases belong to separately named resources or lack evidence of being disposable; they are not candidates.
+- Updated `docs/nonprod-vless-smoke-gate.md` with the inventory and explicit no-mutation decision. Added the same blocker to Issue #106.
+- No D1 query, migration, seed, delete, Worker setting update, deploy, route/DNS change, or resource creation occurred during this audit.
+- PR #108 implementation remains merged and automated CI remains green. Issue #106 stays open because real D1 concurrency/expiry and Worker runtime gates cannot safely run without an explicitly isolated disposable target. Nova `max_connections = 0` semantics are also unverified.
+- Next: identify/provision a dedicated disposable Worker + D1 pair with explicit authorization and cleanup proof; then run the D1 race/expiry tests and controlled Worker lifecycle smoke. Until then, do not use the existing staging or unrelated databases.
+
+
+## Latest work session — 2026-10-30 (VLESS lease cleanup hardening)
+
+- Main at start: `4df6762fc34980457e275238fd380f39e6606894`.
+- PR #111 merged: https://github.com/ijoolaie/imoxy-net/pull/111.
+- Exact PR-head CI run `41041117714`: **success** on `3d5a8871729a2eeaf7676b5c33139459482414b0`.
+- Same-head push CI run `41041095771`: **success**.
+- Post-merge main CI run `41041196795`: **success** on `4df6762fc34980457e275238fd380f39e6606894`.
+- New admission best-effort prunes at most 100 expired session leases. Expired rows are excluded from the capacity predicates even if pruning fails. Requests with an expiry at/before admission time are rejected.
+- Added SQLite-backed test coverage for opportunistic cleanup and bounded pruning. Full repository verification passes.
+- Existing Cloudflare inventory blocker remains: no dedicated disposable imoxy Worker/D1 pair; `imoxy-net-api-staging` remains bound to the 11-table `imoxy-net-staging-identity` database and untouched.
+- No live D1/Worker runtime test, Cloudflare mutation, deployment, migration, route/DNS change, or environment-setting change occurred.
+- Issue #106 remains open for live disposable D1/Worker tests and Nova `max_connections = 0` semantics. Issue #78 remains open for downstream Worker buffering behavior.
+- Next: only continue to live runtime validation after an explicitly authorized disposable Worker and D1 target is available. Otherwise continue static/code and reference analysis without touching current Cloudflare resources.
+
+
+## Final verification checkpoint — 2026-10-30
+
+- Current main: `63ea239fe08ad32bffbc1a5171ed79ee3262441a`.
+- PR #112 merged the lease-cleanup design, acceptance, decision-log and HANDOFF updates.
+- Exact-head PR CI run `41041302739`: **success**. Post-merge main CI run `41041363490`: **success**.
+- The full `npm run verify` workflow completed with **198 tests passed, 0 failed**.
+- No open PRs remain. Open issues: #106 (real D1/Worker admission validation and Nova zero-cap semantics) and #78 (downstream Worker WebSocket buffering/resource bounds).
+- Cloudflare read-only inventory still shows no dedicated disposable imoxy Worker/D1 pair. Existing `imoxy-net-api-staging` and its 11-table `imoxy-net-staging-identity` D1 remain untouched; unrelated D1 databases are not candidates.
+- Phase 6 remains In progress; Phase 12 remains Blocked. Do not mark session concurrency or Nova parity complete until the live D1/Worker and reference gates pass.
+
+
+## Latest work session — 2026-10-30 (Nova concurrent-session reference audit)
+
+- Current main at start: `b69a6e8ab14c32074fcc51d3a765ad50bd377b4b`.
+- Inspected pinned Nova Proxy 5.0.0 metadata, README, GUIDE and package manifest at `ad2116aa89f8c7db8248f8142c1432900d835eb7`.
+- README and GUIDE do not document `max_connections`, a per-account simultaneous-connection limit, or the meaning of zero. `version.json` marks the shipped 1.3 MB worker artifact as protected and publishes its checksum; no runtime semantics were inferred from that artifact.
+- Added REF-032 to cover NULL/0/1/2 caps, parallel sessions, exact capacity+1, close/reconnect, expiry/revocation and behavior after lowering a cap.
+- Conclusion: Nova zero-cap behavior and the unit counted by the limit remain **Not documented / Not run / Not verified**. Imoxy's current zero=deny-all rule remains an explicit imoxy fail-closed policy only.
+- No reference deployment was available or exercised; no protected source was copied; no Cloudflare resources were changed.
+- Next: obtain a disposable reference instance at the pinned version and execute REF-032. Until then, keep Issue #106 open and do not claim Nova parity.
+
+
+## Latest work session — 2026-10-30 (reference audit and issue status)
+
+- Main at start: `b69a6e8ab14c32074fcc51d3a765ad50bd377b4b`.
+- PR #114 merged as `cb53e9b1c99aa12ad81d6278f181563998d3e632`: https://github.com/ijoolaie/imoxy-net/pull/114.
+- PR-head CI run `41067890695` passed on `b27fcc1b2d60c5386b0417f65e00473e7340b254`; post-merge main CI run `41067985094` passed on the exact merge commit.
+- Pinned Nova 5.0.0 README and GUIDE do not document `max_connections`, what one connection represents, or zero semantics. The pinned version metadata marks the shipped worker artifact as protected. No source-derived or runtime parity claim was made.
+- Added REF-032 for account caps NULL/0/1/2, concurrent VLESS sessions, capacity+1, slot release/reconnect, expiry/revocation and behavior after lowering a cap. Evidence register and reference baseline now classify these semantics as Not documented / Not run / Not verified.
+- Updated Issue #106 with the reference evidence. Imoxy's current zero=deny-all remains a deliberate fail-closed implementation policy, not an established Nova behavior.
+- Updated Issue #78 to record that D1-backed account/global admission leases now exist in repository code; the issue remains open for slow-reader behavior, application-managed queue proof and live Worker/D1 validation. The internal Workers WebSocket send-buffer remains unmeasured.
+- Automated concurrency evidence is still SQLite-backed: 20 concurrent adapter attempts for one remaining account slot admit exactly one. This is not evidence of Cloudflare D1's live concurrency behavior.
+- No disposable Nova reference runtime or imoxy Worker/D1 pair is available. Existing bootstrap staging and unrelated Cloudflare resources remain untouched. No deployment, D1 mutation, route/DNS change, or environment setting change occurred.
+- Current main CI is green. No open PRs remain at this checkpoint. Open issues #106 and #78 remain correctly open. Phase 6 remains In progress; Phase 12 remains Blocked.
+- Next: obtain an explicitly disposable reference runtime and separately authorized imoxy Worker/D1 pair. Execute REF-032 and the D1/slow-reader gates only there; do not infer results or touch existing staging resources.
+## 2026-10-30 — VLESS session-lease code review (no code change)
+
+- Re-read AGENTS.md, current HANDOFF.md, docs/roadmap.md, docs/decision-log.md, migrations/0007_proxy_active_sessions.sql, src/storage/d1-store.js, src/proxy/vless-websocket-handler.js, and test/quota-reservation-store.integration.test.js.
+- Reviewed the admission statement: a single parameterized INSERT ... SELECT checks active/unexpired account state, per-account unexpired lease count, installation-wide unexpired lease count, and inserts the unique session ID in one SQL statement. It does not use a read-then-insert capacity check. The follow-up SELECT only classifies the result/idempotent duplicate; a false negative there would deny service, not over-admit. D1 official documentation describes each database as single-threaded, processing queries one at a time, and routes writes to the primary. This supports the serialization rationale for the conditional write, but does not replace a live D1 race test.
+- Timestamp review: account expiry is normalized by shared validation to canonical UTC ISO strings; VLESS lease createdAt, expiresAt, and admission at are generated with toISOString(). Lexical SQL comparisons are therefore consistent for current production call paths. The lower-level store methods accept any Date.parse()-valid timestamp, so callers bypassing the shared handler/service contract must continue to provide canonical UTC values; no current external call path was found.
+- Lifecycle review: the lease deadline includes handshake timeout + configured maximum session duration + grace; the session timer starts after successful setup. Close paths close/cancel upstream resources before attempting a single idempotent lease release. Ambiguous release retains capacity until expiry. Expired leases are excluded in the admission predicate even if bounded cleanup fails. Lowering an account cap only blocks new admissions; existing leases are not evicted, matching the documented policy.
+- Session identity: the primary key prevents a different session from reusing an ID with different account/timestamps; an exact duplicate is treated idempotently. The handler uses crypto.randomUUID() by default. The safety assumption is uniqueness of that opaque ID; no evidence of a practical collision was found.
+- SQLite-backed tests cover exact account/global caps, NULL/zero account caps, disabled/expired accounts, duplicate/conflicting IDs, idempotent release, stale expiry cleanup, account-delete FK protection, and 20-way concurrent admission. These are not Cloudflare D1 tests.
+- Review outcome: no confirmed code defect found in the inspected admission/lease lifecycle. No code change or deployment was justified. Keep Issue #106 open for real disposable D1 race/expiry tests and Nova REF-032; keep Issue #78 open for slow-reader/backpressure and disposable Worker runtime proof.
+- Current main is ea066417ac22d0da1062732dae1b0b7c5cc47edb. PR #115 is merged. The available combined-status query returned no status entries for this SHA and the commit-workflow lookup only exposes PR-triggered runs; therefore this session does not independently certify CI for the latest main commit. The previous recorded main CI evidence must not be generalized to this new commit.
+- No Cloudflare resources, D1 data, environment variables, routes, DNS, or deployments were changed.
+
+## 2026-10-30 — PR #116 merged; runtime gates unchanged
+
+- PR #116 (`docs(review): record VLESS session lease audit`) was squash-merged into `main` as `373948bc8f8495d2e8a970bf618355e2dd57b0f8`.
+- Exact PR-head CI run `41069802838` completed successfully; job `test` and step `npm run verify` both succeeded. This is PR-head CI evidence. The connector did not return a post-merge workflow run for the squash commit, so do not describe this as post-merge CI.
+- No open PRs remained at this checkpoint. Issues #106 and #78 remain open; the focused review findings and remaining runtime requirements were added as issue comments.
+- No confirmed defect was found in the D1 admission/lease code. The live disposable D1 race/expiry test, Nova REF-032, and real disposable Worker slow-reader/backpressure probe remain release gates.
+- No Cloudflare resources, existing staging data, environment settings, routes, DNS, or deployments were changed.
 
 ## Disposable Cloudflare D1 validation — 2026-10-30
 
