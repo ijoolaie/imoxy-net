@@ -154,3 +154,19 @@ Node regression coverage must prove:
 - No code path reads `bufferedAmount` or assumes an awaitable WebSocket send/drain API.
 
 These tests establish a per-session application policy only. They do not prove Worker-internal buffer size, aggregate resource bounds across unlimited concurrent sessions, actual Cloudflare runtime behavior, D1 integration, or Nova parity. Keep the disposable Worker slow-reader probe and controlled Worker/D1 smoke gate as separate pending gates. Do not enable VLESS in a live environment until reviewed finite settings are supplied and the target is proven isolated.
+
+
+## VLESS concurrent-session admission — 2026-10-30 (planned; not implemented)
+
+The current handler does not enforce persisted `max_connections`. The proposed admission contract is documented in [vless-session-admission-design.md](vless-session-admission-design.md), Issue #106.
+
+Before accepting the implementation:
+- Require a positive safe-integer installation-wide `PROXY_MAX_CONCURRENT_SESSIONS` setting; do not invent a production value or default.
+- Prove a single conditional D1 write admits no more than the account cap and installation cap, including concurrent attempts racing for the final slot.
+- Verify `NULL` account cap means no account-specific ceiling and zero denies all new sessions.
+- Verify admission happens before upstream TCP dial and that ambiguous/unavailable admission fails closed.
+- Verify release is idempotent and runs for every handler close/error/timeout path; failed release leaves the lease counted until expiry.
+- Verify stale lease expiry and bounded cleanup, including worker termination/restart behavior.
+- Repeat concurrency and lifecycle tests against a dedicated disposable Cloudflare D1 database; SQLite tests are not sufficient to pass the runtime gate.
+
+No implementation, live D1 test, Worker deployment, or Nova comparison is implied by this planned acceptance section.
