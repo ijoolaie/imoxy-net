@@ -154,3 +154,16 @@ Node regression coverage must prove:
 - No code path reads `bufferedAmount` or assumes an awaitable WebSocket send/drain API.
 
 These tests establish a per-session application policy only. They do not prove Worker-internal buffer size, aggregate resource bounds across unlimited concurrent sessions, actual Cloudflare runtime behavior, D1 integration, or Nova parity. Keep the disposable Worker slow-reader probe and controlled Worker/D1 smoke gate as separate pending gates. Do not enable VLESS in a live environment until reviewed finite settings are supplied and the target is proven isolated.
+
+## VLESS per-session downstream budget acceptance — 2026-10-30
+
+The handler requires positive safe-integer `PROXY_MAX_DOWNLOAD_BYTES` and `PROXY_MAX_SESSION_DURATION_MS` settings. Missing, zero, malformed, unsafe, or timer-overflow duration values must fail closed with HTTP 503 before WebSocket acceptance.
+
+Node regression coverage must prove:
+- A downstream peer that never consumes messages receives no more than the configured cumulative download budget; the first whole TCP chunk that would exceed the remaining budget is not reserved, sent, or settled.
+- A chunk ending exactly at the configured byte boundary is accepted; the next chunk triggers `download_limit_exceeded`.
+- The hard session-duration timer closes the WebSocket and upstream TCP resources with `session_duration_exceeded`.
+- Existing reserve-before-send, settle-after-send, and ambiguous-reservation retention behavior remains intact.
+- No code path reads `bufferedAmount` or assumes an awaitable WebSocket send/drain API.
+
+These tests establish a per-session application policy only. They do not prove Worker-internal buffer size, aggregate resource bounds across unlimited concurrent sessions, actual Cloudflare runtime behavior, D1 integration, or Nova parity. Keep the disposable Worker slow-reader probe and controlled Worker/D1 smoke gate as separate pending gates. Do not enable VLESS in a live environment until reviewed finite settings are supplied and the target is proven isolated.
