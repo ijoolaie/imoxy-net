@@ -811,3 +811,11 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - PR #123 is open for review: https://github.com/ijoolaie/imoxy-net/pull/123. No merge or post-merge CI is claimed here.
 - No Cloudflare resources, staging data, bindings, routes, or deployments were changed. Issues #106 and #78 remain open for their separate runtime/reference gates.
 - Next: review PR #123's exact diff and CI, merge only while the exact head remains unchanged and checks are green, then verify post-merge main CI. Continue investigating lease/configuration edge cases only if code evidence identifies a defect.
+
+## PR #123 merge and post-merge verification — 2026-10-30
+
+- PR #123 merged by squash as 969f96b1ca1e15befd9ee9cbf5dbf025f391b429: https://github.com/ijoolaie/imoxy-net/pull/123.
+- Final PR-head ed4d71916ad729e9f9ad6c462a0747c5beabf860 passed exact-head CI run 41081184391; job test and npm run verify passed.
+- Post-merge main CI run 41081292762 passed on the exact merge commit 969f96b1ca1e15befd9ee9cbf5dbf025f391b429; job test and npm run verify passed.
+- Main is now at 969f96b1ca1e15befd9ee9cbf5dbf025f391b429. The D1Store SQLite wrapper gap is now covered by test/d1-store-sqlite.test.js. This does not replace live D1 concurrency/Worker runtime or Nova REF-032 evidence; Issues #106 and #78 remain open.
+- No Cloudflare resources, existing staging data, environment settings, routes, DNS, or deployments were changed.
