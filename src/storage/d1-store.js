@@ -207,6 +207,9 @@ export function createD1Store(db) {
     async deleteAccount(id, auditEvent) {
       assertAuditEvent(auditEvent);
       if (typeof id !== "string" || !id) return false;
+      // Expired leases do not represent live sessions. Clean a bounded batch
+      // before deletion; active leases remain protected by the FK restriction.
+      await this.cleanupExpiredProxySessions({ at: auditEvent.createdAt, accountId: id, limit: 1000 });
       const audit = auditInsert(auditEvent, id);
       const results = await db.batch([
         db.prepare(audit.statement).bind(...audit.values),
@@ -385,6 +388,87 @@ export function createD1Store(db) {
       if (result?.meta?.changes === 0) {
         throw new RangeError("Usage counters would exceed the supported safe-integer range.");
       }
+    },
+
+    async acquireProxySession({ sessionId, accountId, createdAt, expiresAt, at = createdAt, maxConcurrentSessions }) {
+      const validId = (value) => typeof value === "string" && value.length > 0 && value.length <= 128;
+      const createdTimestamp = typeof createdAt === "string" ? Date.parse(createdAt) : NaN;
+      const expiryTimestamp = typeof expiresAt === "string" ? Date.parse(expiresAt) : NaN;
+      const currentTimestamp = typeof at === "string" ? Date.parse(at) : NaN;
+      if (!validId(sessionId) || !validId(accountId) ||
+          !Number.isFinite(createdTimestamp) || !Number.isFinite(expiryTimestamp) ||
+          !Number.isFinite(currentTimestamp) || currentTimestamp < createdTimestamp ||
+          expiryTimestamp <= createdTimestamp ||
+          !Number.isSafeInteger(maxConcurrentSessions) || maxConcurrentSessions < 1) {
+        throw new TypeError("Proxy session admission fields are invalid.");
+      }
+
+      const admission = await db.prepare(`INSERT INTO proxy_active_sessions
+        (session_id, account_id, created_at, expires_at)
+        SELECT ?, a.id, ?, ?
+        FROM proxy_accounts a
+        WHERE a.id = ? AND a.status = 'active'
+          AND (a.expires_at IS NULL OR a.expires_at > ?)
+          AND (a.max_connections IS NULL OR
+            (SELECT COUNT(*) FROM proxy_active_sessions s
+              WHERE s.account_id = a.id AND s.expires_at > ?) < a.max_connections)
+          AND (SELECT COUNT(*) FROM proxy_active_sessions s
+            WHERE s.expires_at > ?) < ?
+        ON CONFLICT(session_id) DO NOTHING`).bind(
+        sessionId, createdAt, expiresAt, accountId,
+        at, at, at, maxConcurrentSessions
+      ).run();
+
+      const row = await db.prepare(`SELECT s.session_id, s.account_id, s.created_at, s.expires_at,
+          a.status AS account_status, a.expires_at AS account_expires_at
+        FROM proxy_active_sessions s
+        JOIN proxy_accounts a ON a.id = s.account_id
+        WHERE s.session_id = ? LIMIT 1`).bind(sessionId).first();
+      if (!row) {
+        return { allowed: false, duplicate: false, conflict: false, reason: "account_unavailable_or_session_limit" };
+      }
+      if (row.account_id !== accountId || row.created_at !== createdAt || row.expires_at !== expiresAt) {
+        return { allowed: false, duplicate: true, conflict: true, reason: "session_id_conflict" };
+      }
+      if (row.account_status !== "active" ||
+          (row.account_expires_at !== null && row.account_expires_at !== undefined &&
+           Date.parse(row.account_expires_at) <= currentTimestamp) ||
+          Date.parse(row.expires_at) <= currentTimestamp) {
+        return { allowed: false, duplicate: true, conflict: false, reason: "session_lease_expired_or_account_unusable" };
+      }
+      return {
+        allowed: true,
+        duplicate: (admission?.meta?.changes ?? 0) === 0,
+        conflict: false,
+        session: { sessionId: row.session_id, accountId: row.account_id, createdAt: row.created_at, expiresAt: row.expires_at }
+      };
+    },
+
+    async releaseProxySession({ sessionId, accountId }) {
+      if (typeof sessionId !== "string" || !sessionId || sessionId.length > 128 ||
+          typeof accountId !== "string" || !accountId || accountId.length > 128) {
+        throw new TypeError("Proxy session release fields are invalid.");
+      }
+      const result = await db.prepare(`DELETE FROM proxy_active_sessions
+        WHERE session_id = ? AND account_id = ?`).bind(sessionId, accountId).run();
+      return (result?.meta?.changes ?? 0) === 1;
+    },
+
+    async cleanupExpiredProxySessions({ at, accountId = null, limit = 100 } = {}) {
+      if (typeof at !== "string" || !Number.isFinite(Date.parse(at)) ||
+          (accountId !== null && (typeof accountId !== "string" || !accountId || accountId.length > 128)) ||
+          !Number.isSafeInteger(limit) || limit < 1 || limit > 1000) {
+        throw new TypeError("Proxy session cleanup fields are invalid.");
+      }
+      const accountClause = accountId === null ? "" : " AND account_id = ?";
+      const values = accountId === null ? [at, limit] : [at, accountId, limit];
+      const result = await db.prepare(`DELETE FROM proxy_active_sessions
+        WHERE session_id IN (
+          SELECT session_id FROM proxy_active_sessions
+          WHERE expires_at <= ?${accountClause}
+          ORDER BY expires_at ASC LIMIT ?
+        )`).bind(...values).run();
+      return result?.meta?.changes ?? 0;
     },
 
     async reserveQuota({ reservationId, accountId, usageDate, reservedBytes, createdAt, leaseExpiresAt }) {

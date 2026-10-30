@@ -27,6 +27,7 @@ Record timestamp, Worker deployment version/commit, Wrangler version, D1 databas
 1. **Static/runtime preflight**
    - Confirm the Worker starts with the intended environment bindings and serves `/health`.
    - Confirm the configured VLESS path and destination host/port allowlist are present.
+   - Confirm positive safe-integer PROXY_MAX_DOWNLOAD_BYTES, PROXY_MAX_SESSION_DURATION_MS, PROXY_MAX_CONCURRENT_SESSIONS, and PROXY_SESSION_LEASE_GRACE_MS settings are present; missing/invalid values must fail closed before WebSocket allocation.
    - Confirm a missing D1 binding or missing usage-producer identity fails closed; do not use a production credential to make the test pass.
 
 2. **D1 migrations and persistence**
@@ -57,6 +58,7 @@ Record timestamp, Worker deployment version/commit, Wrangler version, D1 databas
    - Confirm reservation happens before upload bytes are forwarded.
    - Confirm upload/download byte counts match the controlled payload and are settled/released exactly as the implementation contract expects.
    - Test quota denial and D1/provider failure; verify denied bytes are not forwarded and failed accounting does not silently become an accepted session.
+   - Race concurrent session admissions for the final per-account and installation-wide slot; verify the D1 lease table never over-admits, capacity denial happens before TCP dial, close releases once, and stale leases expire conservatively.
    - Inspect aggregate usage and reservation records before and after each test. Document any ambiguity/retry behavior; do not claim exactly-once accounting without a stable producer event ID and integration evidence.
 
 7. **Cleanup and sign-off**
@@ -73,7 +75,7 @@ The gate passes only when all applicable steps are executed in the actual non-pr
 - No verified dedicated non-production Worker/D1 environment or authorization to provision/use one is recorded.
 - The repository has a template rather than an active Wrangler configuration with a D1 binding.
 - No deployed Worker/D1 smoke run, DNS-rebinding end-to-end test, or Nova runtime comparison has been performed.
-- IPv4/IPv6 fallback semantics, the completeness of special-purpose address filtering, relay backpressure and hard quota enforcement still need independent review.
+- IPv4/IPv6 fallback semantics, the completeness of special-purpose address filtering, downstream runtime-buffer boundedness, and actual D1 concurrent-session lease semantics still need independent review.
 
 
 ## Live Cloudflare observation — 2026-10-30 (not a passing smoke test)

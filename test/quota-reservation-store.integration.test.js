@@ -45,7 +45,7 @@ function fixture() {
   for (const file of [
     "0001_initial.sql", "0002_auth_rate_limits.sql", "0003_telegram_webhook_updates.sql",
     "0004_usage_daily_safe_integer_guards.sql", "0005_proxy_credentials.sql",
-    "0006_atomic_quota_reservations.sql"
+    "0006_atomic_quota_reservations.sql", "0007_proxy_active_sessions.sql"
   ]) db.exec(migration(file));
   const d1 = sqliteD1(db);
   const store = createD1Store(d1);
@@ -53,10 +53,12 @@ function fixture() {
   return { db, d1, store, service };
 }
 
-function createAccount(db, { id = "acct-1", quotaBytes = 100, dailyQuotaBytes = 50 } = {}) {
+function createAccount(db, { id = "acct-1", quotaBytes = 100, dailyQuotaBytes = 50, maxConnections = null } = {}) {
   db.prepare(`INSERT INTO proxy_accounts
-    (id, username, status, quota_bytes, daily_quota_bytes, created_at, updated_at)
-    VALUES (?, ?, 'active', ?, ?, ?, ?)`).run(id, `user_${id.replace(/[^a-z0-9]/gi, "")}`, quotaBytes, dailyQuotaBytes, timestamp, timestamp);
+    (id, username, status, quota_bytes, daily_quota_bytes, max_connections, created_at, updated_at)
+    VALUES (?, ?, 'active', ?, ?, ?, ?, ?)`).run(
+    id, `user_${id.replace(/[^a-z0-9]/gi, "")}`, quotaBytes, dailyQuotaBytes, maxConnections, timestamp, timestamp
+  );
 }
 
 test("D1 adapter SQL reserves quota atomically, settles once, and rejects replay conflicts", async () => {
@@ -125,5 +127,108 @@ test("aggregate overflow rolls back event claim and keeps the reservation fail-c
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM usage_events WHERE event_id = ?").get("overflow-event").n, 0);
   assert.equal(db.prepare("SELECT status FROM quota_reservations WHERE reservation_id = ?").get("overflow-reserve").status, "active");
   assert.equal(db.prepare("SELECT upload_bytes FROM usage_daily WHERE account_id = ?").get("acct-1").upload_bytes, Number.MAX_SAFE_INTEGER);
+  db.close();
+});
+
+
+test("D1 session leases enforce per-account and installation-wide caps and release idempotently", async () => {
+  const { db, store } = fixture();
+  createAccount(db, { id: "acct-1", maxConnections: 2 });
+  createAccount(db, { id: "acct-2", maxConnections: null });
+  const lease = (sessionId, accountId, at = timestamp) => ({
+    sessionId, accountId, createdAt: timestamp,
+    expiresAt: "2026-10-27T13:00:00.000Z", at, maxConcurrentSessions: 3
+  });
+
+  assert.equal((await store.acquireProxySession(lease("s1", "acct-1"))).allowed, true);
+  assert.equal((await store.acquireProxySession(lease("s2", "acct-1"))).allowed, true);
+  const accountFull = await store.acquireProxySession(lease("s3", "acct-1"));
+  assert.equal(accountFull.allowed, false);
+  assert.equal(accountFull.conflict, false);
+
+  assert.equal((await store.acquireProxySession(lease("s4", "acct-2"))).allowed, true);
+  const installationFull = await store.acquireProxySession(lease("s5", "acct-2"));
+  assert.equal(installationFull.allowed, false);
+
+  assert.equal(await store.releaseProxySession({ sessionId: "s1", accountId: "acct-1" }), true);
+  assert.equal(await store.releaseProxySession({ sessionId: "s1", accountId: "acct-1" }), false);
+  assert.equal((await store.acquireProxySession(lease("s6", "acct-1"))).allowed, true);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM proxy_active_sessions").get().n, 3);
+  db.close();
+});
+
+test("D1 session lease admission handles NULL/zero caps, account state, duplicates and conflicts", async () => {
+  const { db, store } = fixture();
+  createAccount(db, { id: "unlimited", maxConnections: null });
+  createAccount(db, { id: "zero-cap", maxConnections: 0 });
+  createAccount(db, { id: "disabled", maxConnections: 2 });
+  createAccount(db, { id: "expired", maxConnections: 2 });
+  db.prepare("UPDATE proxy_accounts SET status = 'disabled' WHERE id = ?").run("disabled");
+  db.prepare("UPDATE proxy_accounts SET expires_at = ? WHERE id = ?").run("2026-10-27T11:59:00.000Z", "expired");
+  const lease = (sessionId, accountId, overrides = {}) => ({
+    sessionId, accountId, createdAt: timestamp,
+    expiresAt: "2026-10-27T13:00:00.000Z", at: timestamp, maxConcurrentSessions: 5, ...overrides
+  });
+
+  const first = await store.acquireProxySession(lease("same", "unlimited"));
+  assert.equal(first.allowed, true);
+  const duplicate = await store.acquireProxySession(lease("same", "unlimited"));
+  assert.equal(duplicate.allowed, true);
+  assert.equal(duplicate.duplicate, true);
+  const conflict = await store.acquireProxySession(lease("same", "zero-cap"));
+  assert.equal(conflict.allowed, false);
+  assert.equal(conflict.conflict, true);
+  assert.equal((await store.acquireProxySession(lease("zero", "zero-cap"))).allowed, false);
+  assert.equal((await store.acquireProxySession(lease("disabled-session", "disabled"))).allowed, false);
+  assert.equal((await store.acquireProxySession(lease("expired-session", "expired"))).allowed, false);
+  db.close();
+});
+
+test("D1 session admission excludes expired leases and cleanup is bounded", async () => {
+  const { db, store } = fixture();
+  createAccount(db, { id: "acct-1", maxConnections: 1 });
+  const original = {
+    sessionId: "expired-lease", accountId: "acct-1", createdAt: timestamp,
+    expiresAt: "2026-10-27T12:01:00.000Z", at: timestamp, maxConcurrentSessions: 2
+  };
+  assert.equal((await store.acquireProxySession(original)).allowed, true);
+  const later = {
+    sessionId: "replacement", accountId: "acct-1", createdAt: "2026-10-27T12:02:00.000Z",
+    expiresAt: "2026-10-27T13:02:00.000Z", at: "2026-10-27T12:02:00.000Z", maxConcurrentSessions: 2
+  };
+  assert.equal((await store.acquireProxySession(later)).allowed, true);
+  assert.equal(await store.cleanupExpiredProxySessions({ at: later.at, accountId: "acct-1", limit: 1 }), 1);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM proxy_active_sessions").get().n, 1);
+  db.close();
+});
+
+test("concurrent D1 session admission never over-allocates the last account slot", async () => {
+  const { db, store } = fixture();
+  createAccount(db, { id: "acct-1", maxConnections: 1 });
+  const attempts = await Promise.all(Array.from({ length: 20 }, (_, index) => store.acquireProxySession({
+    sessionId: `racer-${index}`, accountId: "acct-1", createdAt: timestamp,
+    expiresAt: "2026-10-27T13:00:00.000Z", at: timestamp, maxConcurrentSessions: 10
+  })));
+  assert.equal(attempts.filter((result) => result.allowed).length, 1);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM proxy_active_sessions WHERE expires_at > ?").get(timestamp).n, 1);
+  db.close();
+});
+
+test("active session leases prevent account deletion from freeing a live slot", async () => {
+  const { db, store } = fixture();
+  createAccount(db, { id: "acct-1", maxConnections: 1 });
+  const lease = {
+    sessionId: "live-lease", accountId: "acct-1", createdAt: timestamp,
+    expiresAt: "2026-10-27T13:00:00.000Z", at: timestamp, maxConcurrentSessions: 2
+  };
+  assert.equal((await store.acquireProxySession(lease)).allowed, true);
+  const audit = {
+    id: "audit-delete", action: "account.deleted", createdAt: timestamp,
+    details: { source: "test" }
+  };
+  await assert.rejects(() => store.deleteAccount("acct-1", audit), /FOREIGN KEY constraint failed/);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM proxy_active_sessions WHERE account_id = ?").get("acct-1").n, 1);
+  assert.equal(await store.releaseProxySession({ sessionId: "live-lease", accountId: "acct-1" }), true);
+  assert.equal(await store.deleteAccount("acct-1", { ...audit, id: "audit-delete-2" }), true);
   db.close();
 });

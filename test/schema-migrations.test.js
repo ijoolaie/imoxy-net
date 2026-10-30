@@ -14,6 +14,7 @@ function databaseWithMigrations() {
   db.exec(migration("0004_usage_daily_safe_integer_guards.sql"));
   db.exec(migration("0005_proxy_credentials.sql"));
   db.exec(migration("0006_atomic_quota_reservations.sql"));
+  db.exec(migration("0007_proxy_active_sessions.sql"));
   return db;
 }
 
@@ -24,7 +25,7 @@ test("all D1 migrations execute in SQLite and create the expected tables", () =>
   const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((row) => row.name);
   for (const name of [
     "principals", "sessions", "proxy_accounts", "subscriptions", "usage_daily",
-    "installation_settings", "provider_resources", "audit_events", "auth_rate_limits", "telegram_webhook_updates", "proxy_credentials", "quota_reservations", "usage_events"
+    "installation_settings", "provider_resources", "audit_events", "auth_rate_limits", "telegram_webhook_updates", "proxy_credentials", "quota_reservations", "usage_events", "proxy_active_sessions"
   ]) assert.ok(tables.includes(name), `missing table ${name}`);
   assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
   db.close();
@@ -261,5 +262,19 @@ test("an event cannot settle without a matching active reservation or exceed its
     /usage event has no matching active reservation/);
   assert.equal(db.prepare("SELECT status FROM quota_reservations WHERE reservation_id = ?").get("reserve-1").status, "active");
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM usage_daily").get().n, 0);
+  db.close();
+});
+
+
+test("active proxy session leases restrict account deletion until the lease is released or expires", () => {
+  const db = databaseWithMigrations();
+  db.prepare(`INSERT INTO proxy_accounts (id, username, status, max_connections, created_at, updated_at)
+    VALUES (?, ?, 'active', ?, ?, ?)`).run("acct-lease", "lease_user", 1, timestamp, timestamp);
+  db.prepare(`INSERT INTO proxy_active_sessions (session_id, account_id, created_at, expires_at)
+    VALUES (?, ?, ?, ?)`).run("lease-1", "acct-lease", timestamp, "2026-10-27T13:00:00.000Z");
+  assert.throws(() => db.prepare("DELETE FROM proxy_accounts WHERE id = ?").run("acct-lease"), /FOREIGN KEY constraint failed/);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM proxy_active_sessions WHERE account_id = ?").get("acct-lease").n, 1);
+  db.prepare("DELETE FROM proxy_active_sessions WHERE session_id = ? AND account_id = ?").run("lease-1", "acct-lease");
+  assert.equal(db.prepare("DELETE FROM proxy_accounts WHERE id = ?").run("acct-lease").changes, 1);
   db.close();
 });

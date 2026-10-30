@@ -238,3 +238,49 @@ test("credential rotation revokes old credentials, inserts a new hash and audits
   assert.ok(db.calls.some((call) => call.sql?.includes("INSERT INTO proxy_credentials")));
   assert.ok(db.calls.some((call) => call.sql?.includes("INSERT INTO audit_events")));
 });
+
+
+test("session admission uses one parameterized conditional INSERT and verifies the resulting lease", async () => {
+  const db = makeDb({ firstRow: {
+    session_id: "session-1", account_id: "acct-1",
+    created_at: "2026-10-27T12:00:00.000Z", expires_at: "2026-10-27T13:00:00.000Z",
+    account_status: "active", account_expires_at: null
+  }});
+  const store = createD1Store(db);
+  const result = await store.acquireProxySession({
+    sessionId: "session-1", accountId: "acct-1",
+    createdAt: "2026-10-27T12:00:00.000Z",
+    expiresAt: "2026-10-27T13:00:00.000Z",
+    at: "2026-10-27T12:00:00.000Z", maxConcurrentSessions: 4
+  });
+  assert.equal(result.allowed, true);
+  assert.equal(db.calls.length, 2);
+  assert.match(db.calls[0].sql, /INSERT INTO proxy_active_sessions[\s\S]*SELECT \?[\s\S]*a\.max_connections[\s\S]*ON CONFLICT\(session_id\) DO NOTHING/);
+  assert.deepEqual(db.calls[0].values, [
+    "session-1", "2026-10-27T12:00:00.000Z", "2026-10-27T13:00:00.000Z",
+    "acct-1", "2026-10-27T12:00:00.000Z", "2026-10-27T12:00:00.000Z",
+    "2026-10-27T12:00:00.000Z", 4
+  ]);
+  await assert.rejects(() => store.acquireProxySession({
+    sessionId: "session-1", accountId: "acct-1",
+    createdAt: "2026-10-27T12:00:00.000Z",
+    expiresAt: "2026-10-27T13:00:00.000Z",
+    at: "2026-10-27T12:00:00.000Z", maxConcurrentSessions: 0
+  }), TypeError);
+});
+
+test("session release and cleanup are scoped, parameterized, and bounded", async () => {
+  const db = makeDb({ runChanges: 1 });
+  const store = createD1Store(db);
+  assert.equal(await store.releaseProxySession({ sessionId: "session-1", accountId: "acct-1" }), true);
+  assert.match(db.calls[0].sql, /DELETE FROM proxy_active_sessions[\s\S]*session_id = \? AND account_id = \?/);
+  assert.deepEqual(db.calls[0].values, ["session-1", "acct-1"]);
+  assert.equal(await store.cleanupExpiredProxySessions({
+    at: "2026-10-27T12:00:00.000Z", accountId: "acct-1", limit: 20
+  }), 1);
+  assert.match(db.calls[1].sql, /expires_at <= \?[\s\S]*account_id = \?[\s\S]*LIMIT \?/);
+  assert.deepEqual(db.calls[1].values, ["2026-10-27T12:00:00.000Z", "acct-1", 20]);
+  await assert.rejects(() => store.cleanupExpiredProxySessions({
+    at: "2026-10-27T12:00:00.000Z", limit: 1001
+  }), TypeError);
+});

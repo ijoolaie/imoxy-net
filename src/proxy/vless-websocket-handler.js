@@ -285,8 +285,11 @@ export function createVlessWebSocketHandler({
       if (!isWebSocketUpgrade(request)) return jsonError("websocket_upgrade_required", "A valid WebSocket upgrade is required.", 426);
       const maxDownloadBytes = positiveIntegerSetting(env.PROXY_MAX_DOWNLOAD_BYTES);
       const maxSessionDurationMs = positiveIntegerSetting(env.PROXY_MAX_SESSION_DURATION_MS, MAX_SESSION_TIMER_MS);
-      if (maxDownloadBytes === null || maxSessionDurationMs === null) {
-        return jsonError("proxy_limits_not_configured", "Positive safe-integer PROXY_MAX_DOWNLOAD_BYTES and PROXY_MAX_SESSION_DURATION_MS settings are required.", 503);
+      const maxConcurrentSessions = positiveIntegerSetting(env.PROXY_MAX_CONCURRENT_SESSIONS);
+      const sessionLeaseGraceMs = positiveIntegerSetting(env.PROXY_SESSION_LEASE_GRACE_MS, MAX_SESSION_TIMER_MS);
+      if (maxDownloadBytes === null || maxSessionDurationMs === null ||
+          maxConcurrentSessions === null || sessionLeaseGraceMs === null) {
+        return jsonError("proxy_limits_not_configured", "Positive safe-integer PROXY_MAX_DOWNLOAD_BYTES, PROXY_MAX_SESSION_DURATION_MS, PROXY_MAX_CONCURRENT_SESSIONS, and PROXY_SESSION_LEASE_GRACE_MS settings are required.", 503);
       }
 
       if (!env.DB || typeof env.PROXY_ALLOWED_HOSTS !== "string" ||
@@ -302,8 +305,10 @@ export function createVlessWebSocketHandler({
       } catch {
         return jsonError("proxy_storage_unavailable", "The proxy credential store is unavailable.", 503);
       }
-      if (typeof store?.findAccountByCredentialHash !== "function") {
-        return jsonError("proxy_storage_unavailable", "The proxy credential lookup is unavailable.", 503);
+      if (typeof store?.findAccountByCredentialHash !== "function" ||
+          typeof store?.acquireProxySession !== "function" ||
+          typeof store?.releaseProxySession !== "function") {
+        return jsonError("proxy_storage_unavailable", "The proxy credential lookup and session-admission storage are unavailable.", 503);
       }
 
       let quotaService;
@@ -343,12 +348,26 @@ export function createVlessWebSocketHandler({
         queuedClientBytes: 0,
         downloadBytesForwarded: 0,
         accountId: null,
+        sessionId: null,
+        sessionLeaseAcquired: false,
+        sessionLeaseReleaseStarted: false,
         requestCountClaimed: false
       };
       let handshakeTimer = null;
       let idleTimer = null;
       let sessionTimer = null;
       let idleTimerGeneration = 0;
+
+      const releaseSessionLease = async () => {
+        if (!state.sessionLeaseAcquired || state.sessionLeaseReleaseStarted) return;
+        state.sessionLeaseReleaseStarted = true;
+        try {
+          await store.releaseProxySession({ sessionId: state.sessionId, accountId: state.accountId });
+        } catch {
+          // Keep an uncertain lease counted until its expiry; never free capacity
+          // based on an ambiguous release outcome.
+        }
+      };
 
       const closeSession = async (code = 1000, reason = "closed") => {
         if (state.closed) return;
@@ -373,6 +392,7 @@ export function createVlessWebSocketHandler({
         try { await state.pendingSocket?.close(); } catch {}
         state.pendingSocket = null;
         try { await state.socket?.close(); } catch {}
+        await releaseSessionLease();
       };
 
       const resetIdleTimeout = () => {
@@ -562,6 +582,44 @@ export function createVlessWebSocketHandler({
               return;
             }
 
+            // Acquire the account and installation-wide slot in one D1
+            // conditional write before opening any upstream TCP socket.
+            const sessionId = idFactory();
+            const createdAt = new Date(now()).toISOString();
+            const expiresAt = new Date(
+              Date.parse(createdAt) + initialHandshakeTimeoutMs + maxSessionDurationMs + sessionLeaseGraceMs
+            ).toISOString();
+            state.accountId = account.id;
+            state.sessionId = sessionId;
+            const admissionPromise = Promise.resolve()
+              .then(() => store.acquireProxySession({
+                sessionId, accountId: account.id, createdAt, expiresAt,
+                at: createdAt, maxConcurrentSessions
+              }))
+              .then(async (result) => {
+                if (state.closed && result?.allowed) {
+                  try { await store.releaseProxySession({ sessionId, accountId: account.id }); } catch {}
+                  return SESSION_CLOSED;
+                }
+                return result;
+              });
+            const admission = await Promise.race([
+              admissionPromise,
+              sessionClosed.then(() => SESSION_CLOSED)
+            ]);
+            if (admission === SESSION_CLOSED) return;
+            if (state.closed) {
+              if (admission?.allowed) {
+                try { await store.releaseProxySession({ sessionId, accountId: account.id }); } catch {}
+              }
+              return;
+            }
+            if (!admission?.allowed) {
+              await closeSession(1008, admission?.conflict ? "session_admission_conflict" : "session_limit_reached");
+              return;
+            }
+            state.sessionLeaseAcquired = true;
+
             // DNS may return both IPv4 and IPv6. Try each validated numeric pin
             // if opening the transport fails; never retry after forwarding data.
             let destinationAddress = null;
@@ -631,7 +689,6 @@ export function createVlessWebSocketHandler({
             }
             state.socket = socket;
             state.writer = socket.writable.getWriter();
-            state.accountId = account.id;
             if (parsed.initialPayload.byteLength) {
               const forwarded = await reserveAndSettle(parsed.initialPayload, "upload");
               if (!forwarded) return;
