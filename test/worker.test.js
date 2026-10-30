@@ -65,6 +65,8 @@ test("VLESS endpoint is reserved before static assets and fails closed without p
     }
   });
   const response = await worker.fetch(proxyRequest, {
+    PROXY_MAX_DOWNLOAD_BYTES: "1048576",
+    PROXY_MAX_SESSION_DURATION_MS: "3600000",
     ASSETS: {
       async fetch(req) {
         assetCalls.push(new URL(req.url).pathname);

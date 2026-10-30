@@ -387,6 +387,8 @@ export function createVlessWebSocketHandler({
             void closeSession(1001, "idle_timeout");
           }
         }, idleTimeoutMs);
+        // Node-only timer handles should not keep test processes alive; Workers handles are numeric.
+        idleTimer?.unref?.();
       };
 
       const releaseBeforeForward = async (reservationId) => {
@@ -644,6 +646,8 @@ export function createVlessWebSocketHandler({
             sessionTimer = setTimeoutImpl(() => {
               void closeSession(1001, "session_duration_exceeded");
             }, maxSessionDurationMs);
+            // Avoid keeping Node test processes alive; Workers timer handles are numeric.
+            sessionTimer?.unref?.();
             server.send(Uint8Array.from([parsed.version, 0]));
             state.buffer = new Uint8Array();
             state.reader = socket.readable.getReader();

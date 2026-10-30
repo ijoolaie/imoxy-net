@@ -586,20 +586,20 @@ test("authenticated sessions close after inactivity and stale idle timers cannot
   h.server.receive(vlessRequest());
   await settle();
 
-  // Callback 0 is the initial handshake timeout; callback 1 is the idle timeout.
-  assert.equal(timerCallbacks.length, 2);
+  // Callback 0 is handshake, callback 1 is idle, callback 2 is the hard session deadline.
+  assert.equal(timerCallbacks.length, 3);
   assert.equal(h.server.closeCalls.length, 0);
 
   h.server.receive(Uint8Array.from([0x33]));
   await settle();
-  assert.equal(timerCallbacks.length, 3);
+  assert.equal(timerCallbacks.length, 4);
 
   // The old timer is stale after activity and must not close the live session.
   timerCallbacks[1]();
   await settle();
   assert.equal(h.server.closeCalls.some((item) => item.reason === "idle_timeout"), false);
 
-  timerCallbacks[2]();
+  timerCallbacks[3]();
   await settle();
   assert.ok(h.server.closeCalls.some((item) => item.code === 1001 && item.reason === "idle_timeout"));
   assert.equal(upstream.closed, true);
@@ -901,6 +901,7 @@ test("requires explicit finite download and session-duration budgets", async () 
     { PROXY_MAX_DOWNLOAD_BYTES: "" },
     { PROXY_MAX_DOWNLOAD_BYTES: "0" },
     { PROXY_MAX_DOWNLOAD_BYTES: "1.5" },
+    { PROXY_MAX_DOWNLOAD_BYTES: "9007199254740992" },
     { PROXY_MAX_SESSION_DURATION_MS: "" },
     { PROXY_MAX_SESSION_DURATION_MS: "2147483648" }
   ]) {

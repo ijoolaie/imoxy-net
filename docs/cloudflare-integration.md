@@ -40,3 +40,13 @@ Authentication remains enabled in every mode. Mode changes require a reviewed de
 2. Test pagination, 401/403/429, malformed responses, rate limits and partial provider failures.
 3. Compare planned resources with current inventory and manually verify each diff.
 4. Design reversible operations and recovery before enabling any write operation.
+
+
+## Restricted VLESS Worker session settings
+
+The VLESS WebSocket handler requires two non-secret variables before it will accept sessions:
+
+- PROXY_MAX_DOWNLOAD_BYTES: maximum cumulative download payload bytes forwarded per session.
+- PROXY_MAX_SESSION_DURATION_MS: maximum authenticated session lifetime in milliseconds.
+
+Both must be positive base-10 safe integers; the duration must fit the platform timer range. Missing or invalid values cause the VLESS route to fail closed with HTTP 503. Do not apply values to the currently observed bootstrap Worker: it is not aligned with the reviewed repository build, and its existing D1 contains data. Select values only for an explicitly isolated disposable environment after reviewing client impact, concurrent-session exposure, and cleanup. No values are set or deployed by this change.
