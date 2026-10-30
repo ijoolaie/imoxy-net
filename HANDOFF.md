@@ -793,3 +793,11 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Added a deterministic test with a non-consuming fake WebSocket and a held quota-settlement promise. It asserts that a second upstream read/send cannot proceed until the first send's settlement completes, and that the next over-budget chunk is rejected before reservation/send. Exact-head CI run `41077052986` passed on `a401fdf34157c9c88449a4d6108e852652024dc6`; job `test` and `npm run verify` passed.
 - Derived bound: application-submitted downstream payload is at most `PROXY_MAX_DOWNLOAD_BYTES + 2` bytes per admitted session (two-byte VLESS response header), and at most `PROXY_MAX_CONCURRENT_SESSIONS * (PROXY_MAX_DOWNLOAD_BYTES + 2)` across admitted sessions. This is not a measurement of internal WebSocket buffering, framing, runtime copies, or total Worker memory.
 - Real disposable D1 direct-SQL admission tests are complete (see `docs/d1-runtime-validation-2026-10-30.md`); production D1Store/Worker invocation and the slow-reader Cloudflare runtime probe remain open because the temporary Worker URL was inaccessible (HTTP 403). Nova REF-032 remains unrun. No staging/production resources were changed in this continuation.
+
+
+## PR #121 merge and post-merge verification — 2026-10-30
+
+- PR #121 merged by squash as `5f63b03f4bbee2dfd473317b22166b1bce5206b3`: https://github.com/ijoolaie/imoxy-net/pull/121.
+- Final PR-head `96db6e27a6242b36957a6f6b345494644017d7c8` passed exact-head CI run `41077238216`; job `test` and `npm run verify` passed.
+- Post-merge main CI run `41077371663` passed on the exact merge commit `5f63b03f4bbee2dfd473317b22166b1bce5206b3`; job `test` and `npm run verify` passed.
+- Main is at `5f63b03f4bbee2dfd473317b22166b1bce5206b3`. No open PRs remained immediately after merge. Issues #106 and #78 remain open for production Worker invocation, runtime slow-reader evidence and Nova REF-032.
