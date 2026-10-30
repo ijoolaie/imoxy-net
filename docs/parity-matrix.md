@@ -99,3 +99,10 @@ The current implementation branch adds required per-session download-byte and ma
 ## Post-merge status correction — 2026-10-30
 
 The per-session download-byte and maximum-lifetime policy described above is now merged into main as b5c44b16132c9f540de16ab9d4ce54ab5fa01fa4 (PR #104). Post-merge main CI run 41037834214 passed on that exact commit. This does not change the parity status: the policy is imoxy-specific, Worker-internal WebSocket buffering remains unproven, aggregate concurrent-session bounds remain open, and no live Worker/D1 or Nova runtime test has been run.
+
+
+## VLESS concurrent-session limits — 2026-10-30
+
+Source inspection found that `max_connections` is persisted and mapped by the D1 adapter but is not read by the current VLESS handler. Therefore per-account concurrent-session enforcement is **Not assessed / not implemented**. The installation-wide concurrent-session bound is also absent. A Worker-global map is not a valid cross-isolate enforcement mechanism.
+
+Issue #106 tracks a proposed D1-backed lease design and its exact-capacity, concurrent-admission, release, expiry, real-D1 and Nova comparison gates. No concurrency or connection-limit parity claim is permitted until those tests pass against the pinned reference. This finding does not change the status of the other protocol rows.
