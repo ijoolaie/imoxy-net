@@ -91,3 +91,14 @@ A public, unauthenticated GET to the Worker hostname returned:
 This differs from the current repository's Worker/API implementation. Treat it as deployment drift; the exact deployed source revision has not been proven. No deployment, resource mutation, route/DNS change, D1 write, or secret read was performed.
 
 **Decision:** This target is not accepted for the VLESS/D1 smoke gate. Do not deploy to it, alter its bindings, run migrations, or use its existing D1 data for test mutations until the owner-approved isolation/production-separation and cleanup checks identify the exact disposable target. The gate remains not executed.
+
+
+## Cloudflare target inventory — 2026-10-30 (read-only; no target accepted)
+
+Read-only account inventory found:
+- Worker script `imoxy-net-api-staging`, tagged as the imoxy staging service.
+- Its `IDENTITY_DB` binding points to D1 database `imoxy-net-staging-identity`; Cloudflare reports 11 tables. This is the existing bootstrap staging database and is not disposable.
+- No separate imoxy test Worker or test D1 binding was found in the listed resources.
+- Other D1 databases exist for separately named resources (`iran-price-scout-db` and `ivory-tide-05e8-db`). There is no evidence that either is disposable or authorized for imoxy tests; do not use them.
+
+**Decision:** No live D1/Worker smoke test, migration, seed, cleanup, or deployment is authorized by this inventory. Keep all existing resources untouched. A dedicated disposable Worker and D1 must be explicitly provisioned/identified with a verified owner, bindings, route/hostname, isolated data, and cleanup procedure before the gate can run.
