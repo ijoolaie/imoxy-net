@@ -70,6 +70,8 @@ function env(overrides = {}) {
     PROXY_ALLOWED_HOSTS: "example.test",
     PROXY_ALLOWED_PORTS: "443",
     PROXY_USAGE_PRODUCER_ID: "worker-test-1",
+    PROXY_MAX_DOWNLOAD_BYTES: "1048576",
+    PROXY_MAX_SESSION_DURATION_MS: "3600000",
     ...overrides
   };
 }
@@ -891,4 +893,91 @@ test("download settlement failure stops the TCP reader before it requests anothe
   assert.equal(readerCancelled, true, "the failed session should cancel the upstream reader");
   assert.equal(h.quotaCalls.settle.length, 1);
   assert.equal(h.quotaCalls.settle[0].downloadBytes, 2);
+});
+
+
+test("requires explicit finite download and session-duration budgets", async () => {
+  for (const overrides of [
+    { PROXY_MAX_DOWNLOAD_BYTES: "" },
+    { PROXY_MAX_DOWNLOAD_BYTES: "0" },
+    { PROXY_MAX_DOWNLOAD_BYTES: "1.5" },
+    { PROXY_MAX_SESSION_DURATION_MS: "" },
+    { PROXY_MAX_SESSION_DURATION_MS: "2147483648" }
+  ]) {
+    const h = harness({ config: overrides });
+    const response = await h.handler.fetch(request(), h.env);
+    assert.equal(response.status, 503);
+    assert.equal((await response.json()).error.code, "proxy_limits_not_configured");
+    assert.equal(h.server.accepted, false);
+  }
+});
+
+test("a non-reading downstream client is closed before cumulative download bytes exceed its session budget", async () => {
+  const upstream = fakeSocket();
+  const h = harness({
+    config: { PROXY_MAX_DOWNLOAD_BYTES: "4" },
+    connectTcp: async () => upstream.socket
+  });
+
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  // FakeWebSocket never consumes sent messages: this models a slow/non-reading peer.
+  upstream.push([0xa1, 0xa2, 0xa3]);
+  upstream.push([0xb1, 0xb2]);
+  await settle();
+
+  assert.ok(h.server.sent.some((message) => message.length === 3 && message[0] === 0xa1));
+  assert.equal(h.server.sent.some((message) => message.length === 2 && message[0] === 0xb1), false);
+  assert.equal(h.quotaCalls.reserve.length, 1);
+  assert.equal(h.quotaCalls.reserve[0].reservedBytes, 3);
+  assert.equal(h.quotaCalls.settle.length, 1);
+  assert.equal(h.quotaCalls.settle[0].downloadBytes, 3);
+  assert.equal(h.quotaCalls.release.length, 0);
+  assert.ok(h.server.closeCalls.some((item) => item.code === 1008 && item.reason === "download_limit_exceeded"));
+  assert.equal(upstream.closed, true);
+});
+
+test("allows a download exactly at the configured byte budget and closes before the next chunk", async () => {
+  const upstream = fakeSocket();
+  const h = harness({
+    config: { PROXY_MAX_DOWNLOAD_BYTES: "4" },
+    connectTcp: async () => upstream.socket
+  });
+
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  upstream.push([0xa1, 0xa2, 0xa3, 0xa4]);
+  upstream.push([0xb1]);
+  await settle();
+
+  assert.equal(h.quotaCalls.settle.length, 1);
+  assert.equal(h.quotaCalls.settle[0].downloadBytes, 4);
+  assert.equal(h.quotaCalls.reserve.length, 1);
+  assert.ok(h.server.closeCalls.some((item) => item.reason === "download_limit_exceeded"));
+  assert.equal(upstream.closed, true);
+});
+
+test("session duration ceiling closes the WebSocket and upstream socket", async () => {
+  const timerCallbacks = [];
+  const upstream = fakeSocket();
+  const h = harness({
+    timerCallbacks,
+    config: { PROXY_MAX_SESSION_DURATION_MS: "30000" },
+    connectTcp: async () => upstream.socket
+  });
+
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  assert.ok(timerCallbacks.length >= 3, "handshake, idle, and hard session timers should be registered");
+  timerCallbacks.at(-1)();
+  await settle();
+
+  assert.ok(h.server.closeCalls.some((item) => item.code === 1001 && item.reason === "session_duration_exceeded"));
+  assert.equal(upstream.closed, true);
 });
