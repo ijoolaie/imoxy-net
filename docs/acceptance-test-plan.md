@@ -166,7 +166,7 @@ Before accepting the implementation:
 - Verify `NULL` account cap means no account-specific ceiling and zero denies all new sessions.
 - Verify admission happens before upstream TCP dial and that ambiguous/unavailable admission fails closed.
 - Verify release is idempotent and runs for every handler close/error/timeout path; failed release leaves the lease counted until expiry.
-- Verify stale lease expiry and bounded cleanup, including worker termination/restart behavior.
+- Verify stale lease expiry and bounded cleanup: each admission best-effort prunes at most 100 expired rows, expired rows never count toward capacity, and a lease already expired at admission is rejected. Include worker termination/restart behavior.
 - Repeat concurrency and lifecycle tests against a dedicated disposable Cloudflare D1 database; SQLite tests are not sufficient to pass the runtime gate.
 
 SQLite-backed actual-SQL and handler tests pass, and PR #108 is merged. A real disposable Cloudflare D1 concurrency/expiry test, controlled Worker smoke test, and Nova comparison remain required. No Worker deployment or Cloudflare mutation was performed.
