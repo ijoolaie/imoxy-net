@@ -286,7 +286,8 @@ test("malformed protocol requests and disallowed/private destinations never dial
 
 test("rejects special-use IPv4 literals even when explicitly allowlisted", async () => {
   const blocked = [
-    "100.64.0.1", "192.0.0.1", "192.0.2.1", "192.88.99.1",
+    "100.64.0.1", "192.0.0.1", "192.0.2.1", "192.31.196.1",
+    "192.52.193.1", "192.88.99.1", "192.175.48.1",
     "198.18.0.1", "198.19.0.1", "198.51.100.1", "203.0.113.1",
     "255.255.255.255"
   ];
