@@ -45,12 +45,12 @@ References:
 2. Resolve and validate the destination as the current handler already does.
 3. Generate one session ID and acquire the D1 lease **before** opening the upstream TCP socket.
 4. If admission is denied, conflicted, or ambiguous, close the WebSocket and do not dial upstream.
-5. Record the lease expiry as the authenticated session's maximum lifetime plus a fixed, documented cleanup grace. The grace prevents a delayed Worker timer from allowing a second session while the first may still be alive. It may temporarily over-count after a crash; this is intentionally fail-closed.
+5. Record lease expiry after the maximum-session deadline plus a documented cleanup grace. The current handler's initial handshake timer also covers DNS/TCP setup before the authenticated lifetime timer starts, so the lease TTL must include the bounded pre-session setup window as well as the maximum authenticated lifetime and grace. Align the timer start and lease deadline explicitly in implementation/tests; never let a lease expire while its socket may still be active. The grace prevents delayed timer callbacks from allowing a second session while the first may still be alive. It may temporarily over-count after a crash; this is intentionally fail-closed.
 6. Release the lease idempotently on every close path: client close/error, upstream close/error, idle timeout, maximum lifetime, quota denial, send/write failure, and setup failure after admission.
 7. If release fails or the Worker is terminated, the lease remains counted until its expiry. Never delete an uncertain lease early.
 8. Expired leases are excluded from admission counts immediately. Delete old rows with bounded opportunistic or scheduled cleanup; cleanup must not be part of the correctness predicate.
 
-The handler must guard release with a one-shot state transition so repeated close/error callbacks cannot release a different lease or cause incorrect accounting.
+The handler must guard release with a one-shot state transition so repeated close/error callbacks cannot release a different lease or cause incorrect accounting. The lease deadline must include the handler's bounded pre-session setup/handshake window; otherwise a slow DNS/TCP setup could outlive the lease before the authenticated lifetime timer starts.
 
 ### Failure and retry rules
 
@@ -81,7 +81,7 @@ A migration should add a table equivalent to:
 ```sql
 CREATE TABLE proxy_active_sessions (
   session_id TEXT PRIMARY KEY,
-  account_id TEXT NOT NULL REFERENCES proxy_accounts(id) ON DELETE CASCADE,
+  account_id TEXT NOT NULL REFERENCES proxy_accounts(id) ON DELETE RESTRICT,
   created_at TEXT NOT NULL,
   expires_at TEXT NOT NULL
 );
@@ -91,7 +91,7 @@ CREATE INDEX proxy_active_sessions_expiry
   ON proxy_active_sessions(expires_at);
 ```
 
-The exact migration must include identifier/date constraints consistent with the existing schema conventions. Account deletion should cascade lease cleanup. A global index is not required for a count predicate unless measurement shows it helps; avoid premature schema complexity.
+The exact migration must include identifier/date constraints consistent with the existing schema conventions. Account deletion must not silently remove an active lease while its TCP/WebSocket session may still be forwarding. Use a restrictive foreign key (or an equivalent explicit guard) so account deletion fails while any lease row exists; remove expired rows first with bounded cleanup. This intentionally prefers a temporary deletion block over freeing capacity while a session may remain alive. A global index is not required for a count predicate unless measurement shows it helps; avoid premature schema complexity.
 
 ## Test matrix
 
@@ -104,6 +104,7 @@ The exact migration must include identifier/date constraints consistent with the
 - Duplicate same session ID and account is idempotent; same ID with a different account is a conflict.
 - Release is idempotent and scoped to both session and account.
 - Expired lease does not count; cleanup removes expired rows without changing admission behavior.
+- Account deletion is rejected while a live lease exists; expired rows are cleaned before deletion. No cascade may free a slot while the old session can still forward.
 - Every SQL input is bound; no user-supplied identifier is interpolated into SQL.
 
 ### Handler lifecycle
