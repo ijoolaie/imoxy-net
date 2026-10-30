@@ -154,3 +154,8 @@ Reviewed the current D1 admission SQL, migration 0007, handler lifecycle and SQL
 ## 2026-10-30 — PR #116 merge and CI evidence
 
 PR #116 recorded the focused VLESS session-lease code review and was squash-merged as `373948bc8f8495d2e8a970bf618355e2dd57b0f8`. Exact PR-head CI run `41069802838` passed, including `npm run verify`. The connector returned no post-merge workflow run for the squash commit, so this is not claimed as post-merge CI. No confirmed code defect was found. Issue #106 and #78 remain open for disposable D1/Nova reference and real Worker slow-reader runtime validation. No Cloudflare resources or existing staging data were changed.
+
+
+## 2026-10-30 — VLESS downstream application-submitted bound
+
+The VLESS relay reads upstream TCP data sequentially and awaits the send+quota-settlement operation before requesting another chunk. Combined with the whole-chunk per-session download-byte ceiling and required global D1 session-lease ceiling, this bounds payload bytes submitted to WebSocket.send() to at most `PROXY_MAX_CONCURRENT_SESSIONS * (PROXY_MAX_DOWNLOAD_BYTES + 2)` across admitted sessions. The two extra bytes per session are the VLESS response header. This does not measure or prove the Cloudflare-internal WebSocket queue, framing/copies, or total memory. A deterministic held-settlement/non-reading-peer regression test was added in PR #121; exact-head CI run `41077052986` passed on `a401fdf34157c9c88449a4d6108e852652024dc6`. Keep the Worker slow-reader runtime probe and Nova REF-032 open.

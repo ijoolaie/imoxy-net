@@ -95,7 +95,7 @@ async function settle() {
   for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = () => NOW, timerCallbacks = null, idleTimeoutMs = 120_000, quotaAllowed = true, quotaSettleFails = false, quotaReserveFails = false, quotaReserveConflict = false, downstreamSendFails = false, sessionAdmissionAllowed = true, sessionAdmissionFails = false, sessionReleaseFails = false } = {}) {
+function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = () => NOW, timerCallbacks = null, idleTimeoutMs = 120_000, quotaAllowed = true, quotaSettleFails = false, quotaSettleWait = null, quotaReserveFails = false, quotaReserveConflict = false, downstreamSendFails = false, sessionAdmissionAllowed = true, sessionAdmissionFails = false, sessionReleaseFails = false } = {}) {
   const client = new FakeWebSocket();
   const server = new FakeWebSocket();
   const originalSend = server.send.bind(server);
@@ -144,6 +144,7 @@ function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = 
       async settle(input) {
         quotaCalls.settle.push(input);
         if (quotaSettleFails) throw new Error("injected settlement failure");
+        if (quotaSettleWait) await quotaSettleWait;
         return { applied: true };
       },
       async release(input) {
@@ -941,6 +942,65 @@ test("requires explicit finite download, duration, concurrency and lease-grace b
     assert.equal((await response.json()).error.code, "proxy_limits_not_configured");
     assert.equal(h.server.accepted, false);
   }
+});
+
+test("serializes upstream reads behind downstream send settlement for a non-reading peer", async () => {
+  let releaseSettlement;
+  const settlementGate = new Promise((resolve) => { releaseSettlement = resolve; });
+  let readCalls = 0;
+  let upstreamClosed = false;
+  let readerCancelled = false;
+  const upstream = {
+    opened: Promise.resolve({ remoteAddress: "93.184.216.34", localAddress: null }),
+    readable: {
+      getReader() {
+        return {
+          async read() {
+            readCalls += 1;
+            if (readCalls === 1) return { value: Uint8Array.from([0xa1, 0xa2]), done: false };
+            if (readCalls === 2) return { value: Uint8Array.from([0xb1, 0xb2]), done: false };
+            return { value: undefined, done: true };
+          },
+          async cancel() { readerCancelled = true; }
+        };
+      }
+    },
+    writable: new WritableStream(),
+    async close() { upstreamClosed = true; }
+  };
+  const h = harness({
+    config: { PROXY_MAX_DOWNLOAD_BYTES: "3" },
+    quotaSettleWait: settlementGate,
+    connectTcp: async () => upstream
+  });
+
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  // The fake WebSocket deliberately never consumes sent frames. While the
+  // first chunk's settlement is pending, the relay must not read another TCP
+  // chunk or accumulate a second application-managed downstream send.
+  assert.equal(readCalls, 1);
+  assert.equal(h.quotaCalls.settle.length, 1);
+  assert.ok(h.server.sent.some((message) => message.length === 2 && message[0] === 0xa1));
+  assert.equal(h.server.sent.some((message) => message[0] === 0xb1), false);
+
+  releaseSettlement();
+  await settle();
+
+  // The next chunk would exceed the remaining one-byte budget, so it is read
+  // only after the prior send is settled and is rejected before send/reserve.
+  assert.equal(readCalls, 2);
+  assert.equal(h.quotaCalls.reserve.length, 1);
+  assert.equal(h.quotaCalls.settle.length, 1);
+  assert.equal(h.server.sent.some((message) => message[0] === 0xb1), false);
+  assert.ok(h.server.closeCalls.some((item) =>
+    item.code === 1008 && item.reason === "download_limit_exceeded"
+  ));
+  assert.equal(upstreamClosed, true);
+  assert.equal(readerCancelled, true);
+  assert.equal(h.sessionCalls.release.length, 1);
 });
 
 test("a non-reading downstream client is closed before cumulative download bytes exceed its session budget", async () => {

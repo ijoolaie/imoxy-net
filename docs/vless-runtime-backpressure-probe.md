@@ -89,3 +89,10 @@ No values have been selected for or applied to any Cloudflare environment. These
 ## Post-merge status correction — 2026-10-30
 
 The per-session download-byte and maximum-lifetime policy described above is now merged into main as b5c44b16132c9f540de16ab9d4ce54ab5fa01fa4 (PR #104). Post-merge main CI run 41037834214 passed on that exact commit. This does not change the parity status: the policy is imoxy-specific, Worker-internal WebSocket buffering remains unproven, aggregate concurrent-session bounds remain open, and no live Worker/D1 or Nova runtime test has been run.
+
+
+## Application-submitted downstream bound — 2026-10-30
+
+Code-path inspection establishes a finite application-submitted byte bound when both required positive settings are configured: the handler checks each entire TCP chunk against the remaining per-session download budget before calling synchronous `server.send()`; the upstream pump awaits quota settlement before its next `reader.read()`; and send/settlement failure closes the session. Thus the maximum payload submitted to `send()` per session is bounded by `PROXY_MAX_DOWNLOAD_BYTES` plus the two-byte VLESS response header. The mandatory global lease ceiling further bounds the aggregate submitted payload by `PROXY_MAX_CONCURRENT_SESSIONS * (PROXY_MAX_DOWNLOAD_BYTES + 2)`.
+
+This is a code-derived application-level bound, not a measurement of Cloudflare's internal WebSocket queue, memory copies, framing overhead, or total Worker memory. A deterministic test holds quota settlement while the fake downstream peer never reads, and asserts that the relay does not issue a second TCP read/send until settlement resolves; a following over-budget chunk is rejected before send. The disposable Worker runtime probe remains unrun because invocation of the previous temporary Worker was blocked by HTTP 403. No claim is made about internal buffer capacity.

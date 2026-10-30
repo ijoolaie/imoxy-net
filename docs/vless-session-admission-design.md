@@ -1,6 +1,6 @@
 # VLESS session admission and concurrency design
 
-**Status:** First implementation merged; exact-head CI and SQLite-backed actual-SQL tests pass; live D1/Worker validation and Nova parity remain pending  
+**Status:** First implementation merged; disposable real-D1 direct-SQL admission tests pass; production Worker-path invocation and Nova parity remain pending  
 **Date:** 2026-10-30  
 **Related:** [Issue #106](https://github.com/ijoolaie/imoxy-net/issues/106), [Issue #78](https://github.com/ijoolaie/imoxy-net/issues/78)
 
@@ -147,3 +147,10 @@ The exact migration must include identifier/date constraints consistent with the
 ## Lease cleanup hardening — PR #111
 
 PR #111 (`4df6762fc34980457e275238fd380f39e6606894`) adds bounded opportunistic cleanup before admission and rejects lease requests that are already expired at admission time. Cleanup deletes at most 100 rows per admission; capacity correctness still depends only on the atomic count predicate filtering `expires_at > at`, so a cleanup failure cannot over-admit. Exact-head PR CI, same-head push CI, and post-merge main CI passed. Real D1 behavior remains unverified.
+
+
+## Real D1 and downstream serialization checkpoint — 2026-10-30
+
+A disposable Cloudflare D1 test has now exercised the production conditional admission predicate directly against the D1 API/primary: 20-way account-cap race (cap 3) admitted exactly 3; 12-way installation-cap race across two accounts (cap 2) admitted exactly 2; release/retry, idempotent release, disabled/expired/zero-cap denial, bounded expiry cleanup, and restrictive FK behavior passed. The temporary D1 and Worker were deleted after evidence capture. This does not prove the production JavaScript D1Store wrapper or Worker invocation; outbound requests to the temporary Worker's workers.dev endpoint returned 403 from the available execution environment. See [D1 validation evidence](d1-runtime-validation-2026-10-30.md).
+
+The VLESS upstream pump is sequential: it awaits quota settlement after each synchronous downstream `server.send()` before issuing the next TCP `reader.read()`. The per-session `PROXY_MAX_DOWNLOAD_BYTES` check rejects a whole chunk before send if it exceeds the remaining budget; send/settlement failures close the session before another read. With a required positive global lease cap, the application-submitted payload bound is at most `PROXY_MAX_CONCURRENT_SESSIONS * (PROXY_MAX_DOWNLOAD_BYTES + 2)` bytes, where the extra two bytes are the VLESS response header. This excludes WebSocket framing, runtime copies and internal overhead and does **not** establish Cloudflare's internal send-buffer size or total memory bound. A deterministic held-settlement/non-reading-client test now locks down the one-read-at-a-time property. The runtime slow-reader probe and Nova REF-032 remain open.
