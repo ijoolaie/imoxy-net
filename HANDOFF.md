@@ -734,3 +734,18 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Conclusion: Nova zero-cap behavior and the unit counted by the limit remain **Not documented / Not run / Not verified**. Imoxy's current zero=deny-all rule remains an explicit imoxy fail-closed policy only.
 - No reference deployment was available or exercised; no protected source was copied; no Cloudflare resources were changed.
 - Next: obtain a disposable reference instance at the pinned version and execute REF-032. Until then, keep Issue #106 open and do not claim Nova parity.
+
+
+## Latest work session — 2026-10-30 (reference audit and issue status)
+
+- Main at start: `b69a6e8ab14c32074fcc51d3a765ad50bd377b4b`.
+- PR #114 merged as `cb53e9b1c99aa12ad81d6278f181563998d3e632`: https://github.com/ijoolaie/imoxy-net/pull/114.
+- PR-head CI run `41067890695` passed on `b27fcc1b2d60c5386b0417f65e00473e7340b254`; post-merge main CI run `41067985094` passed on the exact merge commit.
+- Pinned Nova 5.0.0 README and GUIDE do not document `max_connections`, what one connection represents, or zero semantics. The pinned version metadata marks the shipped worker artifact as protected. No source-derived or runtime parity claim was made.
+- Added REF-032 for account caps NULL/0/1/2, concurrent VLESS sessions, capacity+1, slot release/reconnect, expiry/revocation and behavior after lowering a cap. Evidence register and reference baseline now classify these semantics as Not documented / Not run / Not verified.
+- Updated Issue #106 with the reference evidence. Imoxy's current zero=deny-all remains a deliberate fail-closed implementation policy, not an established Nova behavior.
+- Updated Issue #78 to record that D1-backed account/global admission leases now exist in repository code; the issue remains open for slow-reader behavior, application-managed queue proof and live Worker/D1 validation. The internal Workers WebSocket send-buffer remains unmeasured.
+- Automated concurrency evidence is still SQLite-backed: 20 concurrent adapter attempts for one remaining account slot admit exactly one. This is not evidence of Cloudflare D1's live concurrency behavior.
+- No disposable Nova reference runtime or imoxy Worker/D1 pair is available. Existing bootstrap staging and unrelated Cloudflare resources remain untouched. No deployment, D1 mutation, route/DNS change, or environment setting change occurred.
+- Current main CI is green. No open PRs remain at this checkpoint. Open issues #106 and #78 remain correctly open. Phase 6 remains In progress; Phase 12 remains Blocked.
+- Next: obtain an explicitly disposable reference runtime and separately authorized imoxy Worker/D1 pair. Execute REF-032 and the D1/slow-reader gates only there; do not infer results or touch existing staging resources.
