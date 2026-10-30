@@ -1,7 +1,7 @@
 # imoxy.net — Product Roadmap and Phase Gates
 
 **Status:** Active execution baseline; foundation merged, core design work started  
-**Last updated:** 2026-10-28  
+**Last updated:** 2026-10-30  
 **Reference target:** Nova Proxy 5.0.0, pinned in [reference-baseline.md](reference-baseline.md)  
 **Rule:** A phase is not complete because code exists; it is complete only when its exit criteria have reproducible evidence.
 
@@ -98,7 +98,7 @@ Exit gate:
 - Migration, interrupted-write, duplicate-request, backup/restore, and rollback tests pass.
 
 ### Phase 5 — Core management behavior
-**State:** In progress — authorization-gated account CRUD routes, shared quota evaluation, D1 usage counters and authorized usage-summary reads are implemented with tests. A conditional D1 upsert and migration 0004 schema triggers now reject per-day counter overflow, with adapter and SQLite migration regression coverage. Proxy data-plane enforcement, atomic quota reservations, stable-ID idempotent reporting, lifetime aggregate overflow handling and real D1 integration remain.
+**State:** In progress — authorization-gated account CRUD routes, shared quota evaluation, D1 usage counters and authorized usage-summary reads are implemented with tests. Migration 0004 and safe-integer aggregate guards protect daily and lifetime usage reporting. Atomic per-chunk quota reservations and stable producer/event-ID usage settlement are integrated into the VLESS forwarding path; SQLite-backed tests exercise the actual D1 adapter SQL for concurrency, replay/conflict, release and rollback. Real Cloudflare D1 transaction/trigger/concurrency/recovery validation, controlled Worker smoke evidence, reference quota-boundary comparison and reconciliation remain.
 
 Deliver:
 - First-run/bootstrap and configuration editing.
