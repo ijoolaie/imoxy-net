@@ -95,6 +95,7 @@ function isClearlyPrivateDestination(host) {
     // well-known special-purpose ranges and transition/documentation prefixes.
     if (first < 0x2000 || first > 0x3fff) return true;
     if (first === 0x2001 && second <= 0x01ff) return true; // IETF protocol assignments
+    if (first === 0x2001 && second >= 0x0020 && second <= 0x002f) return true; // ORCHIDv2
     if (first === 0x2001 && second === 0x0db8) return true; // documentation
     if (first === 0x2002) return true; // 6to4 embeds IPv4 addresses
     if (first === 0x3fff && second <= 0x0fff) return true; // documentation

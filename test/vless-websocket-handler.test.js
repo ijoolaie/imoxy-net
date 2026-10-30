@@ -355,6 +355,28 @@ test("normalizes numeric addresses before they are used as TCP dial targets", as
   assert.equal(await resolvePublicDestination("093.184.216.034"), "93.184.216.34");
 });
 
+test("DNS-over-HTTPS resolution filters the full ORCHIDv2 IPv6 prefix", async () => {
+  const fetchImpl = async (url) => {
+    const type = new URL(url).searchParams.get("type");
+    return {
+      ok: true,
+      async json() {
+        return type === "A"
+          ? { Status: 0, Answer: [] }
+          : { Status: 0, Answer: [
+              { type: 28, data: "2001:20::1" },
+              { type: 28, data: "2001:2f::1" },
+              { type: 28, data: "2606:4700:4700::1111" }
+            ] };
+      }
+    };
+  };
+  assert.deepEqual(
+    await resolvePublicDestinations("example.test", fetchImpl),
+    ["2606:4700:4700:0:0:0:0:1111"]
+  );
+});
+
 test("DNS-over-HTTPS resolution fails closed when no public answer exists", async () => {
   const fetchImpl = async () => ({
     ok: true,
