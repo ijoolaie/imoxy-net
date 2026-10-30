@@ -94,3 +94,8 @@ Do not treat the earlier `bufferedAmount` adapter tests as Cloudflare runtime ev
 ## VLESS application-level session budget — 2026-10-30
 
 The current implementation branch adds required per-session download-byte and maximum-lifetime settings, rejects missing/invalid settings before WebSocket allocation, and closes a non-reading session before forwarding a chunk that would exceed its cumulative download budget. Node tests cover the budget boundary and resource cleanup. This is an imoxy safety policy, not observed Nova behavior. Cloudflare Worker-internal WebSocket buffering, aggregate concurrent-session resource bounds, real Worker/D1 behavior, and Nova 5.0.0 parity remain **Not assessed**. Do not mark the proxy or quota rows Verified.
+
+
+## Post-merge status correction — 2026-10-30
+
+The per-session download-byte and maximum-lifetime policy described above is now merged into main as b5c44b16132c9f540de16ab9d4ce54ab5fa01fa4 (PR #104). Post-merge main CI run 41037834214 passed on that exact commit. This does not change the parity status: the policy is imoxy-specific, Worker-internal WebSocket buffering remains unproven, aggregate concurrent-session bounds remain open, and no live Worker/D1 or Nova runtime test has been run.

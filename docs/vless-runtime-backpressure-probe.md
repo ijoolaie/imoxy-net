@@ -84,3 +84,8 @@ Branch `fix/vless-session-download-budget` implements a fail-closed per-session 
 - Missing or invalid settings return HTTP 503 before WebSocket pair allocation.
 
 No values have been selected for or applied to any Cloudflare environment. These are per-session application limits only; they do not measure the Worker's internal send buffer and do not bound aggregate resource use across an unlimited number of concurrent sessions. The real Worker slow-reader probe remains **not run** and must still use a disposable, isolated target with separately approved limits and cleanup.
+
+
+## Post-merge status correction — 2026-10-30
+
+The per-session download-byte and maximum-lifetime policy described above is now merged into main as b5c44b16132c9f540de16ab9d4ce54ab5fa01fa4 (PR #104). Post-merge main CI run 41037834214 passed on that exact commit. This does not change the parity status: the policy is imoxy-specific, Worker-internal WebSocket buffering remains unproven, aggregate concurrent-session bounds remain open, and no live Worker/D1 or Nova runtime test has been run.

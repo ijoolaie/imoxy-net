@@ -81,3 +81,8 @@ The previously described `bufferedAmount` guard is not valid evidence of Cloudfl
 ## Imoxy VLESS session budget policy — 2026-10-30
 
 A per-session cumulative download-byte budget and maximum session lifetime are being implemented as an imoxy fail-closed resource policy because the documented Workers WebSocket API does not expose an authoritative send-buffer/drain signal. The policy is not attributed to Nova Proxy 5.0.0 and must not be counted as behavioral parity. The corresponding Nova slow-client, termination, quota and concurrency semantics remain uncharacterized.
+
+
+## Post-merge status correction — 2026-10-30
+
+The per-session download-byte and maximum-lifetime policy described above is now merged into main as b5c44b16132c9f540de16ab9d4ce54ab5fa01fa4 (PR #104). Post-merge main CI run 41037834214 passed on that exact commit. This does not change the parity status: the policy is imoxy-specific, Worker-internal WebSocket buffering remains unproven, aggregate concurrent-session bounds remain open, and no live Worker/D1 or Nova runtime test has been run.

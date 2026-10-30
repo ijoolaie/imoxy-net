@@ -380,3 +380,8 @@ The 1 MiB downstream guard added in PR #76 relied on `server.bufferedAmount`, wh
 The active branch `fix/vless-session-download-budget` introduces mandatory finite per-session download-byte and session-duration settings. The handler fails closed when either setting is absent/invalid, stops before reserving/sending a download chunk that would exceed the cumulative budget, and terminates the session with upstream cleanup at the lifetime ceiling. Deterministic Node coverage is added for missing configuration, non-reading downstream peers, exact byte boundaries, and session timeout.
 
 This is an application-level bound per session, not proof of Worker-internal WebSocket buffer size or a global aggregate bound across concurrent sessions. No production/staging values are configured, no Worker was deployed, and no live runtime or D1 test was run. Phase 6 remains **In progress**; Issue #78 and Phase 12 remain open/blocked pending CI, controlled runtime evidence, concurrency policy, D1 validation and Nova comparison.
+
+
+## Post-merge status correction — 2026-10-30
+
+The per-session download-byte and maximum-lifetime policy described above is now merged into main as b5c44b16132c9f540de16ab9d4ce54ab5fa01fa4 (PR #104). Post-merge main CI run 41037834214 passed on that exact commit. This does not change the parity status: the policy is imoxy-specific, Worker-internal WebSocket buffering remains unproven, aggregate concurrent-session bounds remain open, and no live Worker/D1 or Nova runtime test has been run.
