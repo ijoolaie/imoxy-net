@@ -72,6 +72,8 @@ function env(overrides = {}) {
     PROXY_USAGE_PRODUCER_ID: "worker-test-1",
     PROXY_MAX_DOWNLOAD_BYTES: "1048576",
     PROXY_MAX_SESSION_DURATION_MS: "3600000",
+    PROXY_MAX_CONCURRENT_SESSIONS: "100",
+    PROXY_SESSION_LEASE_GRACE_MS: "60000",
     ...overrides
   };
 }
@@ -93,7 +95,7 @@ async function settle() {
   for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = () => NOW, timerCallbacks = null, idleTimeoutMs = 120_000, quotaAllowed = true, quotaSettleFails = false, quotaReserveFails = false, quotaReserveConflict = false, downstreamSendFails = false } = {}) {
+function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = () => NOW, timerCallbacks = null, idleTimeoutMs = 120_000, quotaAllowed = true, quotaSettleFails = false, quotaReserveFails = false, quotaReserveConflict = false, downstreamSendFails = false, sessionAdmissionAllowed = true, sessionAdmissionFails = false, sessionReleaseFails = false } = {}) {
   const client = new FakeWebSocket();
   const server = new FakeWebSocket();
   const originalSend = server.send.bind(server);
@@ -103,14 +105,28 @@ function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = 
   };
   const connectCalls = [];
   const storeCalls = [];
+  const sessionCalls = { acquire: [], release: [] };
+  const events = [];
   const quotaCalls = { reserve: [], settle: [], release: [] };
   const handler = createVlessWebSocketHandler({
     storeFactory: () => ({
       async findAccountByCredentialHash(hash) {
         storeCalls.push(hash);
         return lookup === undefined
-          ? { credentialId: "cred-1", account: { id: "acct-1", status: "active", expiresAt: null } }
+          ? { credentialId: "cred-1", account: { id: "acct-1", status: "active", expiresAt: null, maxConnections: null } }
           : typeof lookup === "function" ? lookup(hash) : lookup;
+      },
+      async acquireProxySession(input) {
+        sessionCalls.acquire.push(input);
+        events.push("admit");
+        if (sessionAdmissionFails) throw new Error("injected session admission failure");
+        return { allowed: sessionAdmissionAllowed, duplicate: false };
+      },
+      async releaseProxySession(input) {
+        sessionCalls.release.push(input);
+        events.push("release");
+        if (sessionReleaseFails) throw new Error("injected session release failure");
+        return true;
       }
     }),
     quotaServiceFactory: () => ({
@@ -136,6 +152,7 @@ function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = 
       }
     }),
     connectTcp: async (destination) => {
+      events.push("connect");
       connectCalls.push(destination);
       if (connectTcp) return connectTcp(destination);
       return fakeSocket().socket;
@@ -149,7 +166,7 @@ function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = 
     setTimeoutImpl: timerCallbacks ? (callback) => { timerCallbacks.push(callback); return timerCallbacks.length; } : globalThis.setTimeout,
     clearTimeoutImpl: timerCallbacks ? () => {} : globalThis.clearTimeout
   });
-  return { handler, client, server, connectCalls, storeCalls, quotaCalls, config, env: env(config) };
+  return { handler, client, server, connectCalls, storeCalls, sessionCalls, events, quotaCalls, config, env: env(config) };
 }
 
 test("non-matching paths are ignored and do not allocate a WebSocket pair", async () => {
@@ -203,6 +220,14 @@ test("valid credential is authenticated before dialing and relays initial and la
   assert.equal(h.quotaCalls.reserve.length, 3);
   assert.equal(h.quotaCalls.settle[2].downloadBytes, 2);
   assert.equal(h.quotaCalls.settle[2].requestCount, 0);
+  assert.deepEqual(h.events.slice(0, 2), ["admit", "connect"], "session admission must happen before TCP dial");
+  assert.equal(h.sessionCalls.acquire.length, 1);
+  assert.equal(h.sessionCalls.acquire[0].maxConcurrentSessions, 100);
+  assert.ok(Date.parse(h.sessionCalls.acquire[0].expiresAt) >
+    Date.parse(h.sessionCalls.acquire[0].createdAt) + 3_600_000);
+  h.server.close();
+  await settle();
+  assert.equal(h.sessionCalls.release.length, 1);
 });
 
 
@@ -467,6 +492,7 @@ test("rejects a connected peer that differs from the pinned DNS answer", async (
   assert.equal(h.quotaCalls.reserve.length, 0);
   assert.ok(h.server.closeCalls.some((item) => item.reason === "destination_not_allowed"));
   assert.equal(upstream.closed, true);
+  assert.equal(h.sessionCalls.release.length, 1);
 });
 
 test("validates the connected peer before forwarding the initial payload", async () => {
@@ -903,7 +929,11 @@ test("requires explicit finite download and session-duration budgets", async () 
     { PROXY_MAX_DOWNLOAD_BYTES: "1.5" },
     { PROXY_MAX_DOWNLOAD_BYTES: "9007199254740992" },
     { PROXY_MAX_SESSION_DURATION_MS: "" },
-    { PROXY_MAX_SESSION_DURATION_MS: "2147483648" }
+    { PROXY_MAX_SESSION_DURATION_MS: "2147483648" },
+    { PROXY_MAX_CONCURRENT_SESSIONS: "" },
+    { PROXY_MAX_CONCURRENT_SESSIONS: "0" },
+    { PROXY_SESSION_LEASE_GRACE_MS: "" },
+    { PROXY_SESSION_LEASE_GRACE_MS: "2147483648" }
   ]) {
     const h = harness({ config: overrides });
     const response = await h.handler.fetch(request(), h.env);
@@ -938,6 +968,7 @@ test("a non-reading downstream client is closed before cumulative download bytes
   assert.equal(h.quotaCalls.release.length, 0);
   assert.ok(h.server.closeCalls.some((item) => item.code === 1008 && item.reason === "download_limit_exceeded"));
   assert.equal(upstream.closed, true);
+  assert.equal(h.sessionCalls.release.length, 1);
 });
 
 test("allows a download exactly at the configured byte budget and closes before the next chunk", async () => {
@@ -960,6 +991,7 @@ test("allows a download exactly at the configured byte budget and closes before 
   assert.equal(h.quotaCalls.reserve.length, 1);
   assert.ok(h.server.closeCalls.some((item) => item.reason === "download_limit_exceeded"));
   assert.equal(upstream.closed, true);
+  assert.equal(h.sessionCalls.release.length, 1);
 });
 
 test("session duration ceiling closes the WebSocket and upstream socket", async () => {
@@ -981,4 +1013,48 @@ test("session duration ceiling closes the WebSocket and upstream socket", async 
 
   assert.ok(h.server.closeCalls.some((item) => item.code === 1001 && item.reason === "session_duration_exceeded"));
   assert.equal(upstream.closed, true);
+});
+
+
+test("session capacity denial and ambiguous admission fail closed before TCP dial", async () => {
+  for (const options of [{ sessionAdmissionAllowed: false }, { sessionAdmissionFails: true }]) {
+    const h = harness(options);
+    await h.handler.fetch(request(), h.env);
+    h.server.receive(vlessRequest({ payload: [] }));
+    await settle();
+    assert.equal(h.connectCalls.length, 0);
+    assert.equal(h.quotaCalls.reserve.length, 0);
+    assert.equal(h.sessionCalls.acquire.length, 1);
+    assert.equal(h.sessionCalls.release.length, 0, "a denied or ambiguous lease must not be released speculatively");
+    assert.ok(h.server.closeCalls.some((item) =>
+      item.reason === "session_limit_reached" || item.reason === "proxy_session_failed"
+    ));
+  }
+});
+
+test("session admission lease is released when upstream setup fails and repeated close events do not release twice", async () => {
+  const h = harness({ connectTcp: async () => { throw new Error("injected dial failure"); } });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+  assert.equal(h.sessionCalls.acquire.length, 1);
+  assert.equal(h.sessionCalls.release.length, 1);
+  h.server.close();
+  h.server.fail();
+  await settle();
+  assert.equal(h.sessionCalls.release.length, 1);
+});
+
+test("session release failure does not prevent socket cleanup and is not retried", async () => {
+  const upstream = fakeSocket();
+  const h = harness({ sessionReleaseFails: true, connectTcp: async () => upstream.socket });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+  h.server.close();
+  await settle();
+  h.server.fail();
+  await settle();
+  assert.equal(upstream.closed, true);
+  assert.equal(h.sessionCalls.release.length, 1);
 });
