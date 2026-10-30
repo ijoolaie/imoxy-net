@@ -118,3 +118,12 @@ The downstream Workers WebSocket API still has no documented send-buffer size or
 The handler counts successfully reserved, sent and settled download bytes. Before reserving or sending the next TCP chunk, it closes the session if that whole chunk would exceed the remaining download budget. A hard lifetime timer starts after authentication and closes the WebSocket plus upstream resources when it expires. Existing reserve-before-forward, settle-after-forward, and retain-ambiguous-reservation behavior is unchanged.
 
 This bounds cumulative downstream bytes and lifetime per session, including for a client that never reads. It does **not** expose or prove the Workers internal send-buffer size, establish a global bound across an unlimited number of concurrent sessions, or prove Nova behavior. The configuration values are deliberately not defaulted or deployed; an operator must select them for each isolated environment. Keep Issue #78 open until runtime evidence, concurrency/resource policy, and cleanup gates are reviewed.
+
+
+## 2026-10-30 — VLESS concurrent-session admission design
+
+Source inspection confirms that `proxy_accounts.max_connections` is stored and returned by the D1 adapter but is not consumed by the VLESS handler. A Worker-global map is rejected as an enforcement authority because it is isolate-local and non-durable.
+
+Decision for the first implementation slice: evaluate D1-backed active-session leases with one conditional `INSERT ... SELECT` statement that atomically checks both the per-account `max_connections` value and a mandatory installation-wide `PROXY_MAX_CONCURRENT_SESSIONS` ceiling. Do not use a read-then-insert sequence. `NULL` means no account-specific cap; zero denies new sessions. Acquire before upstream TCP dial; release idempotently on all close paths; stale/ambiguous leases remain counted until expiry after maximum session lifetime plus a cleanup grace.
+
+This is a design choice, not an implemented or D1-verified guarantee. The final selection is conditional on a real disposable-D1 concurrent last-slot test and admission-latency measurement. If D1 does not meet the correctness/performance requirement, evaluate one Durable Object per account (not a global singleton). See [vless-session-admission-design.md](vless-session-admission-design.md) and [Issue #106](https://github.com/ijoolaie/imoxy-net/issues/106). No production/staging resource was changed.
