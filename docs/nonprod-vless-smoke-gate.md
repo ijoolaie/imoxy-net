@@ -74,3 +74,18 @@ The gate passes only when all applicable steps are executed in the actual non-pr
 - The repository has a template rather than an active Wrangler configuration with a D1 binding.
 - No deployed Worker/D1 smoke run, DNS-rebinding end-to-end test, or Nova runtime comparison has been performed.
 - IPv4/IPv6 fallback semantics, the completeness of special-purpose address filtering, relay backpressure and hard quota enforcement still need independent review.
+
+
+## Live Cloudflare observation — 2026-10-30 (not a passing smoke test)
+
+A read-only inspection of the account's Worker named `imoxy-net-api-staging` found a D1 binding named `IDENTITY_DB` pointing to `imoxy-net-staging-identity` (`fdf810ea-e96c-4d1f-b7af-aac6e2b746c6`). The database already contains nonzero identity/session/audit records; do not reset it or use it as a disposable test database.
+
+The Worker has Workers.dev enabled and no custom domain or matching zone route was found in the visible account inventory. Its latest observed deployment/version was created on 2026-10-23 and Wrangler reports source `Unknown (version_upload)`.
+
+A public, unauthenticated GET to the Worker hostname returned:
+- `GET /health`: HTTP 200 with stage `bootstrap`.
+- `GET /api/v1/capabilities`, `/api/v1/accounts`, and `/api/v1/auth/me`: HTTP 501 `not_implemented`.
+
+This differs from the current repository's Worker/API implementation. Treat it as deployment drift; the exact deployed source revision has not been proven. No deployment, resource mutation, route/DNS change, D1 write, or secret read was performed.
+
+**Decision:** This target is not accepted for the VLESS/D1 smoke gate. Do not deploy to it, alter its bindings, run migrations, or use its existing D1 data for test mutations until the owner-approved isolation/production-separation and cleanup checks identify the exact disposable target. The gate remains not executed.
