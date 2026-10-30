@@ -2,7 +2,7 @@
 
 **Target commit:** `ad2116aa89f8c7db8248f8142c1432900d835eb7`  
 **Reference repository:** https://github.com/IRNova/Nova-Proxy  
-**Evidence snapshot date:** 2026-10-27  
+**Evidence snapshot date:** 2026-10-30  
 **Runtime access:** Not provided in this work session; no reference deployment was exercised.
 
 ## Evidence categories
@@ -21,6 +21,7 @@
 | License | https://github.com/IRNova/Nova-Proxy/blob/ad2116aa89f8c7db8248f8142c1432900d835eb7/LICENSE | Terms attached to the pinned reference | Requires legal interpretation for intended product/distribution |
 | Deployment guide | https://github.com/IRNova/Nova-Proxy/blob/ad2116aa89f8c7db8248f8142c1432900d835eb7/DEPLOY.md | Documented setup/update/rollback path | Must be exercised in a disposable authorized account |
 | Guide | https://github.com/IRNova/Nova-Proxy/blob/ad2116aa89f8c7db8248f8142c1432900d835eb7/GUIDE.md | Detailed user-facing feature and settings descriptions | Documentation may be incomplete or inconsistent with runtime |
+| Pinned version metadata | https://github.com/IRNova/Nova-Proxy/blob/ad2116aa89f8c7db8248f8142c1432900d835eb7/version.json | Identifies 5.0.0, release date, protected worker flag and published SHA-256 | Does not document per-account connection-limit semantics; protected worker is not used as a source for implementation copying or unsupported inference |
 
 ## Documented capability inventory (hypotheses, not verified)
 
@@ -58,3 +59,10 @@
 4. Execute network, fallback, mirror, bot and localization scenarios only in isolated test resources.
 5. Store sanitized artifacts with timestamp, scenario ID, expected/observed behavior and reviewer.
 6. Update the parity matrix only after repeatable outcomes; preserve mismatches as explicit requirements rather than silently adapting the implementation.
+
+
+## Concurrent-session limit evidence check — 2026-10-30
+
+The pinned 5.0.0 README, GUIDE, package manifest and release metadata were inspected for `max_connections`, connection-limit, and simultaneous-connection descriptions. The user-facing README and GUIDE contain no documented per-account connection-limit contract. `version.json` marks the shipped 1.3 MB `worker.js` artifact as protected and publishes its checksum; no runtime observation is available. Therefore there is **no authoritative documentary evidence** for whether zero means unlimited or deny-all, what a connection counts as, when a slot is released, or how existing sessions behave after a cap change.
+
+Do not infer Nova semantics from imoxy's schema, imoxy's `NULL/0` policy, other proxy projects, or the protected worker artifact. REF-032 records the required black-box scenarios. Current evidence classification: **Not documented / Not run / Not verified**.
