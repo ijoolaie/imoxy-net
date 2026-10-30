@@ -168,3 +168,8 @@ PR #121 added a deterministic non-reading-peer/held-settlement test proving the 
 ## 2026-10-30 — D1Store admission SQL exercised through the production wrapper
 
 PR #123 adds a Node 22 SQLite integration test that applies the checked-in initial schema and migration 0007, then executes the production createD1Store admission/release/cleanup methods through a D1-compatible adapter. The test covers per-account and installation caps, duplicate lease idempotency, expiry cleanup, and restrictive account deletion. Exact-head CI run 41080879160 passed on 78d988687e508944271ad9babfa042b9bc9f04b5, including npm run verify. This closes the local SQL-wrapper execution gap left by the mock-only D1Store unit tests. It does not establish Cloudflare D1 concurrency semantics, deployed Worker integration, Cloudflare WebSocket backpressure, or Nova REF-032. Keep Issues #106 and #78 open. No Cloudflare resources or staging data were changed.
+
+
+## 2026-10-30 — PR #123 D1Store SQLite wrapper tests merged
+
+PR #123 was squash-merged as 969f96b1ca1e15befd9ee9cbf5dbf025f391b429. Final PR-head CI run 41081184391 passed on ed4d71916ad729e9f9ad6c462a0747c5beabf860; post-merge main CI run 41081292762 passed on the exact merge commit, including npm run verify. The production D1Store admission/release/cleanup wrapper now has SQL-engine coverage using Node SQLite and the checked-in migrations. This is not Cloudflare D1 concurrency or Worker runtime evidence. Issues #106 and #78 remain open for runtime and Nova reference gates. No Cloudflare resources or staging data were changed.
