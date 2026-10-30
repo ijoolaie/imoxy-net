@@ -723,3 +723,14 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - No open PRs remain. Open issues: #106 (real D1/Worker admission validation and Nova zero-cap semantics) and #78 (downstream Worker WebSocket buffering/resource bounds).
 - Cloudflare read-only inventory still shows no dedicated disposable imoxy Worker/D1 pair. Existing `imoxy-net-api-staging` and its 11-table `imoxy-net-staging-identity` D1 remain untouched; unrelated D1 databases are not candidates.
 - Phase 6 remains In progress; Phase 12 remains Blocked. Do not mark session concurrency or Nova parity complete until the live D1/Worker and reference gates pass.
+
+
+## Latest work session — 2026-10-30 (Nova concurrent-session reference audit)
+
+- Current main at start: `b69a6e8ab14c32074fcc51d3a765ad50bd377b4b`.
+- Inspected pinned Nova Proxy 5.0.0 metadata, README, GUIDE and package manifest at `ad2116aa89f8c7db8248f8142c1432900d835eb7`.
+- README and GUIDE do not document `max_connections`, a per-account simultaneous-connection limit, or the meaning of zero. `version.json` marks the shipped 1.3 MB worker artifact as protected and publishes its checksum; no runtime semantics were inferred from that artifact.
+- Added REF-032 to cover NULL/0/1/2 caps, parallel sessions, exact capacity+1, close/reconnect, expiry/revocation and behavior after lowering a cap.
+- Conclusion: Nova zero-cap behavior and the unit counted by the limit remain **Not documented / Not run / Not verified**. Imoxy's current zero=deny-all rule remains an explicit imoxy fail-closed policy only.
+- No reference deployment was available or exercised; no protected source was copied; no Cloudflare resources were changed.
+- Next: obtain a disposable reference instance at the pinned version and execute REF-032. Until then, keep Issue #106 open and do not claim Nova parity.
