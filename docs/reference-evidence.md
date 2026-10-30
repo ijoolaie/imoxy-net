@@ -20,7 +20,8 @@
 | Pinned package manifest | https://github.com/IRNova/Nova-Proxy/blob/ad2116aa89f8c7db8248f8142c1432900d835eb7/package.json | Package version 5.0.0 and described Cloudflare bindings/scripts | Does not prove deployment flow succeeds |
 | License | https://github.com/IRNova/Nova-Proxy/blob/ad2116aa89f8c7db8248f8142c1432900d835eb7/LICENSE | Terms attached to the pinned reference | Requires legal interpretation for intended product/distribution |
 | Deployment guide | https://github.com/IRNova/Nova-Proxy/blob/ad2116aa89f8c7db8248f8142c1432900d835eb7/DEPLOY.md | Documented setup/update/rollback path | Must be exercised in a disposable authorized account |
-| Guide | https://github.com/IRNova/Nova-Proxy/blob/ad2116aa89f8c7db8248f8142c1432900d835eb7/GUIDE.md | Detailed user-facing feature and settings descriptions | Documentation may be incomplete or inconsistent with runtime |\n| Pinned version metadata | https://github.com/IRNova/Nova-Proxy/blob/ad2116aa89f8c7db8248f8142c1432900d835eb7/version.json | Identifies 5.0.0, release date, protected worker flag and published SHA-256 | Does not document per-account connection-limit semantics; protected worker is not used as a source for implementation copying or unsupported inference |
+| Guide | https://github.com/IRNova/Nova-Proxy/blob/ad2116aa89f8c7db8248f8142c1432900d835eb7/GUIDE.md | Detailed user-facing feature and settings descriptions | Documentation may be incomplete or inconsistent with runtime |
+| Pinned version metadata | https://github.com/IRNova/Nova-Proxy/blob/ad2116aa89f8c7db8248f8142c1432900d835eb7/version.json | Identifies 5.0.0, release date, protected worker flag and published SHA-256 | Does not document per-account connection-limit semantics; protected worker is not used as a source for implementation copying or unsupported inference |
 
 ## Documented capability inventory (hypotheses, not verified)
 
