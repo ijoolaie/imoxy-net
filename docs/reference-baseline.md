@@ -91,3 +91,8 @@ The per-session download-byte and maximum-lifetime policy described above is now
 ## Concurrent-session compatibility gap — 2026-10-30
 
 The imoxy VLESS handler currently does not enforce the persisted `max_connections` account field or an installation-wide concurrent-session ceiling. This is an implementation gap, not a finding about Nova Proxy behavior. The pinned Nova runtime's exact cap semantics, boundary behavior, and treatment of already-open sessions remain uncharacterized. REF scenarios and repeatable black-box comparison are required before any parity claim.
+
+
+## Concurrent-session implementation update — 2026-10-30
+
+Imoxy now enforces an installation-wide VLESS session ceiling and an account-level cap for positive `max_connections` values through D1 leases (PR #108). This is implementation evidence only, not Nova compatibility evidence. The pinned Nova Proxy 5.0.0 artifact is protected/minified and the exact behavior of `max_connections = 0`, including whether zero means unlimited or deny-all, has not been characterized. Keep the parity row unverified until the reference runtime or authoritative source establishes the semantics and boundary behavior.
