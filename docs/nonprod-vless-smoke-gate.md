@@ -115,7 +115,7 @@ A current-source diagnostic was executed against a newly created standalone Work
 - Observability query returned no event rows; the exact exception remains unknown.
 - Both temporary Workers were deleted and inventory confirmed that only the pre-existing `imoxy-net-api-staging` and `iran-price-scout` scripts remained. Temporary client scripts were removed. No D1 or existing staging resource was changed.
 
-**Interpretation:** generic Workers WebSocket support is available, but the actual handler's upgrade path remains broken/unexplained. This is a failed diagnostic, not a passing smoke test. The next test must instrument each pre-upgrade operation and the returned 101 response, then repeat the handshake only. Do not advance to credential/TCP/quota/backpressure tests until the handler handshake passes.
+**Interpretation at the time:** generic Workers WebSocket support was available, but the handler upgrade path had not been isolated. Subsequent Workers Logs review identified a diagnostic-wrapper bug that returned `null` for unmatched root-path requests; this caused the observed root-path 1101 and must not be attributed to the handler. A corrected wrapper returned 404 for `/` and 426 for a plain HTTP request to `/proxy/vless`. One actual-handler ClientWebSocket handshake succeeded, but later repetitions were inconsistent. The full handler handshake is therefore not yet a repeatable pass.
 
 
 ## Additional pre-upgrade primitive control — 2026-10-31
@@ -123,3 +123,12 @@ A current-source diagnostic was executed against a newly created standalone Work
 A minimal standalone Worker, without application module imports or D1/TCP bindings, reproduced the handler's basic pre-upgrade primitives: native WebSocketPair creation, `server.accept()`, the handler-shaped session state and closure, a `sessionClosed` Promise, timer setup/cleanup, and message/close/error event listeners. A real ClientWebSocket completed the handshake and echoed a binary payload. The disposable Worker and local script were deleted; inventory confirmed only the two pre-existing account Workers remained.
 
 This narrows the investigation but does not prove the full handler path. A separately packaged experimental copy using an injected HTTP-200 upgrade factory returned 1101 even for plain HTTP; because its module startup was not independently validated, that result is discarded as inconclusive. The next diagnostic must first prove the actual module bundle handles plain HTTP as expected, then instrument each pre-upgrade stage and the 101 response. No VLESS, D1, TCP, quota or relay behavior has passed in the deployed handler runtime.
+
+
+## Diagnostic-wrapper correction — 2026-10-31
+
+Workers Logs identified that the earlier disposable wrapper returned the VLESS handler's `null` result directly for paths it does not own. Cloudflare workers.dev root probes request `GET /`; the handler returns `null` outside `/proxy/vless`, producing the runtime error `Incorrect type for Promise: the Promise did not resolve to 'Response'.` This explains the root-path HTTP 500/1101 and is a harness bug, not evidence that the VLESS handler throws 1101.
+
+A corrected wrapper now maps unhandled `null` to an explicit 404. Under that wrapper, root GET returned 404 and plain GET `/proxy/vless` returned the expected 426. One real ClientWebSocket handshake against the handler with in-memory store/quota adapters and TCP disabled succeeded, but subsequent repeats were inconsistent and not a passing gate. The synthetic relay attempt did not reach a confirmed handshake. No VLESS payload, D1, TCP, quota settlement, leases or relay are proven. All 14 disposable Workers and five temporary local scripts from this diagnostic pass were deleted; only the two pre-existing Workers remain. Existing staging resources were untouched.
+
+**Next gate:** repeat the handler handshake using the corrected wrapper, then send one synthetic VLESS request through fake adapters. Only after those are repeatable should the isolated D1 and controlled TCP acceptance sequence begin.
