@@ -72,10 +72,11 @@ The gate passes only when all applicable steps are executed in the actual non-pr
 
 ## Current blockers
 
-- No verified dedicated non-production Worker/D1 environment or authorization to provision/use one is recorded.
-- The repository has a template rather than an active Wrangler configuration with a D1 binding.
-- No deployed Worker/D1 smoke run, DNS-rebinding end-to-end test, or Nova runtime comparison has been performed.
-- IPv4/IPv6 fallback semantics, the completeness of special-purpose address filtering, downstream runtime-buffer boundedness, and actual D1 concurrent-session lease semantics still need independent review.
+- No persistent dedicated non-production Worker/D1 environment is configured. Disposable D1 and Worker resources have been provisioned for bounded tests and deleted after each run.
+- The D1Store wrapper and session-lease concurrency behavior have separate disposable-D1 evidence (see HANDOFF.md); those tests do not prove the complete VLESS handler path.
+- The current VLESS handler's WebSocket upgrade failed with HTTP 500 `1101` on 2026-10-31 even with fake store/quota adapters. No VLESS payload, DNS/TCP, quota settlement, or relay test has passed in the actual Worker runtime.
+- No controlled TCP destination has yet been used for a successful end-to-end VLESS relay, and no Nova runtime comparison has been performed.
+- IPv4/IPv6 fallback semantics, the completeness of special-purpose address filtering, downstream runtime-buffer boundedness, and actual D1 lease behavior under the deployed VLESS handler still need independent review.
 
 
 ## Live Cloudflare observation — 2026-10-30 (not a passing smoke test)
@@ -101,7 +102,7 @@ Read-only account inventory found:
 - No separate imoxy test Worker or test D1 binding was found in the listed resources.
 - Other D1 databases exist for separately named resources (`iran-price-scout-db` and `ivory-tide-05e8-db`). There is no evidence that either is disposable or authorized for imoxy tests; do not use them.
 
-**Decision:** No live D1/Worker smoke test, migration, seed, cleanup, or deployment is authorized by this inventory. Keep all existing resources untouched. A dedicated disposable Worker and D1 must be explicitly provisioned/identified with a verified owner, bindings, route/hostname, isolated data, and cleanup procedure before the gate can run.
+**Decision at inventory time:** No accepted VLESS end-to-end target was available in the read-only inventory. Subsequent disposable test resources were created only for bounded isolated diagnostics and were deleted after use. Existing staging resources remain untouched. Each future test must continue to provision its own isolated Worker/D1 and cleanup plan; do not reuse the bootstrap staging Worker/database.
 
 
 ## VLESS handler upgrade diagnostic — 2026-10-31 (failed; isolated)
