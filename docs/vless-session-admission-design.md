@@ -1,6 +1,6 @@
 # VLESS session admission and concurrency design
 
-**Status:** First implementation merged; disposable real-D1 direct-SQL admission tests pass; production Worker-path invocation and Nova parity remain pending  
+**Status:** First implementation merged; disposable real-D1 direct-SQL and D1Store-wrapper Worker tests pass; full VLESS route/handler runtime and Nova parity remain pending
 **Date:** 2026-10-30  
 **Related:** [Issue #106](https://github.com/ijoolaie/imoxy-net/issues/106), [Issue #78](https://github.com/ijoolaie/imoxy-net/issues/78)
 
@@ -154,3 +154,11 @@ PR #111 (`4df6762fc34980457e275238fd380f39e6606894`) adds bounded opportunistic 
 A disposable Cloudflare D1 test has now exercised the production conditional admission predicate directly against the D1 API/primary: 20-way account-cap race (cap 3) admitted exactly 3; 12-way installation-cap race across two accounts (cap 2) admitted exactly 2; release/retry, idempotent release, disabled/expired/zero-cap denial, bounded expiry cleanup, and restrictive FK behavior passed. The temporary D1 and Worker were deleted after evidence capture. This does not prove the production JavaScript D1Store wrapper or Worker invocation; outbound requests to the temporary Worker's workers.dev endpoint returned 403 from the available execution environment. See [D1 validation evidence](d1-runtime-validation-2026-10-30.md).
 
 The VLESS upstream pump is sequential: it awaits quota settlement after each synchronous downstream `server.send()` before issuing the next TCP `reader.read()`. The per-session `PROXY_MAX_DOWNLOAD_BYTES` check rejects a whole chunk before send if it exceeds the remaining budget; send/settlement failures close the session before another read. With a required positive global lease cap, the application-submitted payload bound is at most `PROXY_MAX_CONCURRENT_SESSIONS * (PROXY_MAX_DOWNLOAD_BYTES + 2)` bytes, where the extra two bytes are the VLESS response header. This excludes WebSocket framing, runtime copies and internal overhead and does **not** establish Cloudflare's internal send-buffer size or total memory bound. A deterministic held-settlement/non-reading-client test now locks down the one-read-at-a-time property. The runtime slow-reader probe and Nova REF-032 remain open.
+
+## Deployed D1Store wrapper runtime follow-up — 2026-10-31
+
+The real-runtime adapter gate is now complete. A dedicated temporary Worker imported the exact repository `src/storage/d1-store.js` module and invoked `createD1Store(env.DB)` against a newly created disposable Cloudflare D1 database with the checked-in initial schema and migration 0007. The Worker and database were both deleted and their absence verified after testing.
+
+The deployed wrapper admitted exactly 3 of 20 simultaneous attempts at account cap 3, and exactly 2 of 12 simultaneous attempts across two NULL-cap accounts at installation cap 2. It also passed duplicate idempotency, conflicting-ID denial, idempotent release, disabled/expired/zero-cap denial, bounded expired-lease cleanup, and restrictive-FK account deletion checks. D1 metadata showed primary-served operations in WEUR/AMS. Full evidence is in [d1-runtime-validation-2026-10-30.md](d1-runtime-validation-2026-10-30.md).
+
+Issue #106 is closed as completed for D1-backed per-account/installation admission and its disposable runtime validation. No production proxy limits were configured. This test does not exercise the complete VLESS handler route or prove lease behavior after isolate termination; Nova REF-032 remains unrun. Issue #78 remains open for slow-reader/backpressure and Cloudflare-internal WebSocket buffer evidence.
