@@ -860,3 +860,16 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Exact PR-head CI run `41177777416` passed on `a712da989f37eefef83d08513a2af68526dba7fc`; post-merge main CI run `41177821676` passed on the exact merge commit `0ead7b51ce090dc136a5401fe67df83d17c292a1` (`npm run verify`).
 - Issue #78 was updated with this evidence. No code or runtime resources changed in PR #127; it is a documentation/evidence correction only.
 - Current next gate: actual VLESS route validation still requires a separately isolated disposable Worker + D1 + test credential + controlled TCP destination. The previous generic WebSocket test is not evidence for that path. Existing staging resources remain off-limits. Obtain explicit approval for the disposable D1 and controlled TCP test target before provisioning. Issue #78 remains open; Phase 6 In progress; Phase 12 Blocked.
+
+
+## VLESS handler 1101 diagnostic — 2026-10-31
+
+- Starting `main`: `329077f09d961539ec89df4e4eedb631ed23434d`; no open PRs were present. Working branch: `docs/vless-1101-runtime-diagnostic-20261031`.
+- Reproduced the VLESS route upgrade failure using the current handler module and local import graph on a newly created, standalone Worker. The Worker used injected fake in-memory store/quota adapters and a sentinel `DB` binding; no D1 database, TCP dial, DNS lookup, VLESS credential, or production/staging resource was used.
+- A real .NET `ClientWebSocket` upgrade to `/proxy/vless` returned Cloudflare HTTP 500 `error code: 1101`. No VLESS payload was sent, so protocol authentication, D1, outbound TCP, quota reservation/settlement, and relay behavior were not reached.
+- Control: a separate minimal Worker using the same native `WebSocketPair`, `server.accept()`, and `Response(status: 101, webSocket)` pattern successfully connected and echoed a message from the same account/runtime. This narrows the failure to the handler's upgrade execution path or its interaction with the runtime; it does not identify the exact exception.
+- Workers Observability query returned no event rows for the diagnostic Worker, so no runtime stack was captured. Do not claim a root cause or mark Issue #78 resolved.
+- Cleanup: both temporary Workers were deleted; inventory confirmed only `imoxy-net-api-staging` and `iran-price-scout` remained. All temporary PowerShell scripts were removed. No D1 database was created and no existing staging resource was changed.
+- Issue #78 received diagnostic comment `6540326949`. Issue remains open.
+- Next step: add temporary, narrowly scoped instrumentation around the handler's pre-upgrade stages and the returned 101 response; repeat handshake only. Do not send VLESS payload until handshake succeeds. Then proceed to the authorized isolated D1/TCP test sequence with the existing strict byte/time/concurrency limits.
+- This session made no application-code or deployment changes. No CI result is implied by this documentation update; PR-head and post-merge main CI must be verified separately.
