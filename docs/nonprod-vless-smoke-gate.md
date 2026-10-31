@@ -112,7 +112,7 @@ A current-source diagnostic was executed against a newly created standalone Work
 - A real .NET ClientWebSocket upgrade to `/proxy/vless` returned HTTP 500 `error code: 1101` before the handshake completed.
 - A separate minimal Worker using the same native WebSocketPair/accept/101-response pattern completed a WebSocket connection and echo on the same account/runtime.
 - No VLESS payload was sent. Authentication, DNS, TCP, quota, leases, relay, slow-reader behavior and settlement were not exercised.
-- Observability query returned no event rows; the exact exception remains unknown.
+- The initial Observability query returned no rows; a later corrected query captured the root-probe wrapper exception `Incorrect type for Promise: the Promise did not resolve to 'Response'`. This explains root-path 1101 but does not establish a repeatable VLESS WebSocket handshake.
 - Both temporary Workers were deleted and inventory confirmed that only the pre-existing `imoxy-net-api-staging` and `iran-price-scout` scripts remained. Temporary client scripts were removed. No D1 or existing staging resource was changed.
 
 **Interpretation at the time:** generic Workers WebSocket support was available, but the handler upgrade path had not been isolated. Subsequent Workers Logs review identified a diagnostic-wrapper bug that returned `null` for unmatched root-path requests; this caused the observed root-path 1101 and must not be attributed to the handler. A corrected wrapper returned 404 for `/` and 426 for a plain HTTP request to `/proxy/vless`. One actual-handler ClientWebSocket handshake succeeded, but later repetitions were inconsistent. The full handler handshake is therefore not yet a repeatable pass.
