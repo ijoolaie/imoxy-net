@@ -116,3 +116,10 @@ A current-source diagnostic was executed against a newly created standalone Work
 - Both temporary Workers were deleted and inventory confirmed that only the pre-existing `imoxy-net-api-staging` and `iran-price-scout` scripts remained. Temporary client scripts were removed. No D1 or existing staging resource was changed.
 
 **Interpretation:** generic Workers WebSocket support is available, but the actual handler's upgrade path remains broken/unexplained. This is a failed diagnostic, not a passing smoke test. The next test must instrument each pre-upgrade operation and the returned 101 response, then repeat the handshake only. Do not advance to credential/TCP/quota/backpressure tests until the handler handshake passes.
+
+
+## Additional pre-upgrade primitive control — 2026-10-31
+
+A minimal standalone Worker, without application module imports or D1/TCP bindings, reproduced the handler's basic pre-upgrade primitives: native WebSocketPair creation, `server.accept()`, the handler-shaped session state and closure, a `sessionClosed` Promise, timer setup/cleanup, and message/close/error event listeners. A real ClientWebSocket completed the handshake and echoed a binary payload. The disposable Worker and local script were deleted; inventory confirmed only the two pre-existing account Workers remained.
+
+This narrows the investigation but does not prove the full handler path. A separately packaged experimental copy using an injected HTTP-200 upgrade factory returned 1101 even for plain HTTP; because its module startup was not independently validated, that result is discarded as inconclusive. The next diagnostic must first prove the actual module bundle handles plain HTTP as expected, then instrument each pre-upgrade stage and the 101 response. No VLESS, D1, TCP, quota or relay behavior has passed in the deployed handler runtime.
