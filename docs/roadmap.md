@@ -354,7 +354,7 @@ This is a gate-based status audit, not a percentage estimate. A phase is marked 
 | 3 — Security and identity | In progress | Auth/session/RBAC tests exist; real D1 integration, deployed configuration, deeper abuse tests and security sign-off remain. |
 | 4 — Persistence and recovery | In progress | Migrations and SQLite tests exist; real D1 durability, backup/restore, interrupted-write, concurrency and rollback evidence is missing. |
 | 5 — Core management | In progress | Account CRUD and quota foundations exist; real D1 concurrency/recovery validation, complete data-plane enforcement, lifetime accounting edge cases and end-to-end proof of idempotency remain. |
-| 6 — Subscription/proxy compatibility | In progress | Restricted VLESS/WS TCP prototype, DNS pinning and adapter tests exist; real D1 admission predicate tests now pass against a disposable D1 primary, but production Worker-path invocation, complete address-policy/fallback coverage, target-client, backpressure/limits and Nova comparison remain unverified. |
+| 6 — Subscription/proxy compatibility | In progress | Restricted VLESS/WS TCP prototype, DNS pinning and adapter tests exist; real D1 admission predicate tests now pass against a disposable D1 primary, but full VLESS route/handler runtime invocation, complete address-policy/fallback coverage, target-client, backpressure/limits and Nova comparison remain unverified. |
 | 7 — Cloudflare operations | In progress | Inventory and dry-run planning are tested; real account verification, approved write workflows, idempotency and rollback are absent. |
 | 8 — Web panel | In progress | Initial login/account/usage/preview screens exist; critical browser E2E, remaining workflows, accessibility and deployed-Worker validation remain. |
 | 9 — Telegram bot | In progress | Initial read-only commands and mocked/SQLite replay tests exist; secure account linking, real D1/webhook validation, audited mutations and parity remain. |
@@ -385,3 +385,7 @@ This is an application-level bound per session, not proof of Worker-internal Web
 ## Post-merge status correction — 2026-10-30
 
 The per-session download-byte and maximum-lifetime policy described above is now merged into main as b5c44b16132c9f540de16ab9d4ce54ab5fa01fa4 (PR #104). Post-merge main CI run 41037834214 passed on that exact commit. This does not change the parity status: the policy is imoxy-specific, Worker-internal WebSocket buffering remains unproven, aggregate concurrent-session bounds remain open, and no live Worker/D1 or Nova runtime test has been run.
+
+## Session-admission runtime evidence update — 2026-10-31
+
+The production D1Store JavaScript wrapper has now been invoked inside a deployed disposable Worker against a disposable Cloudflare D1 database. Exact concurrent account/global cap results and lifecycle checks passed; both temporary resources were deleted and their absence verified. Issue #106 is closed as completed. This is not a full VLESS route/runtime test and does not establish Nova REF-032 or Cloudflare WebSocket backpressure. Phase 6 remains **In progress**; Issue #78 remains open; Phase 12 remains **Blocked**. Production proxy limits remain unset.

@@ -819,3 +819,13 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Post-merge main CI run 41081292762 passed on the exact merge commit 969f96b1ca1e15befd9ee9cbf5dbf025f391b429; job test and npm run verify passed.
 - Main is now at 969f96b1ca1e15befd9ee9cbf5dbf025f391b429. The D1Store SQLite wrapper gap is now covered by test/d1-store-sqlite.test.js. This does not replace live D1 concurrency/Worker runtime or Nova REF-032 evidence; Issues #106 and #78 remain open.
 - No Cloudflare resources, existing staging data, environment settings, routes, DNS, or deployments were changed.
+
+## 2026-10-31 — deployed D1Store wrapper validation and Issue #106 closure
+
+- Updated the local checkout to the exact current main commit `c3a8cc8f0490ec2e3744d87eb6ab305dcc2d061b`. Full Node suite passed **201/201**; `node --check worker.js` passed.
+- Created a disposable D1 database `imoxy-probe-d1-20261031` (UUID `991f6736-e3cd-4fcf-b1e9-1df76a70b2df`) in WEUR, with read replication disabled. Applied checked-in migrations `0001_initial.sql` and `0007_proxy_active_sessions.sql`.
+- Created a dedicated Worker `imoxy-d1-wrapper-probe-20261031`, bound only to that database. It imported the exact `src/storage/d1-store.js` module from the main checkout and invoked `createD1Store(env.DB)` methods through deployed Worker HTTP requests.
+- Runtime results: 20 concurrent account-cap attempts at cap 3 admitted exactly 3; 12 concurrent attempts across two NULL-cap accounts at installation cap 2 admitted exactly 2. Exact duplicate retry was idempotently allowed; same ID with a different account was rejected as a conflict. Release returned true then false on repeat. Disabled, expired and zero-cap accounts were denied. The wrapper removed one stale lease. A live lease blocked account deletion through the restrictive FK; after release deletion succeeded. Final active lease count was zero.
+- D1 API query metadata showed `served_by_primary=true` in WEUR/AMS. This is real Cloudflare D1 + deployed Worker evidence for the D1Store wrapper, not merely direct SQL or SQLite evidence.
+- Cleanup: Worker deletion and D1 deletion both returned HTTP 200. Follow-up inventories confirmed the exact Worker and database were absent. Existing staging and unrelated resources were not changed.
+- Issue #106 was updated with this evidence and closed as completed. Production VLESS limits remain unset. This does not exercise the full VLESS WebSocket route or prove Nova REF-032; Issue #78 remains open for slow-reader/backpressure and runtime-internal WebSocket buffer evidence. Phase 6 remains In progress; Phase 12 remains Blocked.
