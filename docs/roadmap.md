@@ -1,7 +1,7 @@
 # imoxy.net — Product Roadmap and Phase Gates
 
 **Status:** Active execution baseline; foundation merged, core design work started  
-**Last updated:** 2026-10-30  
+**Last updated:** 2026-10-31  
 **Reference target:** Nova Proxy 5.0.0, pinned in [reference-baseline.md](reference-baseline.md)  
 **Rule:** A phase is not complete because code exists; it is complete only when its exit criteria have reproducible evidence.
 
@@ -400,3 +400,8 @@ A disposable standalone Worker test was executed after explicit approval. A read
 ## Runtime diagnostic update — 2026-10-31
 
 The latest actual VLESS-handler Worker attempt returned Cloudflare HTTP 500 `error code: 1101` during WebSocket upgrade, even with injected in-memory store/quota adapters. A minimal Worker using the same native WebSocketPair/accept/101 response pattern succeeded on the same account/runtime. No VLESS payload, D1, TCP, quota, or relay behavior was reached. The failure is narrowed to the handler upgrade path but its exact cause is not yet known; observability returned no event rows. Disposable Workers and local scripts were cleaned up; existing staging resources were untouched. Phase 6 remains In progress and the proxy data-plane exit gate remains blocked on a successful handler handshake and controlled end-to-end relay.
+
+
+## Pre-upgrade primitive control — 2026-10-31
+
+A minimal disposable Worker without application imports successfully exercised the basic WebSocketPair/accept, session-state/closure, timer, and message/close/error-listener pattern, completing a real ClientWebSocket handshake and binary echo. This does not prove the full VLESS handler. A separate instrumented application-module copy returned 1101 even for plain HTTP, but its module startup was not independently validated and the run is discarded as inconclusive. Disposable resources were cleaned up; existing staging was untouched. Phase 6 remains In progress and the VLESS runtime gate remains blocked pending verified module-bundle preflight and successful handler handshake.
