@@ -84,7 +84,7 @@ Main now reserves every non-empty upload/download chunk before forwarding and se
 
 ## Runtime upgrade investigation — 2026-10-31
 
-A deployed diagnostic Worker ran the current handler module with fake in-memory store/quota adapters and a sentinel DB binding. A real ClientWebSocket upgrade to `/proxy/vless` failed with HTTP 500 `error code: 1101` before any VLESS payload was sent. A separate minimal Worker using the same WebSocketPair/accept/101 pattern completed a real echo on the same account/runtime. The failure is therefore narrowed to the handler upgrade path or its interaction with the runtime, but the exact exception is still unknown (Workers Observability returned no event rows). Both temporary Workers and local test scripts were removed; no D1, TCP destination, or existing staging resource was touched. Phase 6 remains In progress; do not mark the proxy MVP functional until the handler handshake and subsequent bidirectional relay pass the controlled smoke gate.
+The initial diagnostic reported HTTP 500 `1101` for the handler Worker. Later Workers Logs review identified a harness bug: the wrapper returned the handler's intentional `null` for unmatched root-path probes, yielding `Incorrect type for Promise: the Promise did not resolve to 'Response'.` The corrected wrapper returned 404 for `/` and 426 for plain HTTP `/proxy/vless`. One actual-handler WebSocket handshake succeeded with fake adapters, but subsequent repetitions were inconsistent. No VLESS payload, D1, TCP, quota settlement, lease or relay behavior is accepted as passed. Phase 6 remains In Progress.
 
 
 ## Pre-upgrade primitive control — 2026-10-31
