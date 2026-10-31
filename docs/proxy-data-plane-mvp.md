@@ -80,3 +80,8 @@ The active branch `feat/vless-quota-enforcement` connects the reservation/event 
 ## VLESS quota integration merged — 2026-10-28
 
 Main now reserves every non-empty upload/download chunk before forwarding and settles its measured byte count afterward through the event ledger. Missing `PROXY_USAGE_PRODUCER_ID` fails closed. If settlement is ambiguous after possible forwarding, the session stops and the reservation remains held. This has passing exact-head Node CI, but no real Cloudflare Worker/D1 validation; it is not deployment approval or a Nova parity claim.
+
+
+## Runtime upgrade investigation — 2026-10-31
+
+A deployed diagnostic Worker ran the current handler module with fake in-memory store/quota adapters and a sentinel DB binding. A real ClientWebSocket upgrade to `/proxy/vless` failed with HTTP 500 `error code: 1101` before any VLESS payload was sent. A separate minimal Worker using the same WebSocketPair/accept/101 pattern completed a real echo on the same account/runtime. The failure is therefore narrowed to the handler upgrade path or its interaction with the runtime, but the exact exception is still unknown (Workers Observability returned no event rows). Both temporary Workers and local test scripts were removed; no D1, TCP destination, or existing staging resource was touched. Phase 6 remains In progress; do not mark the proxy MVP functional until the handler handshake and subsequent bidirectional relay pass the controlled smoke gate.
