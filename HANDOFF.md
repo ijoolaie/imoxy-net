@@ -852,3 +852,11 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Cleanup: the disposable Worker was deleted and absence verified in the account's Worker inventory; only `imoxy-net-api-staging` and `iran-price-scout` remained. The temporary local PowerShell client was deleted. No existing staging resource was changed.
 - Issue #78 was updated with the observed result and residual risk. Worker-internal WebSocket buffer boundedness remains **unproven**; Issue #78 remains open. Phase 6 remains **In progress** and Phase 12 remains **Blocked**.
 - Next: design a controlled invocation of the actual VLESS handler using a dedicated disposable Worker + D1 + controlled TCP destination, with separately reviewed credentials, limits and cleanup. Do not reuse the existing staging Worker/D1 or the generic probe result as evidence of proxy-path correctness.
+
+
+## PR #127 verification — 2026-10-31
+
+- PR #127 `docs(runtime): record bounded generic WebSocket observation` merged as `0ead7b51ce090dc136a5401fe67df83d17c292a1`: https://github.com/ijoolaie/imoxy-net/pull/127.
+- Exact PR-head CI run `41177777416` passed on `a712da989f37eefef83d08513a2af68526dba7fc`; post-merge main CI run `41177821676` passed on the exact merge commit `0ead7b51ce090dc136a5401fe67df83d17c292a1` (`npm run verify`).
+- Issue #78 was updated with this evidence. No code or runtime resources changed in PR #127; it is a documentation/evidence correction only.
+- Current next gate: actual VLESS route validation still requires a separately isolated disposable Worker + D1 + test credential + controlled TCP destination. The previous generic WebSocket test is not evidence for that path. Existing staging resources remain off-limits. Obtain explicit approval for the disposable D1 and controlled TCP test target before provisioning. Issue #78 remains open; Phase 6 In progress; Phase 12 Blocked.
