@@ -389,3 +389,9 @@ The per-session download-byte and maximum-lifetime policy described above is now
 ## Session-admission runtime evidence update — 2026-10-31
 
 The production D1Store JavaScript wrapper has now been invoked inside a deployed disposable Worker against a disposable Cloudflare D1 database. Exact concurrent account/global cap results and lifecycle checks passed; both temporary resources were deleted and their absence verified. Issue #106 is closed as completed. This is not a full VLESS route/runtime test and does not establish Nova REF-032 or Cloudflare WebSocket backpressure. Phase 6 remains **In progress**; Issue #78 remains open; Phase 12 remains **Blocked**. Production proxy limits remain unset.
+
+## Generic WebSocket runtime observation — 2026-10-31
+
+A disposable standalone Worker test was executed after explicit approval. A reading client and a client that paused reads for five seconds each received 4 MiB (256 × 16 KiB) without send exceptions; each Worker run completed sending in 2.57 seconds. The observed Worker-side `bufferedAmount` remained zero and was not a useful queue metric. The temporary Worker and local client script were deleted and absence of the Worker was verified.
+
+**Scope:** this was a generic WebSocket endpoint, not the VLESS route. It did not test VLESS authentication, DNS/TCP dialing, D1 quota reservation/settlement, session leases, or the complete proxy lifecycle. No sequence-number or per-send latency distribution evidence was collected. It is not a pass of [the VLESS/D1 smoke gate](nonprod-vless-smoke-gate.md), and it does not prove a runtime-internal memory/buffer bound. Issue #78 remains open; Phase 6 remains **In progress** and Phase 12 remains **Blocked**.

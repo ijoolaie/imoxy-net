@@ -96,3 +96,28 @@ The per-session download-byte and maximum-lifetime policy described above is now
 Code-path inspection establishes a finite application-submitted byte bound when both required positive settings are configured: the handler checks each entire TCP chunk against the remaining per-session download budget before calling synchronous `server.send()`; the upstream pump awaits quota settlement before its next `reader.read()`; and send/settlement failure closes the session. Thus the maximum payload submitted to `send()` per session is bounded by `PROXY_MAX_DOWNLOAD_BYTES` plus the two-byte VLESS response header. The mandatory global lease ceiling further bounds the aggregate submitted payload by `PROXY_MAX_CONCURRENT_SESSIONS * (PROXY_MAX_DOWNLOAD_BYTES + 2)`.
 
 This is a code-derived application-level bound, not a measurement of Cloudflare's internal WebSocket queue, memory copies, framing overhead, or total Worker memory. A deterministic test holds quota settlement while the fake downstream peer never reads, and asserts that the relay does not issue a second TCP read/send until settlement resolves; a following over-budget chunk is rejected before send. The disposable Worker runtime probe remains unrun because invocation of the previous temporary Worker was blocked by HTTP 403. No claim is made about internal buffer capacity.
+
+
+## Bounded generic WebSocket observation — 2026-10-31 (not a VLESS probe pass)
+
+A disposable Worker was created on the existing account workers.dev subdomain solely for an isolated generic WebSocket send experiment. No D1 binding, custom hostname/route, third-party TCP destination, or existing staging Worker was used.
+
+| Measure | Reading client | Client paused for 5 seconds |
+| --- | ---: | ---: |
+| Binary frames received | 256 | 256 |
+| Binary bytes received | 4,194,304 | 4,194,304 |
+| Frame size | 16 KiB | 16 KiB |
+| Worker-reported send duration | 2,570 ms | 2,570 ms |
+| Send exceptions | 0 | 0 |
+| Worker-side `bufferedAmount` observation | 0 | 0 |
+| Close | Normal closure | Normal closure |
+
+The client that paused reads resumed and received all bytes. The two connections were sequential and together sent 8 MiB. Each run had a 4 MiB / 256-frame cap and a 9-second Worker-side time ceiling.
+
+**Limitations:** the endpoint was not `/proxy/vless`; it did not exercise VLESS parsing/authentication, DNS, outbound TCP, D1, quota reservation/settlement, session leases, or the proxy's actual close/error handling. The frames had no sequence numbers and per-send latency distributions were not captured. The zero `bufferedAmount` observation is not evidence of a bounded internal queue. This result is only a bounded observation of generic WebSocket delivery and does not pass this document's full probe acceptance criteria or the VLESS/D1 smoke gate.
+
+Cleanup was completed: the temporary Worker was deleted and its absence verified in the Worker inventory; the temporary local client script was removed. Existing staging resources were not changed. Issue #78 remains open and runtime-internal buffer boundedness remains **unproven**.
+
+### Required next experiment
+
+Run a separate, fully isolated actual VLESS path test using a disposable Worker, disposable D1, test-only credential, and controlled TCP destination. Capture handshake/authentication, exact bidirectional payloads, DNS pinning, quota reserve/settle/release, session admission/release, close/error behavior, and resource cleanup. Obtain explicit approval for the dedicated D1/Worker/destination and hard limits before provisioning; do not repurpose existing staging resources.
