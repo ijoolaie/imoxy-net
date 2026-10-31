@@ -1,6 +1,6 @@
 # Non-production VLESS Worker/D1 smoke gate
 
-**Status:** Prepared; not executed. This document is a runbook, not evidence of a successful deployment or test.
+**Status:** Partially executed; the 2026-10-31 VLESS handler upgrade attempt failed with Cloudflare 1101. The complete acceptance gate has not passed.
 
 ## Why this gate exists
 
@@ -102,3 +102,16 @@ Read-only account inventory found:
 - Other D1 databases exist for separately named resources (`iran-price-scout-db` and `ivory-tide-05e8-db`). There is no evidence that either is disposable or authorized for imoxy tests; do not use them.
 
 **Decision:** No live D1/Worker smoke test, migration, seed, cleanup, or deployment is authorized by this inventory. Keep all existing resources untouched. A dedicated disposable Worker and D1 must be explicitly provisioned/identified with a verified owner, bindings, route/hostname, isolated data, and cleanup procedure before the gate can run.
+
+
+## VLESS handler upgrade diagnostic — 2026-10-31 (failed; isolated)
+
+A current-source diagnostic was executed against a newly created standalone Worker. The production handler module and its local import graph were uploaded; store and quota services were injected as in-memory stubs, and the required DB environment variable was only a sentinel. No D1 database or outbound TCP target was used.
+
+- A real .NET ClientWebSocket upgrade to `/proxy/vless` returned HTTP 500 `error code: 1101` before the handshake completed.
+- A separate minimal Worker using the same native WebSocketPair/accept/101-response pattern completed a WebSocket connection and echo on the same account/runtime.
+- No VLESS payload was sent. Authentication, DNS, TCP, quota, leases, relay, slow-reader behavior and settlement were not exercised.
+- Observability query returned no event rows; the exact exception remains unknown.
+- Both temporary Workers were deleted and inventory confirmed that only the pre-existing `imoxy-net-api-staging` and `iran-price-scout` scripts remained. Temporary client scripts were removed. No D1 or existing staging resource was changed.
+
+**Interpretation:** generic Workers WebSocket support is available, but the actual handler's upgrade path remains broken/unexplained. This is a failed diagnostic, not a passing smoke test. The next test must instrument each pre-upgrade operation and the returned 101 response, then repeat the handshake only. Do not advance to credential/TCP/quota/backpressure tests until the handler handshake passes.
