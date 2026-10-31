@@ -873,3 +873,14 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Issue #78 received diagnostic comment `6540326949`. Issue remains open.
 - Next step: add temporary, narrowly scoped instrumentation around the handler's pre-upgrade stages and the returned 101 response; repeat handshake only. Do not send VLESS payload until handshake succeeds. Then proceed to the authorized isolated D1/TCP test sequence with the existing strict byte/time/concurrency limits.
 - This session made no application-code or deployment changes. No CI result is implied by this documentation update; PR-head and post-merge main CI must be verified separately.
+
+
+## Verified follow-up — PR #129 and VLESS pre-upgrade control (2026-10-31)
+
+- PR #129 `docs(proxy): record isolated VLESS 1101 diagnosis` merged as `ee1d324b404ac1b24170cb9b38aef8afd77ce11f`: https://github.com/ijoolaie/imoxy-net/pull/129.
+- Exact PR-head CI run `41178670494` passed on `840136f8630cfaa2a8a7b91f276c4fbf4dc18261`; the `npm run verify` step succeeded. Post-merge main CI run `41178891571` passed on the exact merge commit `ee1d324b404ac1b24170cb9b38aef8afd77ce11f`; its `npm run verify` step succeeded.
+- Issue #78 received follow-up comments `6540326949` (full-handler 1101 diagnostic) and `6540384132` (pre-upgrade primitive control). Issue #78 remains open.
+- Additional control: a standalone Worker without application imports exercised native WebSocketPair, accept, the handler-shaped session state and `sessionClosed` Promise, the `closeSession` cleanup shape, message/close/error listeners, and a 10-second timer. A real .NET ClientWebSocket connected and echoed binary data successfully. This shows those basic primitives work in the account/runtime; it does not identify the full handler's failing operation and does not exercise VLESS, D1, TCP, quota, leases, or relay.
+- A separate experimental copy with an injected HTTP-200 upgrade factory returned 1101 even on a plain HTTP request. Because that copy's module-upload/startup path was not independently validated, treat the run as **inconclusive and discarded**; it is not evidence about the production handler. Its Worker and temporary scripts were deleted.
+- Cleanup verified only `imoxy-net-api-staging` and `iran-price-scout` remained. All temporary PowerShell scripts were removed. No D1 database, TCP destination, existing staging resource, route or DNS record was changed in these diagnostics.
+- Next: stage-by-stage instrumentation of the actual handler using a verified module bundle and an explicit plain-HTTP preflight first; then isolate the 101 response path. Do not send VLESS payload until a valid handshake succeeds. Issue #78 and Phase 6 remain In progress; Phase 12 remains Blocked.
