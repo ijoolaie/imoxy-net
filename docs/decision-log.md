@@ -173,3 +173,10 @@ PR #123 adds a Node 22 SQLite integration test that applies the checked-in initi
 ## 2026-10-30 — PR #123 D1Store SQLite wrapper tests merged
 
 PR #123 was squash-merged as 969f96b1ca1e15befd9ee9cbf5dbf025f391b429. Final PR-head CI run 41081184391 passed on ed4d71916ad729e9f9ad6c462a0747c5beabf860; post-merge main CI run 41081292762 passed on the exact merge commit, including npm run verify. The production D1Store admission/release/cleanup wrapper now has SQL-engine coverage using Node SQLite and the checked-in migrations. This is not Cloudflare D1 concurrency or Worker runtime evidence. Issues #106 and #78 remain open for runtime and Nova reference gates. No Cloudflare resources or staging data were changed.
+
+
+## 2026-10-31 — VLESS handler constructor 1101 isolation
+
+A new disposable runtime pass confirmed native Workers `WebSocketPair` enumerability and successful import-only loading of the individual production modules, including the VLESS handler module itself. Invoking `createVlessWebSocketHandler()` in a Worker nevertheless produced Cloudflare 1101, including when invoked inside a `try/catch` with all constructor options overridden. The failed request produced no invocation rows in the queried observability dataset. This narrows the unresolved failure to the constructor invocation or Worker execution path around it, but does not identify a specific statement or establish a VLESS handler defect. No WebSocket upgrade, VLESS payload, credential lookup, TCP, D1, quota, lease, or relay test passed.
+
+All 12 newly created temporary Workers were deleted; the remaining route-control name was already absent. Only the two pre-existing Workers remain. All three pre-existing D1 databases remain unchanged. Issue #78 was updated (comment `6544803626`) and remains open. No production settings or existing resources were changed.
