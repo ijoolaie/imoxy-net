@@ -406,6 +406,30 @@ test("DNS-over-HTTPS resolution filters the full ORCHIDv2 IPv6 prefix", async ()
   );
 });
 
+test("DNS-over-HTTPS resolution rejects NAT64 addresses that can encode private IPv4 destinations", async () => {
+  const fetchImpl = async (url) => {
+    const type = new URL(url).searchParams.get("type");
+    return {
+      ok: true,
+      async json() {
+        return type === "A"
+          ? { Status: 0, Answer: [] }
+          : { Status: 0, Answer: [
+              // RFC 6052 well-known prefix with 127.0.0.1 embedded.
+              { type: 28, data: "64:ff9b::7f00:1" },
+              // RFC 8215 local-use prefix with 10.0.0.1 embedded.
+              { type: 28, data: "64:ff9b:1::a00:1" },
+              { type: 28, data: "2606:4700:4700::1111" }
+            ] };
+      }
+    };
+  };
+  assert.deepEqual(
+    await resolvePublicDestinations("example.test", fetchImpl),
+    ["2606:4700:4700:0:0:0:0:1111"]
+  );
+});
+
 test("DNS-over-HTTPS resolution fails closed when no public answer exists", async () => {
   const fetchImpl = async () => ({
     ok: true,

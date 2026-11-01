@@ -104,6 +104,12 @@ function isClearlyPrivateDestination(host) {
     const groups = parseIPv6Groups(normalized);
     if (!groups) return true;
     const [first, second] = groups;
+    // NAT64 prefixes can encode IPv4 destinations in global-unicast IPv6.
+    // Reject the RFC 6052 well-known and RFC 8215 local-use prefixes so an
+    // embedded non-public IPv4 address cannot bypass the IPv4 destination checks.
+    if (first === 0x0064 && second === 0xff9b &&
+        (groups[2] === 0x0001 ||
+         (groups[2] === 0 && groups[3] === 0 && groups[4] === 0 && groups[5] === 0))) return true;
     // Permit only global-unicast space (2000::/3), then fail closed on
     // well-known special-purpose ranges and transition/documentation prefixes.
     if (first < 0x2000 || first > 0x3fff) return true;
