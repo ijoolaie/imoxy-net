@@ -978,3 +978,14 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Issue #78 received evidence comment `6554107210` and remains open. No Cloudflare resource, existing D1 database, route, DNS, binding, production setting, or deployment was changed.
 - Main at this handoff update's starting point: `315cd3540147e3aac8210e8a23542b661b6c59d4`. This documentation PR requires its own exact-head and post-merge CI verification.
 - Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
+
+
+## 2026-11-01 — PR #141 merged; Worker custom VLESS route precedence
+
+- PR #141 `test(worker): cover custom VLESS route precedence` merged as `1c4e36df4a16d1d70f8a34d61917aba8de20d359`: https://github.com/ijoolaie/imoxy-net/pull/141.
+- Added a Worker-entrypoint test for a non-default `PROXY_WS_PATH` (`/private/vless-gateway`). It sends a valid WebSocket-upgrade-shaped request while providing the required finite proxy limits and a static Assets stub, but deliberately omits the DB binding.
+- The test verifies the configured VLESS path is intercepted by the proxy handler before static Assets routing and fails closed with `503 proxy_not_configured`; the Assets binding receives no request. This is deterministic Node/Worker-entrypoint routing evidence, not a live Cloudflare Worker deployment or proxy data-plane acceptance test.
+- Exact PR head `73b28c80463b55d8432640d7f8726568968ca613` passed GitHub Actions CI run `41280045647` (run 880): `npm run verify`, **203/203** tests passed, 0 failed. Post-merge main CI run `41280078491` (run 881) was triggered on the exact merge commit and must be checked separately before this handoff update is considered fully validated.
+- No application runtime behavior changed. No production/staging Worker, D1, route, DNS, binding, or proxy setting was changed.
+- Issue #78 remains open. The real Cloudflare D1 + controlled TCP relay, longer/aggregate slow-reader tests, and isolate-termination lifecycle evidence remain outstanding. Cloudflare internal WebSocket buffering is still not proven.
+- Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
