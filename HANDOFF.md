@@ -966,3 +966,15 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Cloudflare documents both Wrangler remote migrations and D1 SQL API endpoints. However, using the SQL API to repeat an operation blocked by the execution safety layer would bypass that control, so no SQL or migration was sent through the API. Do not touch the existing staging database for this test.
 - Issue #78 remains open. The actual remote D1 + controlled TCP gate and runtime backpressure evidence remain outstanding. No production/staging Worker, route, DNS, binding, existing D1, or proxy settings were changed.
 - Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
+
+
+## 2026-11-01 — PR #139 merged; bidirectional D1-backed VLESS handler integration
+
+- PR #139 `test(vless): cover D1-backed download forwarding and settlement` merged as `315cd3540147e3aac8210e8a23542b661b6c59d4`: https://github.com/ijoolaie/imoxy-net/pull/139.
+- The test extends `test/vless-d1-handler.integration.test.js` to exercise the TCP-to-WebSocket download path in the same integration scenario that already covered WebSocket-to-TCP upload.
+- The exact PR head `76f9fe12c41b3e234b4aeec769c6ee282268a868` passed CI run `41278427561`; `npm run verify` succeeded and all **202/202** Node tests passed. The new path verifies a three-byte TCP download reaches the WebSocket, download usage is settled, both upload/download quota reservations are `settled`, and daily usage records upload=4, download=3, request_count=1.
+- Post-merge main CI run `41278479810` passed on the exact merge commit `315cd3540147e3aac8210e8a23542b661b6c59d4`.
+- Scope is test-only and uses the in-memory SQLite D1 adapter. It is not live Cloudflare D1/Worker evidence and does not exercise real outbound TCP or measure Cloudflare's internal WebSocket send buffer. Longer/aggregate slow-reader behavior and isolate-termination lifecycle remain unproven.
+- Issue #78 received evidence comment `6554107210` and remains open. No Cloudflare resource, existing D1 database, route, DNS, binding, production setting, or deployment was changed.
+- Main at this handoff update's starting point: `315cd3540147e3aac8210e8a23542b661b6c59d4`. This documentation PR requires its own exact-head and post-merge CI verification.
+- Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
