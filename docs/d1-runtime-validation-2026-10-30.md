@@ -43,7 +43,7 @@ The earlier 2026-10-30 section above records a separate temporary Worker whose e
 - D1 metadata showed writes/queries served by the primary in WEUR/AMS.
 - Worker and D1 deletion each returned HTTP 200; follow-up account inventories confirmed both exact resources absent. Existing staging Worker and D1 were untouched.
 
-This satisfies the disposable real-D1 + deployed-Worker D1Store wrapper validation for Issue #106; that issue was closed as completed after recording the evidence. It does not test the full production VLESS handler route, lease behavior after isolate termination, Nova REF-032, or downstream WebSocket slow-reader/backpressure. Issue #78 remains open.
+This satisfies the disposable real-D1 + deployed-Worker D1Store wrapper validation for Issue #106; that issue was closed as completed after recording the evidence. It does not test the full production VLESS handler route, lease behavior after isolate termination, Nova REF-032, or downstream WebSocket slow-reader/backpressure. Issue #78 remains open. Production proxy settings remain unset.
 
 ## 2026-11-01 — Disposable D1 API validation of quota recovery migration (isolated; cleaned up)
 
