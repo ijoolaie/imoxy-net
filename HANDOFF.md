@@ -1026,3 +1026,19 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - No Worker deployment, D1 operation, route/DNS/binding change, or live TCP probe occurred. Issue #78 remains open; internal WebSocket buffering, real D1 + controlled TCP, longer/aggregate slow-reader behavior, and isolate-termination lifecycle remain outstanding.
 - Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
 - Next: synchronize the local checkout only through an approved Git operation, then continue deterministic lifecycle tests and pursue the isolated real-D1/controlled-TCP gate only through an approved execution path. Do not bypass the safety control.
+
+## 2026-11-01 — PR #149 merged; quota reservation crash recovery implemented
+
+- PR #149 `fix(quota): recover only pre-forward reservations` was squash-merged: https://github.com/ijoolaie/imoxy-net/pull/149.
+- Final PR head: `eb248dc6a5f44865884a401d45c312f5956ff9df`. Exact-head CI run `41293808453` passed. Post-merge main CI run `41293877915` passed on merge commit `56cc104982df830dca1dd7c6ec2555e6d051d517`.
+- Added migration `0008_quota_reservation_recovery.sql` with an immutable `forwarding_started_at` marker. Existing active reservations are conservatively backfilled as uncertain so the migration cannot release quota for traffic that may already have crossed the network boundary.
+- `reserveQuota()` opportunistically reclaims only expired active reservations with a null forwarding marker, scoped to the account being admitted. Quota admission remains a conditional SQL insert, so concurrent attempts cannot jointly exceed quota.
+- Added `markQuotaReservationForwarding()` and the quota service `markForwarding()` transition. The VLESS handler must durably mark forwarding intent before upload writes or WebSocket download sends; if that transition fails or is ambiguous, it fails closed and retains the reservation.
+- Explicit reservation release now applies only while the marker is null. Usage settlement requires the marker, and the database trigger enforces that requirement. The marker is immutable after it is set.
+- Added SQLite integration tests for legacy active-row backfill, expiry reclaim before forwarding, retention after forwarding intent, rejection of late settlement after release, pre-forward release, and concurrent recovery/admission. Existing VLESS bidirectional integration verifies forwarding and exact usage settlement with the new marker.
+- Local full suite passed **212/212**; `node --check worker.js` and syntax checks for all changed JavaScript files passed; `git diff --check` passed. There is no `lint` script in package.json, so no lint command is claimed.
+- This is in-memory SQLite adapter evidence, not live Cloudflare D1 or Worker evidence. No remote D1 migration, Worker deployment, live outbound TCP, route/DNS/binding change, or production resource mutation occurred.
+- Issue #148 was closed as completed after PR #149 merged. Issue #78 remains open: Cloudflare internal WebSocket send-buffer boundedness, actual remote D1 + controlled TCP, longer/aggregate slow-reader tests, isolate-termination lifecycle behavior, and Nova REF-032 remain outstanding.
+- Local `main` was fast-forwarded from `354e1bb25fc30da2d7fbec8ced7642bdad0597de` to the exact merge commit `56cc104982df830dca1dd7c6ec2555e6d051d517`. The quota implementation branch remains preserved.
+- Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
+- Next: pursue the isolated real-D1 + controlled-TCP VLESS runtime gate only through an approved execution path. Do not bypass the execution safety control or use the existing staging database.
