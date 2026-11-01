@@ -45,7 +45,7 @@ function fixture() {
   for (const file of [
     "0001_initial.sql", "0002_auth_rate_limits.sql", "0003_telegram_webhook_updates.sql",
     "0004_usage_daily_safe_integer_guards.sql", "0005_proxy_credentials.sql",
-    "0006_atomic_quota_reservations.sql", "0007_proxy_active_sessions.sql"
+    "0006_atomic_quota_reservations.sql", "0007_proxy_active_sessions.sql", "0008_quota_reservation_recovery.sql"
   ]) db.exec(migration(file));
   const d1 = sqliteD1(db);
   const store = createD1Store(d1);
@@ -74,6 +74,7 @@ test("D1 adapter SQL reserves quota atomically, settles once, and rejects replay
     accountId: "acct-1", usageDate: first.reservation.usageDate,
     uploadBytes: 20, downloadBytes: 10, requestCount: 1, at: timestamp
   };
+  assert.equal(await service.markForwarding({ reservationId: "reserve-1", accountId: "acct-1" }), true);
   const applied = await service.settle(event);
   assert.equal(applied.applied, true);
   assert.equal(applied.duplicate, false);
@@ -116,6 +117,7 @@ test("aggregate overflow rolls back event claim and keeps the reservation fail-c
     (account_id, usage_date, upload_bytes, download_bytes, request_count, updated_at)
     VALUES (?, ?, ?, 0, 1, ?)`).run("acct-1", "2026-10-27", Number.MAX_SAFE_INTEGER, timestamp);
   const reservation = await service.reserve({ reservationId: "overflow-reserve", accountId: "acct-1", reservedBytes: 1 });
+  await service.markForwarding({ reservationId: "overflow-reserve", accountId: "acct-1" });
   assert.equal(reservation.allowed, true);
 
   await assert.rejects(() => service.settle({

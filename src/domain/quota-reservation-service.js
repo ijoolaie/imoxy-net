@@ -41,7 +41,8 @@ export function createQuotaReservationService({
 } = {}) {
   if (!store || typeof store.reserveQuota !== "function" ||
       typeof store.settleUsageEvent !== "function" ||
-      typeof store.releaseQuotaReservation !== "function") {
+      typeof store.releaseQuotaReservation !== "function" ||
+      typeof store.markQuotaReservationForwarding !== "function") {
     throw new TypeError("Quota reservation storage methods are required.");
   }
   if (!Number.isSafeInteger(leaseDurationMs) || leaseDurationMs < 1) {
@@ -63,6 +64,12 @@ export function createQuotaReservationService({
         return { allowed: false, reason: result?.reason ?? "quota_unavailable", reservation: result?.reservation ?? null };
       }
       return { allowed: true, duplicate: Boolean(result.duplicate), reservation: result.reservation };
+    },
+
+    async markForwarding({ reservationId, accountId, at = now() }) {
+      if (!validId(reservationId) || !validId(accountId)) throw new TypeError("Reservation and account IDs are required.");
+      const timestamp = validTimestamp(at, "at");
+      return store.markQuotaReservationForwarding({ reservationId, accountId, at: timestamp });
     },
 
     async settle({
