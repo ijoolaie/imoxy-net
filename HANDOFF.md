@@ -1001,3 +1001,13 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Committed as `b4d7d596f5bc748af73d8b75ad637735b0811c70`, pushed to `fix/vless-route-reserved-paths-20261101`, and opened as PR #143: https://github.com/ijoolaie/imoxy-net/pull/143. Exact-head GitHub CI is pending at this handoff edit; no Cloudflare resource or setting was changed.
 - Issue #78 remains open; this route-collision fix does not prove Cloudflare internal WebSocket buffering, real D1-backed VLESS relay, real outbound TCP, aggregate slow-reader behavior, isolate lifecycle, or Nova parity.
 - Next step: review the exact PR #143 diff, require exact-head CI success, and merge only after the passing checks are observed.
+
+## 2026-11-01 — PR #143 merged; reserved Worker path protection verified
+
+- PR #143 `fix(proxy): protect reserved Worker routes from VLESS path` was squash-merged as `e24bb1f986b74c12d5b05d0d07a77693a7677492`: https://github.com/ijoolaie/imoxy-net/pull/143.
+- Final PR head `8c0f7f72e319069ed50c9bf7892ab79e3b3db68c` passed CI runs `41281486317` and `41281489713`; both ran `npm run verify` and passed **205/205** tests with 0 failures.
+- Post-merge main CI run `41281542490` passed on the exact merge commit `e24bb1f986b74c12d5b05d0d07a77693a7677492`; `npm run verify` passed **205/205** tests, 0 failures.
+- The fix protects the Worker API namespace and `/health` from custom VLESS path collisions. It does not change default VLESS routing or establish Cloudflare runtime/D1/TCP/backpressure acceptance.
+- Local `main` was fast-forwarded to the exact merge commit and verified clean. The prior three user documentation edits remain preserved in the named stash; the original feature branch remains intact.
+- Issue #78 remains open. Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
+- Next step: continue closing the isolated real-D1 + controlled TCP VLESS runtime gate without bypassing the execution safety control; retain the slow-reader/internal-buffer and Nova REF-032 acceptance gaps.
