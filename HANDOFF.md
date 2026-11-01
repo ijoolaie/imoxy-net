@@ -985,7 +985,19 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - PR #141 `test(worker): cover custom VLESS route precedence` merged as `1c4e36df4a16d1d70f8a34d61917aba8de20d359`: https://github.com/ijoolaie/imoxy-net/pull/141.
 - Added a Worker-entrypoint test for a non-default `PROXY_WS_PATH` (`/private/vless-gateway`). It sends a valid WebSocket-upgrade-shaped request while providing the required finite proxy limits and a static Assets stub, but deliberately omits the DB binding.
 - The test verifies the configured VLESS path is intercepted by the proxy handler before static Assets routing and fails closed with `503 proxy_not_configured`; the Assets binding receives no request. This is deterministic Node/Worker-entrypoint routing evidence, not a live Cloudflare Worker deployment or proxy data-plane acceptance test.
-- Exact PR head `73b28c80463b55d8432640d7f8726568968ca613` passed GitHub Actions CI run `41280045647` (run 880): `npm run verify`, **203/203** tests passed, 0 failed. Post-merge main CI run `41280078491` (run 881) was triggered on the exact merge commit and must be checked separately before this handoff update is considered fully validated.
+- Exact PR head `73b28c80463b55d8432640d7f8726568968ca613` passed GitHub Actions CI run `41280045647` (run 880): `npm run verify`, **203/203** tests passed, 0 failed. Post-merge main CI run `41280078491` (run 881) passed on the exact merge commit; `npm run verify` completed with **203/203** tests passing and 0 failures.
 - No application runtime behavior changed. No production/staging Worker, D1, route, DNS, binding, or proxy setting was changed.
 - Issue #78 remains open. The real Cloudflare D1 + controlled TCP relay, longer/aggregate slow-reader tests, and isolate-termination lifecycle evidence remain outstanding. Cloudflare internal WebSocket buffering is still not proven.
 - Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
+
+## 2026-11-01 — local sync and reserved VLESS route collision fix
+
+- Reconnected to the local Raya MCP workspace and inspected `C:\Users\Ali\imoxy-net-review-worktree`. The previous branch `docs/d1-worker-wrapper-runtime-validation` had one commit whose tree matched commit `a475abd`, already contained in the newer remote main history. It was 18 commits behind current `origin/main`.
+- Preserved the three pre-existing uncommitted documentation edits in stash `preserve-user-doc-edits-before-main-sync-2026-11-01`; no file edits were discarded. Left the original feature branch and its commit intact.
+- Fast-forwarded local `main` from `c3a8cc8` to `fda7f304851302eee39ea7acaad03e8160129345`. Local main was clean after synchronization.
+- On branch `fix/vless-route-reserved-paths-20261101`, reproduced a routing collision: setting `PROXY_WS_PATH=/api/v1/capabilities` caused a normal API GET to return HTTP 426 because the VLESS handler is called before API routing.
+- Updated `src/proxy/vless-websocket-handler.js` so configured VLESS paths equal to `/api`, under `/api/`, or equal to `/health` are declined; normal API/health routing then proceeds. Added Worker-entrypoint regressions for the API and health collisions.
+- The new API collision test failed before the code fix (426 instead of expected 200). After the fix, the targeted Worker tests passed **9/9**; full local Node suite passed **205/205**, 0 failed. `node --check src/proxy/vless-websocket-handler.js` and `git diff --check` passed.
+- Committed as `b4d7d596f5bc748af73d8b75ad637735b0811c70`, pushed to `fix/vless-route-reserved-paths-20261101`, and opened as PR #143: https://github.com/ijoolaie/imoxy-net/pull/143. Exact-head GitHub CI is pending at this handoff edit; no Cloudflare resource or setting was changed.
+- Issue #78 remains open; this route-collision fix does not prove Cloudflare internal WebSocket buffering, real D1-backed VLESS relay, real outbound TCP, aggregate slow-reader behavior, isolate lifecycle, or Nova parity.
+- Next step: review the exact PR #143 diff, require exact-head CI success, and merge only after the passing checks are observed.
