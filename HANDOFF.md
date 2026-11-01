@@ -1042,3 +1042,22 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Local `main` was fast-forwarded from `354e1bb25fc30da2d7fbec8ced7642bdad0597de` to the exact merge commit `56cc104982df830dca1dd7c6ec2555e6d051d517`. The quota implementation branch remains preserved.
 - Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
 - Next: pursue the isolated real-D1 + controlled-TCP VLESS runtime gate only through an approved execution path. Do not bypass the execution safety control or use the existing staging database.
+
+## 2026-11-01 — disposable real Cloudflare D1 SQL validation of quota recovery
+
+- Objective: exercise migration 0008 and the quota reservation recovery SQL against an actual Cloudflare D1 primary using the supported Cloudflare D1 API, after the Wrangler remote-migration command had been blocked before SQL execution. This used the previously recorded narrow owner authorization for one disposable D1 database (Issue #78 comment `6546310096`); it did not extend authorization to Worker creation, binding/route/DNS changes, or a controlled TCP destination.
+- Created disposable EU D1 `imoxy-vless-d1-20261101-1355`, UUID `62d98499-d54f-4168-bcab-db88fcd2784f`, jurisdiction `eu`, primary region `EEUR`, read replication disabled.
+- Applied exact SQL contents of migrations 0001–0008 through Cloudflare D1 API `/query`: 0001 as a multi-statement script, 0002–0008 as a D1 API batch. This was **not** `wrangler d1 migrations apply`; Wrangler's `d1_migrations` history table was not created. Do not represent this as a Wrangler migration-history test.
+- D1 schema inspection confirmed expected application tables, quota/session indexes and triggers; `forwarding_started_at` column present; `PRAGMA foreign_keys` = 1; `PRAGMA foreign_key_check` returned no rows.
+- Prepared expiry recovery: an expired unmarked 40-byte reservation was released and a 100-byte new reservation admitted under a 100-byte account/daily cap.
+- Uncertain expiry: an expired marked 40-byte reservation remained active; a 70-byte new reservation was denied under the 100-byte cap; explicit release changed 0 rows.
+- Settlement: marked reservation accepted upload=2/download=3/request_count=1; event became applied, reservation settled with actual_bytes=5, daily usage matched.
+- Unmarked settlement was rejected by `usage_event_apply_requires_forwarding` with `SQLITE_CONSTRAINT_TRIGGER`; event remained claimed, reservation active, and usage stayed zero. A D1 batch containing that failed transition rolled back the preceding event insert (follow-up count 0).
+- Attempt to clear a set forwarding marker was rejected by `quota_reservation_forwarding_marker_immutable`; marker remained unchanged.
+- Concurrency: 12 concurrent direct D1 API quota INSERT attempts of 10 bytes under a 50-byte account/daily cap; exactly 5 inserted, 7 denied, final active reserved bytes exactly 50.
+- All test queries were served by the D1 primary in `EEUR`. The disposable database was deleted successfully; follow-up inventory contained exactly the three pre-existing databases and confirmed the test DB absent. Existing staging and unrelated D1 resources were not modified.
+- Scope: direct D1 API SQL evidence only. No `createD1Store()`/VLESS handler ran inside a Worker; no Worker was created/deployed or bound; no TCP destination was contacted; no route/DNS/binding or production/staging setting changed. No test of Wrangler migration bookkeeping, isolate termination, or Cloudflare WebSocket buffering. Issue #78 remains open.
+- Documentation updated: `docs/d1-runtime-validation-2026-10-30.md`, `docs/nonprod-vless-smoke-gate.md`, `docs/acceptance-test-plan.md`, `docs/decision-log.md`, `docs/parity-matrix.md`, and `docs/roadmap.md`.
+- Remaining blocker: no controlled TCP echo destination owned/controlled by the user has been provided, and no explicit approval for creating a disposable Worker plus hard test limits/cleanup procedure was found. Do not create a Worker or contact a destination until these are supplied/approved.
+- Local verification on base `abc38a1392cc57a2ad7b3ca388d4a42820a232bb`: `node --check worker.js` passed; `npm test` passed **212/212**; `git diff --check` passed after normalizing the two edited Markdown EOF newlines. This session changed documentation only; no source/test code changed.
+- Phase 4/5 gained partial real-D1 SQL evidence but remain In progress. Phase 6 remains In progress; Phase 12 Blocked; Phase 13 Not started. No phase is Complete.
