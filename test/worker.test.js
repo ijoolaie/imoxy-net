@@ -80,3 +80,33 @@ test("VLESS endpoint is reserved before static assets and fails closed without p
   assert.equal((await response.json()).error.code, "proxy_not_configured");
   assert.deepEqual(assetCalls, []);
 });
+
+
+test("custom VLESS WebSocket path is routed before static assets", async () => {
+  const assetCalls = [];
+  const proxyRequest = new Request("https://imoxy.test/private/vless-gateway", {
+    headers: {
+      upgrade: "websocket",
+      connection: "Upgrade",
+      "sec-websocket-version": "13",
+      "sec-websocket-key": "dGhlIHNhbXBsZSBub25jZQ=="
+    }
+  });
+  const response = await worker.fetch(proxyRequest, {
+    PROXY_WS_PATH: "/private/vless-gateway",
+    PROXY_MAX_DOWNLOAD_BYTES: "1048576",
+    PROXY_MAX_SESSION_DURATION_MS: "3600000",
+    PROXY_MAX_CONCURRENT_SESSIONS: "100",
+    PROXY_SESSION_LEASE_GRACE_MS: "60000",
+    ASSETS: {
+      async fetch(request) {
+        assetCalls.push(new URL(request.url).pathname);
+        return new Response("panel-asset", { status: 200 });
+      }
+    }
+  });
+
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).error.code, "proxy_not_configured");
+  assert.deepEqual(assetCalls, []);
+});
