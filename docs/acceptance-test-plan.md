@@ -217,3 +217,17 @@ The subsequent isolated D1 attempt created a disposable WEUR database but the ex
 - Worker-entrypoint tests verify a collision with `/api/v1/capabilities` still returns the API's 200 response and a collision with `/health` still returns the health 200 response.
 - The regression was observed before the fix: the API request returned 426 because the VLESS handler ran first. The handler now declines these reserved paths so normal Worker routing proceeds.
 - This is local Node/Worker-entrypoint coverage only; it is not Cloudflare runtime or Nova parity evidence.
+
+## Direct Cloudflare D1 quota-recovery checks — 2026-11-01 (partial acceptance only)
+
+A disposable EU D1 received the SQL contents of migrations 0001–0008 through the Cloudflare D1 API. Direct primary queries verified:
+- migration schema objects, `forwarding_started_at`, foreign-key enforcement and an empty foreign-key check;
+- release/reclaim of an expired prepared reservation before a new quota admission;
+- retention of an expired forwarding-marked reservation, denial of an over-quota new reservation, and refusal to explicitly release the uncertain reservation;
+- successful marked usage settlement and exact upload/download daily aggregation;
+- rejection of unmarked settlement by the migration 0008 trigger;
+- rollback of the claimed event insert when a D1 batch's settlement step failed;
+- immutability of an established forwarding marker;
+- 12 concurrent 10-byte reservation attempts under a 50-byte cap, with exactly 5 admitted and 50 bytes reserved.
+
+The disposable D1 was deleted and inventory confirmed it absent. This was direct D1 API SQL, not the repository's D1Store/VLESS handler running in a Worker and not a Wrangler migration-history test. It does not satisfy the full Worker/D1/TCP smoke gate or establish Nova parity. Do not mark the VLESS transport or quota parity rows Verified.

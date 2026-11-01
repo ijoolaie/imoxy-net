@@ -131,4 +131,18 @@ Workers Logs identified that the earlier disposable wrapper returned the VLESS h
 
 A corrected wrapper now maps unhandled `null` to an explicit 404. Under that wrapper, root GET returned 404 and plain GET `/proxy/vless` returned the expected 426. One real ClientWebSocket handshake against the handler with in-memory store/quota adapters and TCP disabled succeeded, but subsequent repeats were inconsistent and not a passing gate. The synthetic relay attempt did not reach a confirmed handshake. No VLESS payload, D1, TCP, quota settlement, leases or relay are proven. All 14 disposable Workers and five temporary local scripts from this diagnostic pass were deleted; only the two pre-existing Workers remain. Existing staging resources were untouched.
 
-**Next gate:** repeat the handler handshake using the corrected wrapper, then send one synthetic VLESS request through fake adapters. Only after those are repeatable should the isolated D1 and controlled TCP acceptance sequence begin.
+**Next gate:** the direct D1 SQL layer has now been validated separately (see the 2026-11-01 section below). The remaining end-to-end gate requires a controlled TCP destination and explicit authorization for a disposable Worker/runtime test with fixed limits; then bind only the disposable D1 and run the real VLESS handler path.
+
+## Direct Cloudflare D1 quota-recovery checks — 2026-11-01 (partial acceptance only)
+
+A disposable EU D1 received the SQL contents of migrations 0001–0008 through the Cloudflare D1 API. Direct primary queries verified:
+- migration schema objects, `forwarding_started_at`, foreign-key enforcement and an empty foreign-key check;
+- release/reclaim of an expired prepared reservation before a new quota admission;
+- retention of an expired forwarding-marked reservation, denial of an over-quota new reservation, and refusal to explicitly release the uncertain reservation;
+- successful marked usage settlement and exact upload/download daily aggregation;
+- rejection of unmarked settlement by the migration 0008 trigger;
+- rollback of the claimed event insert when a D1 batch's settlement step failed;
+- immutability of an established forwarding marker;
+- 12 concurrent 10-byte reservation attempts under a 50-byte cap, with exactly 5 admitted and 50 bytes reserved.
+
+The disposable D1 was deleted and inventory confirmed it absent. This was direct D1 API SQL, not the repository's D1Store/VLESS handler running in a Worker and not a Wrangler migration-history test. It does not satisfy the full Worker/D1/TCP smoke gate or establish Nova parity. Do not mark the VLESS transport or quota parity rows Verified.

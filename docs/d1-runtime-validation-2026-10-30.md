@@ -44,3 +44,32 @@ The earlier 2026-10-30 section above records a separate temporary Worker whose e
 - Worker and D1 deletion each returned HTTP 200; follow-up account inventories confirmed both exact resources absent. Existing staging Worker and D1 were untouched.
 
 This satisfies the disposable real-D1 + deployed-Worker D1Store wrapper validation for Issue #106; that issue was closed as completed after recording the evidence. It does not test the full production VLESS handler route, lease behavior after isolate termination, Nova REF-032, or downstream WebSocket slow-reader/backpressure. Issue #78 remains open. Production proxy settings remain unset.
+
+## 2026-11-01 — Disposable D1 API validation of quota recovery migration (isolated; cleaned up)
+
+A disposable EU D1 database was created under the previously recorded one-database test authorization:
+- Name: `imoxy-vless-d1-20261101-1355`
+- UUID: `62d98499-d54f-4168-bcab-db88fcd2784f`
+- Jurisdiction: `eu`; primary region: `EEUR`; read replication disabled.
+- No pre-existing D1 database was used.
+
+The exact SQL contents of migrations 0001–0008 were applied through the Cloudflare D1 API `/query` endpoint. Migration 0001 was submitted as a multi-statement SQL script; migrations 0002–0008 were submitted in a D1 API batch. This was **not** a Wrangler `d1 migrations apply` run and did not create Wrangler's `d1_migrations` history table. It verifies the checked-in SQL against real D1, not Wrangler migration bookkeeping.
+
+### Observed D1-primary results
+
+- Schema inspection found the expected application tables, quota/session indexes, and triggers; `quota_reservations.forwarding_started_at` was present. `PRAGMA foreign_keys` returned 1 and `PRAGMA foreign_key_check` returned no rows.
+- Prepared expiry recovery: an expired 40-byte reservation with a null forwarding marker was changed to `released`; the same account then admitted a new 100-byte reservation under a 100-byte quota.
+- Uncertain expiry retention: an expired 40-byte reservation with a forwarding marker remained `active`; a further 70-byte reservation under a 100-byte quota was not inserted; explicit release changed zero rows.
+- Settlement: a marked reservation accepted a 2-byte upload + 3-byte download event; the event became `applied`, the reservation became `settled` with `actual_bytes=5`, and daily usage recorded upload=2, download=3, request_count=1.
+- Fail-closed settlement: applying an event for an unmarked reservation was rejected by `usage_event_apply_requires_forwarding` with `SQLITE_CONSTRAINT_TRIGGER`; the event remained `claimed`, the reservation remained `active`, and usage counters remained zero.
+- D1 batch rollback: a batch containing a claimed event followed by the forbidden unmarked settlement was rejected; a follow-up query confirmed the event insert was rolled back (count 0).
+- Marker immutability: clearing a previously set marker was rejected by `quota_reservation_forwarding_marker_immutable`; a follow-up query confirmed the marker was unchanged.
+- Concurrent quota admission: 12 concurrent requests each attempted to reserve 10 bytes under a 50-byte account/daily cap. Exactly 5 inserts succeeded, 7 were denied, and the final active reservation total was exactly 50 bytes.
+- All query responses were served by the D1 primary in `EEUR`.
+
+### Cleanup and limits
+
+The disposable database was deleted successfully. A subsequent account inventory returned exactly the three pre-existing databases and confirmed the test UUID/name was absent. No existing staging or unrelated D1 was modified.
+
+This is **direct Cloudflare D1 SQL/API evidence only**. It does not execute `createD1Store()` or the VLESS handler inside a Worker, does not validate Wrangler migration history, does not exercise a real outbound TCP destination, and does not test isolate termination or WebSocket buffering. No Worker was created or deployed, no binding/route/DNS setting was changed, and no TCP destination was contacted. Issue #78 remains open.
+ Production proxy settings remain unset.
