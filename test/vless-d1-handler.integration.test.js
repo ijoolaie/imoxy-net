@@ -100,7 +100,7 @@ test("VLESS handler authenticates, admits, forwards and settles through the real
   for (const file of [
     "0001_initial.sql", "0002_auth_rate_limits.sql", "0003_telegram_webhook_updates.sql",
     "0004_usage_daily_safe_integer_guards.sql", "0005_proxy_credentials.sql",
-    "0006_atomic_quota_reservations.sql", "0007_proxy_active_sessions.sql"
+    "0006_atomic_quota_reservations.sql", "0007_proxy_active_sessions.sql", "0008_quota_reservation_recovery.sql"
   ]) database.exec(migration(file));
 
   const db = sqliteD1(database);

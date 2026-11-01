@@ -15,10 +15,34 @@ function databaseWithMigrations() {
   db.exec(migration("0005_proxy_credentials.sql"));
   db.exec(migration("0006_atomic_quota_reservations.sql"));
   db.exec(migration("0007_proxy_active_sessions.sql"));
+  db.exec(migration("0008_quota_reservation_recovery.sql"));
   return db;
 }
 
 const timestamp = "2026-10-27T12:00:00.000Z";
+
+test("quota recovery migration conservatively marks legacy active reservations as uncertain", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON");
+  for (const name of [
+    "0001_initial.sql", "0002_auth_rate_limits.sql", "0003_telegram_webhook_updates.sql",
+    "0004_usage_daily_safe_integer_guards.sql", "0005_proxy_credentials.sql",
+    "0006_atomic_quota_reservations.sql", "0007_proxy_active_sessions.sql"
+  ]) db.exec(migration(name));
+  db.prepare(`INSERT INTO proxy_accounts (id, username, status, created_at, updated_at)
+    VALUES ('legacy-acct', 'legacy_user', 'active', ?, ?)`).run(timestamp, timestamp);
+  db.prepare(`INSERT INTO quota_reservations
+    (reservation_id, account_id, usage_date, reserved_bytes, actual_bytes, status, created_at, lease_expires_at, updated_at)
+    VALUES ('legacy-reserve', 'legacy-acct', '2026-10-27', 10, NULL, 'active', ?, ?, ?)`)
+    .run(timestamp, "2026-10-27T12:00:30.000Z", timestamp);
+
+  db.exec(migration("0008_quota_reservation_recovery.sql"));
+  const row = db.prepare("SELECT forwarding_started_at FROM quota_reservations WHERE reservation_id = 'legacy-reserve'").get();
+  assert.equal(row.forwarding_started_at, timestamp);
+  assert.throws(() => db.prepare("UPDATE quota_reservations SET forwarding_started_at = NULL WHERE reservation_id = 'legacy-reserve'").run(),
+    /quota forwarding marker is immutable/);
+  db.close();
+});
 
 test("all D1 migrations execute in SQLite and create the expected tables", () => {
   const db = databaseWithMigrations();
@@ -201,6 +225,7 @@ test("quota reservations enforce immutable bounds and usage events atomically se
     VALUES (?, ?, ?, ?, NULL, 'active', ?, ?, ?)`).run(
     "reserve-1", "a1", "2026-10-27", 100, timestamp, "2026-10-27T12:01:00.000Z", timestamp
   );
+  db.prepare("UPDATE quota_reservations SET forwarding_started_at = ? WHERE reservation_id = ?").run(timestamp, "reserve-1");
   const insertEvent = db.prepare(`INSERT INTO usage_events
     (producer_id, event_id, reservation_id, account_id, usage_date, upload_bytes, download_bytes,
      request_count, payload_hash, status, created_at)
@@ -252,6 +277,8 @@ test("an event cannot settle without a matching active reservation or exceed its
     VALUES (?, ?, ?, ?, NULL, 'active', ?, ?, ?)`).run(
     "reserve-1", "a1", "2026-10-27", 10, timestamp, "2026-10-27T12:01:00.000Z", timestamp
   );
+  db.prepare("UPDATE quota_reservations SET forwarding_started_at = ? WHERE reservation_id = ?").run(timestamp, "reserve-1");
+  assert.equal(db.prepare("SELECT forwarding_started_at FROM quota_reservations WHERE reservation_id = ?").get("reserve-1").forwarding_started_at, timestamp);
   db.prepare(`INSERT INTO usage_events
     (producer_id, event_id, reservation_id, account_id, usage_date, upload_bytes, download_bytes,
      request_count, payload_hash, status, created_at)
@@ -259,7 +286,7 @@ test("an event cannot settle without a matching active reservation or exceed its
     "worker-1", "event-oversize", "reserve-1", "a1", "2026-10-27", 8, 5, 1, "b".repeat(64), timestamp
   );
   assert.throws(() => db.prepare("UPDATE usage_events SET status = 'applied' WHERE event_id = ?").run("event-oversize"),
-    /usage event has no matching active reservation/);
+    /usage event (has no matching active reservation|reservation has not started forwarding)/);
   assert.equal(db.prepare("SELECT status FROM quota_reservations WHERE reservation_id = ?").get("reserve-1").status, "active");
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM usage_daily").get().n, 0);
   db.close();

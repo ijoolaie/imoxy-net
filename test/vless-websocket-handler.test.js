@@ -141,6 +141,7 @@ function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = 
         if (!quotaAllowed) return { allowed: false, reason: "quota_exceeded" };
         return { allowed: true, reservation: { ...input, usageDate: input.at.slice(0, 10), status: "active" } };
       },
+      async markForwarding() { return true; },
       async settle(input) {
         quotaCalls.settle.push(input);
         if (quotaSettleFails) throw new Error("injected settlement failure");

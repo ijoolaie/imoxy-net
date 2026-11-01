@@ -11,6 +11,7 @@ function fixture(overrides = {}) {
       calls.reserve.push(input);
       return { allowed: true, duplicate: false, reservation: { ...input, status: "active" } };
     },
+    async markQuotaReservationForwarding(input) { calls.markForwarding = input; return true; },
     async settleUsageEvent(input) {
       calls.settle.push(input);
       return { applied: true, duplicate: calls.settle.length > 1, eventId: input.eventId };

@@ -326,7 +326,8 @@ export function createVlessWebSocketHandler({
       } catch {
         return jsonError("proxy_storage_unavailable", "The quota reservation store is unavailable.", 503);
       }
-      if (typeof quotaService?.reserve !== "function" || typeof quotaService?.settle !== "function") {
+      if (typeof quotaService?.reserve !== "function" || typeof quotaService?.settle !== "function" ||
+          typeof quotaService?.markForwarding !== "function") {
         return jsonError("proxy_storage_unavailable", "The quota reservation service is unavailable.", 503);
       }
 
@@ -477,6 +478,13 @@ export function createVlessWebSocketHandler({
         }
 
         try {
+          const marked = await quotaService.markForwarding({
+            reservationId, accountId: state.accountId, at: new Date(now()).toISOString()
+          });
+          if (!marked) {
+            await closeSession(1011, "quota_reservation_forwarding_failed");
+            return false;
+          }
           if (direction === "upload") await state.writer.write(bytes);
           else server.send(bytes);
         } catch {

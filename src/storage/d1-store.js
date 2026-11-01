@@ -485,9 +485,14 @@ export function createD1Store(db) {
         throw new TypeError("Quota reservation fields are invalid.");
       }
 
+      await db.prepare(`UPDATE quota_reservations SET status = 'released', actual_bytes = 0, updated_at = ?
+        WHERE reservation_id IN (SELECT reservation_id FROM quota_reservations
+          WHERE status = 'active' AND account_id = ? AND forwarding_started_at IS NULL AND lease_expires_at <= ?
+          ORDER BY lease_expires_at ASC LIMIT 100)`).bind(createdAt, accountId, createdAt).run();
+
       await db.prepare(`INSERT INTO quota_reservations
-        (reservation_id, account_id, usage_date, reserved_bytes, actual_bytes, status, created_at, lease_expires_at, updated_at)
-        SELECT ?, a.id, ?, ?, NULL, 'active', ?, ?, ?
+        (reservation_id, account_id, usage_date, reserved_bytes, actual_bytes, status, created_at, lease_expires_at, updated_at, forwarding_started_at)
+        SELECT ?, a.id, ?, ?, NULL, 'active', ?, ?, ?, NULL
         FROM proxy_accounts a
         WHERE a.id = ? AND a.status = 'active'
           AND (a.expires_at IS NULL OR a.expires_at > ?)
@@ -528,6 +533,20 @@ export function createD1Store(db) {
       return { allowed: false, duplicate: false, reason: "quota_exceeded_or_account_unusable", reservation: null };
     },
 
+    async markQuotaReservationForwarding({ reservationId, accountId, at }) {
+      if (typeof reservationId !== "string" || !reservationId || reservationId.length > 128 ||
+          typeof accountId !== "string" || !accountId ||
+          typeof at !== "string" || !Number.isFinite(Date.parse(at))) {
+        throw new TypeError("Quota reservation forwarding fields are invalid.");
+      }
+      await db.prepare(`UPDATE quota_reservations SET forwarding_started_at = COALESCE(forwarding_started_at, ?), updated_at = ? WHERE reservation_id = ? AND account_id = ? AND status = 'active'
+          AND (forwarding_started_at IS NOT NULL OR (created_at <= ? AND lease_expires_at > ?))`)
+        .bind(at, at, reservationId, accountId, at, at).run();
+      const row = await db.prepare(`SELECT forwarding_started_at FROM quota_reservations WHERE reservation_id = ? AND account_id = ? AND status = 'active' LIMIT 1`)
+        .bind(reservationId, accountId).first();
+      return Boolean(row?.forwarding_started_at);
+    },
+
     async settleUsageEvent({
       producerId, eventId, reservationId, accountId, usageDate,
       uploadBytes, downloadBytes, requestCount = 1, payloadHash, at
@@ -550,7 +569,7 @@ export function createD1Store(db) {
           SELECT ?, ?, r.reservation_id, r.account_id, r.usage_date, ?, ?, ?, ?, 'claimed', ?
           FROM quota_reservations r
           WHERE r.reservation_id = ? AND r.account_id = ? AND r.usage_date = ?
-            AND r.status = 'active' AND ? <= r.reserved_bytes
+            AND r.status = 'active' AND r.forwarding_started_at IS NOT NULL AND ? <= r.reserved_bytes
           ON CONFLICT(producer_id, event_id) DO NOTHING`).bind(
           producerId, eventId, uploadBytes, downloadBytes, requestCount, payloadHash, at,
           reservationId, accountId, usageDate, uploadBytes + downloadBytes
@@ -585,7 +604,7 @@ export function createD1Store(db) {
       }
       const result = await db.prepare(`UPDATE quota_reservations
         SET status = 'released', actual_bytes = 0, updated_at = ?
-        WHERE reservation_id = ? AND account_id = ? AND status = 'active'`).bind(at, reservationId, accountId).run();
+        WHERE reservation_id = ? AND account_id = ? AND status = 'active' AND forwarding_started_at IS NULL`).bind(at, reservationId, accountId).run();
       return (result?.meta?.changes ?? 0) === 1;
     },
 
