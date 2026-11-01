@@ -396,18 +396,21 @@ export function createVlessWebSocketHandler({
           idleTimer = null;
         }
         try { server.close(code, reason); } catch {}
-        // Start every upstream cleanup operation without serially awaiting it.
-        // A stalled ReadableStream.cancel(), WritableStream.abort(), or socket
-        // close must not prevent the remaining resources from being closed or
-        // the session lease from being released (or left to expire on failure).
-        const startCleanup = (operation) => {
-          try { Promise.resolve(operation()).catch(() => {}); } catch {}
+        // Close the TCP socket(s) before releasing the admission lease. Socket.close()
+        // forcibly closes both stream sides; do not let a separate reader.cancel()
+        // or writer.abort() promise block socket closure or lease cleanup.
+        const runCleanup = (operation) => {
+          try { return Promise.resolve(operation()).catch(() => {}); }
+          catch { return Promise.resolve(); }
         };
-        startCleanup(() => state.reader?.cancel());
-        startCleanup(() => state.writer?.abort());
-        startCleanup(() => state.pendingSocket?.close());
+        const socketClosures = [];
+        const pendingSocket = state.pendingSocket;
         state.pendingSocket = null;
-        startCleanup(() => state.socket?.close());
+        if (pendingSocket) socketClosures.push(runCleanup(() => pendingSocket.close()));
+        if (state.socket) socketClosures.push(runCleanup(() => state.socket.close()));
+        await Promise.all(socketClosures);
+        try { Promise.resolve(state.reader?.cancel()).catch(() => {}); } catch {}
+        try { Promise.resolve(state.writer?.abort()).catch(() => {}); } catch {}
         await releaseSessionLease();
       };
 
