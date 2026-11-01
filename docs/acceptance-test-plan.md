@@ -192,6 +192,8 @@ The current disposable runtime investigation confirms that native `WebSocketPair
 
 Do not proceed to VLESS payload, credential, TCP, D1 quota, session-lease, relay, or slow-reader tests until a minimal constructor-equivalent control and the real handler constructor both return normally, and the real handler completes at least three repeatable WebSocket handshakes. No D1 or TCP resources are needed for this gate. Issue #78 remains open; Cloudflare-internal WebSocket buffer/backpressure remains unproven.
 
+**Historical status correction (2026-11-01):** The subsequent Wrangler 4.156.0 `wrangler dev --remote` run recorded below passed the constructor-equivalent control and actual `/proxy/vless` handshake 3/3. The handshake gate is therefore satisfied for that preview path; the D1-backed relay and runtime-buffer gates remain outstanding.
+
 
 ## Actual VLESS handler Wrangler remote-preview observation — 2026-10-31
 
