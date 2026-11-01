@@ -954,3 +954,15 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Issue #78 remains open. Do not close it or claim backpressure acceptance until the isolated actual Worker + D1 + controlled TCP test and longer/aggregate slow-reader evidence are obtained. The D1 migration command was previously blocked before SQL execution; do not bypass that safety layer.
 - Current active branch for this hand-off update: `docs/handoff-after-pr135-20261101`, based on merge commit above. No production/staging Worker, route, DNS, D1, or proxy settings were changed.
 - Next concrete action: establish an approved Cloudflare D1 migration/query execution path that passes the execution safety controls; if unavailable, keep real-D1 acceptance blocked and continue deterministic local tests only. Phase 6 remains **In progress**, Phase 12 **Blocked**, and no phase is Complete.
+
+
+## 2026-11-01 — PR #136/#137 merged; local D1-backed VLESS handler integration
+
+- PR #136 was merged as `382c54e64f99e20177618d24ecf73b7f6e7e732f`; main now includes the previous handoff and implementation/test audit.
+- Added `test/vless-d1-handler.integration.test.js` in PR #137. It runs the actual VLESS WebSocket handler with `createD1Store` and `createQuotaReservationService` against an in-memory SQLite adapter after applying migrations 0001–0007. It verifies hashed-credential authentication, durable session admission, initial upload forwarding, atomic quota settlement, and session lease release on close.
+- PR #137 was merged as `973785e57618c37ea90c88fae5afcd13e222dc5d`. GitHub Actions CI run `41277197509` (run 872) passed on the exact PR head `412b8c6a91dab301fc51f2b0cf4c901e95b23832`.
+- This is local SQLite adapter integration evidence, not a real Cloudflare D1 test. It does not prove D1 remote binding/runtime behavior, real outbound TCP, Cloudflare internal WebSocket send-buffer boundedness, longer/aggregate slow-reader behavior, or isolate-termination lifecycle behavior.
+- Cloudflare D1 inventory was read-only and showed three existing databases: `iran-price-scout-db`, `imoxy-net-staging-identity`, and `ivory-tide-05e8-db`. No existing database was changed. The previous disposable probe database remains deleted.
+- Cloudflare documents both Wrangler remote migrations and D1 SQL API endpoints. However, using the SQL API to repeat an operation blocked by the execution safety layer would bypass that control, so no SQL or migration was sent through the API. Do not touch the existing staging database for this test.
+- Issue #78 remains open. The actual remote D1 + controlled TCP gate and runtime backpressure evidence remain outstanding. No production/staging Worker, route, DNS, binding, existing D1, or proxy settings were changed.
+- Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
