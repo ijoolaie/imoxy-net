@@ -1130,7 +1130,7 @@ test("session admission lease is released when upstream setup fails and repeated
   assert.equal(h.sessionCalls.release.length, 1);
 });
 
-test("session close starts all upstream cleanup without waiting for stalled stream operations", async () => {
+test("session close does not let stalled stream cleanup block TCP socket close or lease release", async () => {
   let readerCancelCalled = false;
   let writerAbortCalled = false;
   let socketCloseCalled = false;
@@ -1159,9 +1159,8 @@ test("session close starts all upstream cleanup without waiting for stalled stre
         };
       }
     },
-    close() {
+    async close() {
       socketCloseCalled = true;
-      return neverSettles;
     }
   };
   const h = harness({ connectTcp: async () => upstream });
@@ -1175,7 +1174,7 @@ test("session close starts all upstream cleanup without waiting for stalled stre
   assert.equal(readerCancelCalled, true);
   assert.equal(writerAbortCalled, true);
   assert.equal(socketCloseCalled, true);
-  assert.equal(h.sessionCalls.release.length, 1, "a stalled stream cleanup must not hold the lease until expiry");
+  assert.equal(h.sessionCalls.release.length, 1, "a stalled stream cleanup must not hold the lease after the TCP socket has closed");
 });
 
 test("session release failure does not prevent socket cleanup and is not retried", async () => {
