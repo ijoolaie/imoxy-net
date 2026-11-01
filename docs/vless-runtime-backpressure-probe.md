@@ -121,3 +121,17 @@ Cleanup was completed: the temporary Worker was deleted and its absence verified
 ### Required next experiment
 
 Run a separate, fully isolated actual VLESS path test using a disposable Worker, disposable D1, test-only credential, and controlled TCP destination. Capture handshake/authentication, exact bidirectional payloads, DNS pinning, quota reserve/settle/release, session admission/release, close/error behavior, and resource cleanup. Obtain explicit approval for the dedicated D1/Worker/destination and hard limits before provisioning; do not repurpose existing staging resources.
+
+
+## Actual VLESS handler remote-preview observation — 2026-10-31
+
+This is a separate partial runtime observation, not completion of every probe requirement above. Wrangler 4.156.0 `wrangler dev --remote` successfully ran the actual repository VLESS handler module graph on Cloudflare's remote runtime. Evidence is recorded in Issue #78 comment `6546090435`.
+
+- The actual handler returned 426 for a non-upgrade request and completed three of three WebSocket handshakes at `/proxy/vless`.
+- Synthetic VLESS requests exercised the actual parser, credential-hash adapter, account lookup, destination allowlist, resolver adapter, admission adapter and TCP connector adapter.
+- Synthetic in-memory TCP plus fake store/quota adapters completed three of three sessions with the expected VLESS response and exact four-byte initial payload.
+- A raw TCP WebSocket client paused reads for approximately 6.2 seconds and, after resuming, received all 4,194,304 download bytes in 256 binary frames. This is a bounded delivery observation, not a measured buffer limit.
+
+No D1 binding/database was attached, no real outbound TCP destination was contacted, and no Cloudflare internal send-buffer size/drain signal was measured. This does not prove bounded internal buffering, behavior under longer pauses, or aggregate concurrency. The generic dedicated slow-reader probe described above is not thereby fully accepted; Issue #78 remains open.
+
+A separate disposable D1 attempt was cleaned up after the safety layer blocked remote migration execution before any SQL was applied or queried. The real-D1 VLESS gate remains blocked. Do not bypass the safety layer.
