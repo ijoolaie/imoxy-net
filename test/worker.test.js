@@ -110,3 +110,30 @@ test("custom VLESS WebSocket path is routed before static assets", async () => {
   assert.equal((await response.json()).error.code, "proxy_not_configured");
   assert.deepEqual(assetCalls, []);
 });
+
+test("custom VLESS path cannot shadow API endpoints", async () => {
+  const response = await worker.fetch(request("/api/v1/capabilities"), {
+    PROXY_WS_PATH: "/api/v1/capabilities",
+    PROXY_MAX_DOWNLOAD_BYTES: "1048576",
+    PROXY_MAX_SESSION_DURATION_MS: "3600000",
+    PROXY_MAX_CONCURRENT_SESSIONS: "100",
+    PROXY_SESSION_LEASE_GRACE_MS: "60000"
+  });
+
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.ok(body.implemented.includes("health"));
+});
+
+test("custom VLESS path cannot shadow the health endpoint", async () => {
+  const response = await worker.fetch(request("/health"), {
+    PROXY_WS_PATH: "/health",
+    PROXY_MAX_DOWNLOAD_BYTES: "1048576",
+    PROXY_MAX_SESSION_DURATION_MS: "3600000",
+    PROXY_MAX_CONCURRENT_SESSIONS: "100",
+    PROXY_SESSION_LEASE_GRACE_MS: "60000"
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).status, "ok");
+});

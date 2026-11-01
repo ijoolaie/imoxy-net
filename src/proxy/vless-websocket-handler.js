@@ -39,6 +39,9 @@ function pathFor(env) {
   if (typeof path !== "string" || !/^\/[a-zA-Z0-9/_-]{1,127}$/.test(path) || path.includes("//") || path.includes("..")) {
     return null;
   }
+  // The proxy handler runs before API and static-asset routing. Never let a
+  // custom proxy path shadow the Worker's reserved API or health endpoints.
+  if (path === "/api" || path.startsWith("/api/") || path === "/health") return null;
   return path;
 }
 

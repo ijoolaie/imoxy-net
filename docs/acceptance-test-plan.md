@@ -210,3 +210,10 @@ Observed results:
 This is partial Cloudflare runtime evidence for the actual handler and a synthetic relay, not an end-to-end production data-plane acceptance test. No D1 binding/database was attached; store/quota were fake and TCP was synthetic. The observation does not measure the Worker's internal WebSocket send-buffer bound or prove behavior for longer pauses, larger aggregate concurrency, real D1, or real outbound TCP. Keep Issue #78 open and keep internal-buffer boundedness **unproven**.
 
 The subsequent isolated D1 attempt created a disposable WEUR database but the execution safety layer blocked the remote migration command before it ran. No SQL was applied or queried; the temporary database was deleted and inventory confirmed only the three pre-existing databases remain. Real-D1 VLESS handler/relay acceptance therefore remains blocked. Do not bypass the safety control; use an approved execution path or leave this gate blocked.
+
+## Custom VLESS route collision protection — 2026-11-01
+
+- A configured `PROXY_WS_PATH` under `/api` (including `/api/*`) or equal to `/health` must not intercept or shadow the Worker management API or health endpoint.
+- Worker-entrypoint tests verify a collision with `/api/v1/capabilities` still returns the API's 200 response and a collision with `/health` still returns the health 200 response.
+- The regression was observed before the fix: the API request returned 426 because the VLESS handler ran first. The handler now declines these reserved paths so normal Worker routing proceeds.
+- This is local Node/Worker-entrypoint coverage only; it is not Cloudflare runtime or Nova parity evidence.

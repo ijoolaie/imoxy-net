@@ -187,3 +187,11 @@ All 12 newly created temporary Workers were deleted; the remaining route-control
 A Wrangler 4.156.0 `wrangler dev --remote` preview successfully executed the actual VLESS handler module graph on Cloudflare's remote runtime. Three of three real WebSocket handshakes passed; three synthetic in-memory TCP sessions with fake store/quota adapters returned the expected VLESS response and exact initial payload; a client paused reads for about 6.2 seconds and later received the full 4 MiB synthetic download. This supersedes the earlier constructor-1101 diagnosis for this Wrangler preview path only; it does not erase the earlier failure of the separate direct API upload/workers.dev harness.
 
 No D1 binding or real outbound TCP was used. The slow-reader result does not establish an internal WebSocket buffer bound. A subsequent disposable D1 was deleted after the safety layer blocked remote migration execution before any SQL ran. Do not bypass that control. Keep Issue #78 open and require a supported, approved isolated-D1 execution path before claiming real-D1 VLESS acceptance.
+
+## 2026-11-01 — reserve Worker management paths from custom VLESS routing
+
+The Worker invokes the VLESS handler before management API and static-asset routing. Because `PROXY_WS_PATH` previously accepted any syntactically valid absolute path, configuring it as `/api/v1/capabilities` caused ordinary API requests to be intercepted and answered with HTTP 426. This was reproduced by a failing Worker-entrypoint regression test.
+
+Decision: the VLESS handler declines configured paths equal to `/api`, under the `/api/` namespace, or equal to `/health`. This preserves the Worker management API and health endpoint even when an operator supplies a conflicting proxy path. Tests verify the API and health routes continue to return HTTP 200. The change does not alter the default `/proxy/vless` route or the already-tested non-reserved custom path.
+
+This is a routing-isolation correctness fix only. It is not Cloudflare runtime, D1, TCP, slow-reader, or Nova parity evidence.
