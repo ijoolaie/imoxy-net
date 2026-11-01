@@ -396,11 +396,21 @@ export function createVlessWebSocketHandler({
           idleTimer = null;
         }
         try { server.close(code, reason); } catch {}
-        try { await state.reader?.cancel(); } catch {}
-        try { await state.writer?.abort(); } catch {}
-        try { await state.pendingSocket?.close(); } catch {}
+        // Close the TCP socket(s) before releasing the admission lease. Socket.close()
+        // forcibly closes both stream sides; do not let a separate reader.cancel()
+        // or writer.abort() promise block socket closure or lease cleanup.
+        const runCleanup = (operation) => {
+          try { return Promise.resolve(operation()).catch(() => {}); }
+          catch { return Promise.resolve(); }
+        };
+        const socketClosures = [];
+        const pendingSocket = state.pendingSocket;
         state.pendingSocket = null;
-        try { await state.socket?.close(); } catch {}
+        if (pendingSocket) socketClosures.push(runCleanup(() => pendingSocket.close()));
+        if (state.socket) socketClosures.push(runCleanup(() => state.socket.close()));
+        await Promise.all(socketClosures);
+        try { Promise.resolve(state.reader?.cancel()).catch(() => {}); } catch {}
+        try { Promise.resolve(state.writer?.abort()).catch(() => {}); } catch {}
         await releaseSessionLease();
       };
 
