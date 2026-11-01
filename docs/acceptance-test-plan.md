@@ -191,3 +191,20 @@ Remaining independent gates: full VLESS handler/Worker end-to-end runtime lifecy
 The current disposable runtime investigation confirms that native `WebSocketPair` shape/enumerability works and that the individual production modules (`account-service`, `quota-reservation-service`, `vless-parser`, `d1-store`, and the import-only `vless-websocket-handler`) can be imported in isolated Workers. However, a Worker that calls `createVlessWebSocketHandler()` returns Cloudflare 1101 even with all options overridden and a surrounding `try/catch`; the corresponding failed invocation is not present in the queried invocation dataset. This is an unresolved constructor/Worker-runtime gate, not evidence that the VLESS handshake or handler lifecycle works.
 
 Do not proceed to VLESS payload, credential, TCP, D1 quota, session-lease, relay, or slow-reader tests until a minimal constructor-equivalent control and the real handler constructor both return normally, and the real handler completes at least three repeatable WebSocket handshakes. No D1 or TCP resources are needed for this gate. Issue #78 remains open; Cloudflare-internal WebSocket buffer/backpressure remains unproven.
+
+
+## Actual VLESS handler Wrangler remote-preview observation — 2026-10-31
+
+A separate runtime test used Wrangler 4.156.0 with `wrangler dev --remote`, avoiding the earlier direct API upload + workers.dev activation path that returned 1101 even for minimal scripts. The preview executed on Cloudflare's remote runtime while a client connected through the local Wrangler preview endpoint. See Issue #78 comment `6546090435`.
+
+Observed results:
+- Minimal Worker health returned 200, non-matching path returned 404, and WebSocket echo succeeded.
+- Constructor-equivalent control completed three independent handshakes/echoes.
+- The actual repository module graph loaded; the real handler returned the expected 426 for a non-upgrade request and completed three of three WebSocket handshakes at `/proxy/vless`.
+- A synthetic request traversed the actual VLESS parser, credential-hash adapter, account lookup, destination allowlist, resolver adapter, session-admission adapter and TCP connector adapter. A deliberately failing TCP stub produced the expected `upstream_unavailable` close; no external destination was dialed.
+- With synthetic in-memory TCP and fake store/quota adapters, three of three sessions returned VLESS response `[0,0]` and echoed the exact four-byte initial payload.
+- A raw TCP WebSocket client paused reads for approximately 6.2 seconds, then resumed and received all 4,194,304 download bytes in 256 binary frames (257 frames including the two-byte VLESS response); the session closed normally with `upstream_closed`.
+
+This is partial Cloudflare runtime evidence for the actual handler and a synthetic relay, not an end-to-end production data-plane acceptance test. No D1 binding/database was attached; store/quota were fake and TCP was synthetic. The observation does not measure the Worker's internal WebSocket send-buffer bound or prove behavior for longer pauses, larger aggregate concurrency, real D1, or real outbound TCP. Keep Issue #78 open and keep internal-buffer boundedness **unproven**.
+
+The subsequent isolated D1 attempt created a disposable WEUR database but the execution safety layer blocked the remote migration command before it ran. No SQL was applied or queried; the temporary database was deleted and inventory confirmed only the three pre-existing databases remain. Real-D1 VLESS handler/relay acceptance therefore remains blocked. Do not bypass the safety control; use an approved execution path or leave this gate blocked.
