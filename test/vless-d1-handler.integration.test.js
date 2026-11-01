@@ -77,7 +77,12 @@ function fakeSocket() {
       try { controller.close(); } catch {}
     }
   };
-  return { socket, writes, get closed() { return closed; } };
+  return {
+    socket,
+    writes,
+    enqueue(value) { controller.enqueue(Uint8Array.from(value)); },
+    get closed() { return closed; }
+  };
 }
 
 async function waitFor(predicate, message) {
@@ -164,6 +169,33 @@ test("VLESS handler authenticates, admits, forwards and settles through the real
   assert.deepEqual({ ...reservation }, { status: "settled", actual_bytes: 4 });
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM proxy_active_sessions WHERE account_id = 'acct-vless'").get().count, 1);
   assert.deepEqual(upstream.writes, [[0x11, 0x22, 0x33, 0x44]]);
+
+  // Exercise the opposite relay direction through the same D1-backed handler:
+  // TCP download bytes must be sent to the WebSocket and settled as download usage.
+  const downloadChunk = [0xaa, 0xbb, 0xcc];
+  upstream.enqueue(downloadChunk);
+  await waitFor(
+    () => server.sent.some((frame) => frame.length === downloadChunk.length &&
+      frame.every((byte, index) => byte === downloadChunk[index])),
+    "TCP download chunk was not forwarded to the WebSocket"
+  );
+  await waitFor(
+    () => database.prepare("SELECT download_bytes FROM usage_daily WHERE account_id = 'acct-vless'")
+      .get()?.download_bytes === downloadChunk.length,
+    "D1-backed download usage was not settled"
+  );
+
+  const bidirectionalUsage = database.prepare(`SELECT upload_bytes, download_bytes, request_count
+    FROM usage_daily WHERE account_id = 'acct-vless'`).get();
+  assert.deepEqual({ ...bidirectionalUsage }, {
+    upload_bytes: 4, download_bytes: downloadChunk.length, request_count: 1
+  });
+  const settledReservations = database.prepare(`SELECT status, actual_bytes FROM quota_reservations
+    WHERE account_id = 'acct-vless' ORDER BY actual_bytes`).all();
+  assert.deepEqual(settledReservations.map((row) => ({ ...row })), [
+    { status: "settled", actual_bytes: 3 },
+    { status: "settled", actual_bytes: 4 }
+  ]);
 
   server.close(1000, "test_complete");
   await waitFor(
