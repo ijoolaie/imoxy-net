@@ -396,11 +396,18 @@ export function createVlessWebSocketHandler({
           idleTimer = null;
         }
         try { server.close(code, reason); } catch {}
-        try { await state.reader?.cancel(); } catch {}
-        try { await state.writer?.abort(); } catch {}
-        try { await state.pendingSocket?.close(); } catch {}
+        // Start every upstream cleanup operation without serially awaiting it.
+        // A stalled ReadableStream.cancel(), WritableStream.abort(), or socket
+        // close must not prevent the remaining resources from being closed or
+        // the session lease from being released (or left to expire on failure).
+        const startCleanup = (operation) => {
+          try { Promise.resolve(operation()).catch(() => {}); } catch {}
+        };
+        startCleanup(() => state.reader?.cancel());
+        startCleanup(() => state.writer?.abort());
+        startCleanup(() => state.pendingSocket?.close());
         state.pendingSocket = null;
-        try { await state.socket?.close(); } catch {}
+        startCleanup(() => state.socket?.close());
         await releaseSessionLease();
       };
 
