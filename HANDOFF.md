@@ -1296,3 +1296,14 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - No Cloudflare workflow was dispatched; no Cloudflare resources were created or modified.
 - Next gate: manually dispatch `VLESS Cloudflare disposable smoke` from `main` with `confirm_disposable_run=true`. Inspect diagnostic stage events and Echo counters; require exact bidirectional byte totals, D1 reservation settlement, zero active leases, and verified deletion of only run-owned Worker/D1 resources. Keep 10-second, 8-MiB, 16-KiB, max-two-client caps. Never touch Production or existing staging.
 - Active phase remains Phase 6; no phase exit criteria are met.
+
+## 2026-11-02 — bounded relay diagnostics retrieval
+
+- Objective: make the failed disposable relay run observable after Wrangler remote-preview console output omitted callback markers.
+- Repository: `ijoolaie/imoxy-net`; branch: `test/vless-bounded-diagnostics-clean` based directly on current `main`.
+- Added a test-only `GET /_test/diagnostics` endpoint to the disposable VLESS smoke Worker. Access requires a random per-run token from the temporary Wrangler config. The response is `no-store` and contains at most 256 allowlisted records (event, direction, bytes, durationMs, errorName), plus a dropped-event count. No payloads, credentials, account/session identifiers, reservation IDs, or destinations are included.
+- Added tests for token gating, field allowlisting/redaction, and bounded retention. Earlier exact-head implementation CI passed run [41480382039](https://github.com/ijoolaie/imoxy-net/actions/runs/41480382039); this clean branch requires its own exact-head CI.
+- Updated parity matrix, acceptance plan, decision log, reference baseline, roadmap, and nonproduction smoke gate to record the diagnostic channel and evidence boundary.
+- Limitation: the ring buffer is isolate-local. If the diagnostic fetch reaches a different Worker isolate, an empty response is inconclusive. Do not interpret it as proof that handler events did not occur.
+- No Cloudflare workflow was dispatched; no Cloudflare resources were created or modified. Existing Production and staging remain out of scope. Preserve the 10-second, 8-MiB, 16-KiB, and two-client limits.
+- Next: verify exact-head CI, inspect the clean diff against `main`, open a focused PR, and wait for exact PR-head CI before the user manually dispatches the isolated smoke workflow.
