@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import worker, { recordDiagnostic } from "./vless-service-binding-tcp-smoke-worker.js";
 import {
   VLESS_SERVICE_BINDING_SMOKE_HOST,
   VLESS_SERVICE_BINDING_SMOKE_PEER,
