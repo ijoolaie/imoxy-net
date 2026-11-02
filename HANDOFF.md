@@ -1152,3 +1152,17 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - The VPC runbook records the beta/plaintext-TCP caveat, `cloudflared` prerequisites, isolation, and cleanup. No Tunnel, Worker, D1, route, DNS, binding, firewall rule, or local TCP server configuration was created or changed. The live VPC/Worker/D1/TCP test remains not executed.
 - Issue #78 remains open. The harness does not establish live VPC connectivity, Worker-bound D1 correctness, slow-reader behavior, or Cloudflare-internal WebSocket buffer bounds.
 - No open PRs remained after #159. Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
+
+
+## Current session — 2026-11-02 — Cloudflare Service Binding TCP smoke path
+
+- Repository: `ijoolaie/imoxy-net`; branch: `test/cloudflare-service-binding-tcp-smoke`; base main commit: `f92bfbc5a6570f3a473fe86de84443a7828d9a21`.
+- User reprioritized the goal: credible Cloudflare runtime evidence for VLESS matters more than retaining the Workers VPC route; alternate test transport is acceptable. Existing Production and pre-existing staging remain explicitly out of scope.
+- Added `test/vless-service-binding-tcp-echo-worker.js`: internal-only `connect(socket)` TCP echo handler. Cloudflare documentation says this handler accepts TCP only when forwarded from another Worker through a Service Binding; it is not a public TCP listener.
+- Added `test/vless-service-binding-tcp-smoke-worker.js`: injects a test-only connector into the existing production VLESS handler, forwards only the fixed synthetic peer `93.184.216.34:5000` through `PROXY_TCP_ECHO.connect()`, and maps the handler's peer identity synthetically. This seam is explicitly not proof of a real peer IP.
+- Added isolated Wrangler example configs for the VLESS Worker (new disposable D1 + service binding) and backend echo Worker (no workers.dev, routes, or domains).
+- Added unit tests for fixed destination, Service Binding invocation, synthetic identity mapping, and rejection of other destinations/missing binding.
+- Exact branch commits created by this session: `f9a8e46e5f68a58589c7a7ea90a5097141c131d6`, `4d769cf2ed98d1c01bb44ad3ce136a632cbec4df`, `17979fc25100919e7bbb7563ad85cac61576b833`, `f1629a3604b74be98e4d83ece45b4545997cc47c`, `46abe392017c3e3924bbb144c267d1135fedcfc4`, `fe03107b3e3898915347c9fc4a9d93f4208d4153`, `d5650178125e2bc31ac2037db307ae8be53ffa15`.
+- Tests: not run in this environment; CI result pending. Do not report pass until exact PR-head CI is observed.
+- Runtime: no Cloudflare resources created or changed. No disposable D1, Workers, routes, secrets, tunnels or VPC services created. No Production or existing staging resources touched.
+- Remaining: run exact branch CI; review diff; add a real external WebSocket VLESS client runner and safe disposable deploy/cleanup workflow; seed only disposable D1 with a test credential; run the approved probe (10 s, 8 MiB, 16 KiB frames, max 2 clients); delete test resources and verify absence. Keep this Service Binding result separate from Workers VPC acceptance and Cloudflare-internal WebSocket backpressure claims.
