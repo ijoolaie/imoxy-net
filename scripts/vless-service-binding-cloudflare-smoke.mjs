@@ -111,7 +111,7 @@ function configForEcho() {
   ].join("\n");
 }
 
-function configForVless(credentialAccountId) {
+function configForVless(databaseUuid) {
   return [
     "name = " + tomlString(vlessName),
     'main = "./test/vless-service-binding-tcp-smoke-worker.js"',
