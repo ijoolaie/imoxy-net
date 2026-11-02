@@ -1219,3 +1219,13 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - No Cloudflare resource was created or modified in this session. The new workflow has not been dispatched. No remote tests were run. CI will run on the PR head.
 - Next: inspect the full branch diff and workflow/script; run PR CI; merge only after checks pass; owner must manually dispatch Actions → VLESS Cloudflare disposable smoke with confirmation enabled. Inspect logs and verify cleanup before reporting any runtime result.
 - Active phase: Phase 6. Full Worker-bound D1/TCP gate remains blocked/not accepted until the workflow has actually passed. Phases 0–13 remain as recorded in docs/roadmap.md.
+
+
+## 2026-11-02 — merged smoke workflow and runtime config correction
+
+- PR #166 merged as 0be7ab3edc309954dffecd1a2960c48a240e668d. It adds the manually dispatched disposable Cloudflare VLESS smoke workflow and runner. Exact-head PR CI passed on 4d8ef3146cb4ee048ca2b65071dceab8952dd4b1 before merge.
+- Post-merge review found a runtime-only identifier mismatch in the generated VLESS Wrangler config. The smoke workflow was explicitly held and not dispatched while this was corrected.
+- PR #167 merged as 56c323815e6d8af090d2d33d9361d76c2c705be6. It fixes the D1 UUID variable in the config generator and removes migrations_dir from the Wrangler remote-preview config so the workflow cannot implicitly invoke Wrangler migration execution. The checked-in SQL migrations remain applied through the D1 API only. Exact-head CI passed on cfb3639625064d9dd0ab7d48e5093efbf2de38c2 (runs 41467164874 and 41467157117).
+- The current main branch contains the fixed runner. No Cloudflare resources were created or modified, and the manual workflow has not been dispatched. GitHub secret presence/value is not readable by the repository integration.
+- Next: after the handoff note merges, owner manually runs Actions → VLESS Cloudflare disposable smoke with confirm_disposable_run=true. Inspect exact D1 usage, settled reservations, session lease release, and cleanup verification before making any runtime claim. Stop on any cleanup error and inspect inventory.
+- Active phase remains Phase 6. The Worker-bound D1/TCP gate remains In progress/Blocked pending a real successful workflow run; Phase 12 remains Blocked. Other phase states remain as recorded in docs/roadmap.md.
