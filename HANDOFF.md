@@ -1111,3 +1111,12 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - PR #154 also merged as `58b117d9b3b3ec2bb7454eb3d06f733f2c496d54`; exact PR-head CI run #919 and post-merge main CI both passed.
 - Issue #78 remains open. The new coverage is deterministic Node address-policy evidence only; no live Worker/D1/TCP runtime or Nova parity is established.
 - Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
+
+
+## Latest work session — 2026-11-02 (partial DNS-family resilience)
+
+- Added three deterministic tests to `test/vless-websocket-handler.test.js`: keep valid AAAA candidates when the A query fails; keep valid A candidates when the AAAA query fails; ignore malformed and RR-type/family-mismatched DNS JSON records while retaining valid candidates.
+- The tests lock the resolver's current `Promise.allSettled` policy: one address-family DNS failure does not discard the other family's valid results; malformed answers are ignored; no valid public result remains a fail-closed error.
+- Branch: `test/vless-dns-partial-family-resilience-20261102`; final test+documentation head `48417fa8f86ab1dc1d93cc38a33a9e211782cb95` passed GitHub Actions run #931 (`npm run verify`). PR #157 is open pending merge.
+- No production Worker, D1, route, DNS, binding, proxy setting, or external destination was changed. Synthetic DoH response tests are not live DNS/Cloudflare runtime/Nova evidence. Issue #78 remains open.
+- Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
