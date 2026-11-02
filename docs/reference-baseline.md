@@ -106,3 +106,10 @@ The pinned Nova 5.0.0 README and GUIDE do not document a per-account `max_connec
 ## Cloudflare VLESS remote-runtime evidence boundary — 2026-11-02
 
 A Wrangler 4.156.0 remote-preview execution of imoxy's actual VLESS handler/module graph passed 3/3 WebSocket handshakes and 3/3 synthetic relay sessions using in-memory TCP and fake store/quota adapters; a paused-reader probe later received the complete 4 MiB payload. This is evidence about imoxy's current implementation on one Cloudflare remote-preview path only. It is not evidence about Nova Proxy 5.0.0, does not make any parity row Verified, and does not cover D1 binding, real TCP, or internal WebSocket buffer limits.
+
+
+## 2026-11-02 — next Cloudflare runtime acceptance harness (not yet executed)
+
+A manually gated workflow has been prepared to run the actual VLESS handler/module graph under Wrangler remote preview with a disposable Worker-bound D1 database and a Worker-to-Worker TCP Echo Service Binding. D1 migrations are applied through the Cloudflare D1 API; the echo Worker is deployed with Wrangler and has no public URL or route. The harness expects exact bidirectional byte counts, D1 quota settlement, and session lease release, followed by deletion and inventory verification of only run-owned resources.
+
+This is a reproducible acceptance harness design, not runtime evidence. It has not been dispatched; no new Cloudflare Worker/D1 runtime result exists. It does not test Nova Proxy 5.0.0 and must not change any parity row to Verified.
