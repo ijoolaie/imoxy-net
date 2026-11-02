@@ -193,7 +193,7 @@ The new workflow .github/workflows/vless-cloudflare-smoke.yml runs only from mai
 
 The two-client smoke is bounded by the existing client timeout (8.5 seconds), handler session lifetime (10 seconds), account quota (8 MiB), 16 KiB frames, and two concurrent sessions. Acceptance requires exact upload/download totals, request count, fully settled reservation bytes, no active/released reservations, and no active session leases. Cleanup deletes only the unique Worker names and D1 created for that run and verifies their absence.
 
-**Current status: prepared, not executed.** The repository integration cannot inspect GitHub secret presence or dispatch this workflow. After this PR is merged, the owner must open Actions → VLESS Cloudflare disposable smoke → Run workflow and enable the confirmation input. If the run fails cleanup verification, stop and inspect account inventory before any retry. Existing staging and Production remain out of scope.
+**Current status: first execution attempted; acceptance failed at the external VLESS client.** Run 41469175764 provisioned and migrated disposable D1, deployed the echo Worker, and verified cleanup, but the first client timed out before handshake/echo and D1 settlement assertions. The corrective change is under PR #169; after it merges, run a fresh manually confirmed workflow and inspect diagnostics. If cleanup verification fails, stop and inspect account inventory before any retry. Existing staging and Production remain out of scope.
 
 ## 2026-11-02 — first Wrangler + D1 + Service Binding run
 
