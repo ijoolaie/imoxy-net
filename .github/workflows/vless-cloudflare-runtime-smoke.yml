@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Check runtime smoke client syntax
+        run: node --check test/vless-cloudflare-runtime-smoke.mjs
       - name: Exercise disposable VLESS Worker with two concurrent WebSocket clients
         env:
           IMOXY_VLESS_WS_URL: "wss://imoxy-vless-service-smoke-disposable.shilterfekanworkgd.workers.dev/proxy/vless"
