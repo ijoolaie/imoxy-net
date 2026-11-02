@@ -134,7 +134,6 @@ function configForVless(databaseUuid) {
     'binding = "DB"',
     "database_name = " + tomlString(databaseName),
     "database_id = " + tomlString(databaseUuid),
-    'migrations_dir = "./migrations"',
     "remote = true",
     "",
     "[[services]]",
