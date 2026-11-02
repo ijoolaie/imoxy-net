@@ -317,6 +317,8 @@ async function main() {
   let activeSessions = null;
   let activeReservations = null;
   let settledReservations = null;
+  let releasedReservations = null;
+  let settledBytes = null;
   for (let attempt = 0; attempt < 30; attempt += 1) {
     const usageRows = await d1Query(
       "SELECT COALESCE(SUM(upload_bytes), 0) AS upload_bytes, COALESCE(SUM(download_bytes), 0) AS download_bytes, COALESCE(SUM(request_count), 0) AS request_count FROM usage_daily WHERE account_id = " + accountLiteral
@@ -325,24 +327,30 @@ async function main() {
       "SELECT COUNT(*) AS active_sessions FROM proxy_active_sessions WHERE account_id = " + accountLiteral
     );
     const reservationRows = await d1Query(
-      "SELECT SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_reservations, SUM(CASE WHEN status = 'settled' THEN 1 ELSE 0 END) AS settled_reservations FROM quota_reservations WHERE account_id = " + accountLiteral
+      "SELECT SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_reservations, SUM(CASE WHEN status = 'settled' THEN 1 ELSE 0 END) AS settled_reservations, SUM(CASE WHEN status = 'released' THEN 1 ELSE 0 END) AS released_reservations, COALESCE(SUM(CASE WHEN status = 'settled' THEN actual_bytes ELSE 0 END), 0) AS settled_bytes FROM quota_reservations WHERE account_id = " + accountLiteral
     );
     usage = usageRows[0] ?? {};
     activeSessions = Number(sessionRows[0]?.active_sessions ?? -1);
     activeReservations = Number(reservationRows[0]?.active_reservations ?? 0);
     settledReservations = Number(reservationRows[0]?.settled_reservations ?? 0);
+    releasedReservations = Number(reservationRows[0]?.released_reservations ?? 0);
+    settledBytes = Number(reservationRows[0]?.settled_bytes ?? 0);
     if (Number(usage.upload_bytes) === EXPECTED_TOTAL_BYTES &&
         Number(usage.download_bytes) === EXPECTED_TOTAL_BYTES &&
-        activeSessions === 0 && activeReservations === 0 && settledReservations > 0) break;
+        activeSessions === 0 && activeReservations === 0 &&
+        releasedReservations === 0 && settledReservations > 0 &&
+        settledBytes === EXPECTED_TOTAL_BYTES * 2) break;
     await delay(500);
   }
 
   if (Number(usage?.upload_bytes) !== EXPECTED_TOTAL_BYTES ||
       Number(usage?.download_bytes) !== EXPECTED_TOTAL_BYTES ||
       Number(usage?.request_count) !== 2 ||
-      activeSessions !== 0 || activeReservations !== 0 || settledReservations < 1) {
+      activeSessions !== 0 || activeReservations !== 0 || releasedReservations !== 0 ||
+      settledReservations < 1 || settledBytes !== EXPECTED_TOTAL_BYTES * 2) {
     throw new Error("Worker-bound D1 acceptance mismatch: " + JSON.stringify({
       usage, activeSessions, activeReservations, settledReservations,
+      releasedReservations, settledBytes,
       expectedUploadBytes: EXPECTED_TOTAL_BYTES,
       expectedDownloadBytes: EXPECTED_TOTAL_BYTES
     }));
@@ -360,7 +368,9 @@ async function main() {
     requestCount: Number(usage.request_count),
     activeSessionsAfterClose: activeSessions,
     activeReservationsAfterClose: activeReservations,
-    settledReservations: settledReservations
+    settledReservations: settledReservations,
+    releasedReservations: releasedReservations,
+    settledReservationBytes: settledBytes
   }, null, 2));
 }
 
