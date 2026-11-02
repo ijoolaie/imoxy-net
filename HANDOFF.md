@@ -1141,3 +1141,14 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - PR #159 contains the rebased VPC harness. Exact-head CI and review are pending.
 - Issue #78 remains open: this harness can potentially exercise the VLESS handler with a controlled private TCP endpoint, but does not itself establish live VPC reachability, Worker-bound D1 correctness, slow-reader behavior, or Cloudflare-internal WebSocket buffer bounds.
 - Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
+
+
+## 2026-11-02 — PR #159 merged; Workers VPC smoke harness prepared
+
+- PR #159 `test(vless): prepare isolated Workers VPC TCP smoke harness` merged as `ea11fa7115e3768f339c7014ad8a2a50716cea0d`.
+- Exact final PR head `e1725a017d401ed3db81081321479bbc4c0b0453` passed pull-request CI run #938 and push CI run #937; post-merge `main` CI run #939 passed `npm run verify` on the exact merge commit.
+- The merged harness includes a test-only VLESS Worker wrapper, unit tests, and a disposable Wrangler config. Direct Workers VPC Tunnel binding is correctly configured with `tunnel_id`; CI now runs on `test/**` push branches.
+- The VPC connector maps one fixed synthetic public peer to an RFC1918 target and overrides the handler-visible `remoteAddress`. It intentionally bypasses actual private-peer identity verification; this remains test-only and must never enter `worker.js` or production configuration.
+- The VPC runbook records the beta/plaintext-TCP caveat, `cloudflared` prerequisites, isolation, and cleanup. No Tunnel, Worker, D1, route, DNS, binding, firewall rule, or local TCP server configuration was created or changed. The live VPC/Worker/D1/TCP test remains not executed.
+- Issue #78 remains open. The harness does not establish live VPC connectivity, Worker-bound D1 correctness, slow-reader behavior, or Cloudflare-internal WebSocket buffer bounds.
+- No open PRs remained after #159. Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
