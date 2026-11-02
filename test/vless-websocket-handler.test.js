@@ -166,7 +166,8 @@ function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = 
     initialHandshakeTimeoutMs: 10_000,
     idleTimeoutMs,
     setTimeoutImpl: timerCallbacks ? (callback) => { timerCallbacks.push(callback); return timerCallbacks.length; } : globalThis.setTimeout,
-    clearTimeoutImpl: timerCallbacks ? () => {} : globalThis.clearTimeout
+    clearTimeoutImpl: timerCallbacks ? () => {} : globalThis.clearTimeout,
+    onDiagnostic: diagnostics
   });
   return { handler, client, server, connectCalls, storeCalls, sessionCalls, events, quotaCalls, config, env: env(config) };
 }
