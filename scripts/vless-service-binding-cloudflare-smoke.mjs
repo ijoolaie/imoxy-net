@@ -192,11 +192,20 @@ async function stopRemotePreview() {
   previewProcess = null;
 }
 
+async function workerExists(name) {
+  const scripts = await api(workerPath);
+  return Array.isArray(scripts) && scripts.some((item) => item?.id === name);
+}
+
 async function deleteWorker(name) {
-  const resourcePath = workerPath + encodeURIComponent(name);
-  await api(resourcePath, { method: "DELETE", allow404: true });
-  const remaining = await optionalResource(resourcePath);
-  if (remaining !== null) throw new Error("Disposable Worker still exists after cleanup: " + name);
+  if (await workerExists(name)) {
+    await api(workerPath + encodeURIComponent(name), { method: "DELETE" });
+  }
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    if (!(await workerExists(name))) return;
+    await delay(500);
+  }
+  throw new Error("Disposable Worker still exists after cleanup: " + name);
 }
 
 async function cleanup() {
@@ -230,11 +239,9 @@ async function cleanup() {
 }
 
 async function main() {
-  const workerPathEcho = workerPath + encodeURIComponent(echoName);
-  const workerPathVless = workerPath + encodeURIComponent(vlessName);
   const dbByNamePath = databasePath + "/" + encodeURIComponent(databaseName);
-  if (await optionalResource(workerPathEcho)) throw new Error("Refusing to overwrite an existing Worker: " + echoName);
-  if (await optionalResource(workerPathVless)) throw new Error("Refusing to overwrite an existing Worker: " + vlessName);
+  if (await workerExists(echoName)) throw new Error("Refusing to overwrite an existing Worker: " + echoName);
+  if (await workerExists(vlessName)) throw new Error("Refusing to overwrite an existing Worker: " + vlessName);
   if (await optionalResource(dbByNamePath)) throw new Error("Refusing to overwrite an existing D1 database: " + databaseName);
 
   databaseAttempted = true;
