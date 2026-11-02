@@ -127,3 +127,9 @@ The opt-in test/vless-local-tcp.integration.test.js was executed against the loc
 
 - Added an end-to-end handler regression over synthetic mixed A/AAAA DNS responses. Private IPv4 and ULA IPv6 records are filtered; failed IPv4 connection falls back to the next validated IPv6 address; peer pinning is checked before the initial payload is forwarded; upload quota is settled only after successful forwarding.
 - The focused Node handler suite passed 53/53. This verifies current implementation behavior under deterministic adapters, not Nova Proxy 5.0.0 behavior. All relevant Nova proxy/DNS/transport parity rows remain **Not assessed** until black-box reference tests are run.
+
+
+## 2026-11-02 — IANA special-purpose address coverage
+
+- Added regression matrices for the current resolver's IPv4 and IPv6 handling against the IANA Special-Purpose Address Registries (2025-10-09 snapshot). The tests cover the registered private/shared, loopback, link-local, documentation, benchmarking, multicast/reserved, NAT64, transition, ULA, and IETF protocol-assignment families.
+- This verifies the current implementation's conservative destination policy under Node, not Nova Proxy 5.0.0 behavior. Proxy/DNS rows remain **Not assessed** until reference black-box scenarios are executed.

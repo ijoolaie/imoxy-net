@@ -212,3 +212,10 @@ This test seam deliberately bypasses DNS resolution and peer-address verificatio
 - Decision: retain the current bounded sequential address fallback policy and explicitly test the combined path rather than adding a parallel-dial race. Mixed A/AAAA records are normalized and filtered first; candidates are attempted in resolver order, at most the existing fixed maximum; no payload is forwarded until the connected peer matches the pinned numeric candidate.
 - Evidence: the new deterministic handler test exercises private-answer filtering, IPv4 dial failure, IPv6 success, peer validation, initial-payload forwarding and quota settlement. Focused suite passed 53/53.
 - Limitation: this is a Node test with synthetic DNS responses and a fake WebSocket. It does not prove Cloudflare Workers TCP behavior, external DNS behavior, D1 binding, or Nova parity. Issue #78 remains open.
+
+
+## 2026-11-02 — IANA special-purpose address coverage
+
+- Decision: keep the full IPv4 192.0.0.0/24 and IPv6 2001::/23 parent ranges blocked, including their more-specific protocol-anycast entries, rather than trying to special-case those exceptions in the proxy destination filter. This is intentionally conservative and may exclude protocol service anycasts.
+- The IANA AS112-v6 block 2620:4f:8000::/48 is globally reachable in the registry and remains eligible for an explicit destination-host allowlist; not every special-purpose registry entry is treated as non-public.
+- Evidence: numeric-literal regression matrices cover the IANA IPv4/IPv6 registry families as of 2025-10-09. These tests do not prove Cloudflare runtime behavior or Nova parity. Issue #78 remains open.

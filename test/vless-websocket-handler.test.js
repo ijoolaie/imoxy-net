@@ -332,6 +332,93 @@ test("rejects special-use IPv4 literals even when explicitly allowlisted", async
 
 
 
+test("rejects the IANA IPv4 special-purpose destination ranges", async () => {
+  // Registry snapshot: IANA IPv4 Special-Purpose Address Space, updated 2025-10-09.
+  // 192.0.0.0/24 is intentionally rejected as a whole, including more-specific
+  // protocol-anycast exceptions, to keep proxy destinations conservative.
+  const blocked = [
+    "0.0.0.1",
+    "10.0.0.1",
+    "100.64.0.1",
+    "127.0.0.1",
+    "169.254.0.1",
+    "172.16.0.1",
+    "192.0.0.1",
+    "192.0.0.9",
+    "192.0.0.10",
+    "192.0.0.170",
+    "192.0.2.1",
+    "192.31.196.1",
+    "192.52.193.1",
+    "192.88.99.1",
+    "192.88.99.2",
+    "192.168.0.1",
+    "192.175.48.1",
+    "198.18.0.1",
+    "198.51.100.1",
+    "203.0.113.1",
+    "224.0.0.1",
+    "240.0.0.1",
+    "255.255.255.255"
+  ];
+
+  for (const address of blocked) {
+    await assert.rejects(
+      () => resolvePublicDestinations(address),
+      /Destination address is not public/,
+      `${address} must be rejected as an IANA special-purpose destination`
+    );
+  }
+});
+
+
+test("rejects the IANA IPv6 special-purpose destination ranges", async () => {
+  // Registry snapshot: IANA IPv6 Special-Purpose Address Space, updated 2025-10-09.
+  // The 2001::/23 protocol-assignment parent is denied as a whole, including
+  // more-specific anycast entries, as a deliberate conservative proxy policy.
+  const blocked = [
+    "::",
+    "::1",
+    "::ffff:c000:201",
+    "64:ff9b::7f00:1",
+    "64:ff9b:1::a00:1",
+    "100::1",
+    "100:0:0:1::1",
+    "2001::1",
+    "2001:1::1",
+    "2001:2::1",
+    "2001:3::1",
+    "2001:4:112::1",
+    "2001:10::1",
+    "2001:20::1",
+    "2001:30::1",
+    "2001:db8::1",
+    "2002::1",
+    "3fff::1",
+    "5f00::1",
+    "fc00::1",
+    "fe80::1"
+  ];
+
+  for (const address of blocked) {
+    await assert.rejects(
+      () => resolvePublicDestinations(address),
+      /Destination address is not public/,
+      `${address} must be rejected as an IANA special-purpose destination`
+    );
+  }
+
+  // IANA marks the AS112-v6 block as globally reachable; the resolver's
+  // private/special-range filter therefore leaves it eligible for an explicit
+  // destination allowlist rather than treating every special-purpose block
+  // as non-public.
+  assert.deepEqual(
+    await resolvePublicDestinations("2620:4f:8000::1"),
+    ["2620:4f:8000:0:0:0:0:1"]
+  );
+});
+
+
 test("DNS-over-HTTPS resolution selects only a validated public A or AAAA answer", async () => {
   const calls = [];
   const fetchImpl = async (url, options) => {
