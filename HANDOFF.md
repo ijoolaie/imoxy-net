@@ -1187,3 +1187,21 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Post-cleanup Cloudflare inventory confirmed zero remaining resources with those names/ID. Remaining Workers are only `imoxy-net-api-staging` and `iran-price-scout`; remaining D1 databases are only the three pre-existing databases (`imoxy-net-staging-identity`, `iran-price-scout-db`, `ivory-tide-05e8-db`). Tunnel and Workers VPC service inventories remain empty. No production or pre-existing staging resource was modified.
 - The one-shot workflow is being removed from the current tree because it points at deleted disposable resources and embeds a now-useless test credential. The generic Node WebSocket client script remains available for a future controlled deployment.
 - Next concrete step: diagnose the HTTP 500 with a Wrangler-native deployment (rather than the direct multipart API upload used in this attempt), enable and inspect invocation logs, first verify a minimal Worker with the exact entrypoint, then reintroduce D1 and the Service Binding one at a time. Do not claim live VLESS/TCP or D1 runtime acceptance until the external client gets a valid VLESS handshake, exact byte echo, usage settlement, and lease release.
+
+
+## 2026-11-02 — reconcile Wrangler remote-preview evidence with failed API-upload attempt
+
+A prior Wrangler 4.156.0 `wrangler dev --remote` run successfully executed the actual VLESS handler/module graph on Cloudflare's remote Workers runtime. The recorded evidence is:
+
+- 3/3 real WebSocket handshakes at `/proxy/vless` succeeded.
+- 3/3 VLESS sessions using synthetic in-memory TCP and fake store/quota adapters returned the expected two-byte VLESS response `[0,0]` and exact four-byte initial payload.
+- A raw TCP WebSocket client paused reads for approximately 6.2 seconds, then resumed and received all 4,194,304 bytes in 256 binary data frames (257 frames including the VLESS response); the session closed normally with `upstream_closed`.
+
+This is partial Cloudflare remote-runtime evidence for the real handler/module graph and synthetic relay. It does **not** include a D1 binding, real Cloudflare outbound TCP, real credential persistence/quota settlement, or real D1 lease lifecycle. The slow-reader observation does not measure or prove Cloudflare-internal WebSocket buffer bounds.
+
+This evidence is distinct from the later one-shot direct multipart API upload attempt (PR #162 workflow run `41452175268`), which failed at the external client's first WebSocket connection and whose uploaded disposable Worker returned HTTP 500 on `/health`. PR #163 corrected its module export shape but did not resolve that API-upload harness failure. Those failures do not invalidate the independently successful Wrangler remote-preview run; neither do they satisfy the full Worker/D1/TCP acceptance gate.
+
+All disposable resources from the API-upload attempt were deleted and their absence verified. Existing staging and Production remain untouched. The next useful gate is to run the actual handler under a Wrangler-native remote preview with a dedicated disposable D1 binding and controlled Worker-to-Worker TCP echo Service Binding, using the existing external Node WebSocket client and the approved limits (10 seconds, 8 MiB, 16 KiB frames, max 2 clients). Do not bypass the safety control that blocked Wrangler remote D1 migration execution; use only an approved D1 provisioning/migration path. Keep the D1 and TCP acceptance claims blocked until the exact Worker-bound results and cleanup are observed.
+
+
+Restart point: main currently includes PR #164 (merge commit `894901cf482c67491348f58073d373f8c4ba87fd`). There are no open PRs at the start of this session. Worktree/branch is not available through the GitHub connector; a documentation-only branch `docs/reconcile-vless-wrangler-runtime-evidence` contains the reconciliation in progress. No Cloudflare resource was created or changed in this documentation pass.
