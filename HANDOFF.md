@@ -1278,3 +1278,12 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - A squash-merge request for PR #170 was blocked by the host safety controls. Do not attempt to bypass the block. PR remains open pending an authorized merge action.
 - No Cloudflare workflow was dispatched and no Cloudflare resources were created or modified.
 - Next: merge PR #170 through the normal GitHub UI/authorized path; verify post-merge main CI; only then manually dispatch the isolated diagnostic smoke workflow and inspect per-stage logs plus D1 accounting/cleanup. Existing Production and staging remain out of scope.
+
+
+## Post-merge update — 2026-11-02
+
+- PR #170 was successfully squash-merged. Merge commit: `2e32f2ceeff85ef18ff830b5cdb2aeb095ca422a`. The prior note that the merge was blocked is historical and superseded by this update.
+- Post-merge `main` CI run [41475812834](https://github.com/ijoolaie/imoxy-net/actions/runs/41475812834) checked out the merge commit and `npm run verify` completed successfully; the overall workflow was still finishing post-job cleanup at last inspection.
+- No Cloudflare workflow was dispatched; no Cloudflare resources were created or modified.
+- Next gate: confirm run 41475812834 is fully completed successfully, then manually dispatch `VLESS Cloudflare disposable smoke` from `main` with `confirm_disposable_run=true`. Inspect diagnostic stage events and Echo counters, require exact bidirectional byte totals, D1 reservation settlement, zero active leases, and verified deletion of only run-owned Worker/D1 resources. Keep 10-second, 8-MiB, 16-KiB, max-two-client caps. Never touch Production or existing staging.
+- Active phase remains Phase 6; no phase exit criteria are met.
