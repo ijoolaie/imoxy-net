@@ -332,3 +332,7 @@ The second disposable runtime attempt (run 41471462310) completed the VLESS hand
 
 
 The diagnostic implementation and handler regression test passed `npm run verify` on exact branch head `c3906ceee8c6912c3b9a99800ee26caf5655f614` (GitHub Actions run [41474182459](https://github.com/ijoolaie/imoxy-net/actions/runs/41474182459)). No live Cloudflare rerun has been performed.
+
+## 2026-11-02 — diagnostic retrieval follow-up
+
+The console-only callback events were absent from Wrangler remote-preview logs in run 41477742794. The smoke Worker now exposes a test-only GET /_test/diagnostics endpoint, protected by a random per-run token passed in a temporary Wrangler config and required in a request header. It returns no-store JSON with at most 256 allowlisted payload-free events and a dropped-event count. The buffer is isolate-local; an empty response is inconclusive if the request reaches another isolate. The harness test covers token gating, field allowlisting/redaction, and bounded retention. Do not rerun Cloudflare until exact-head CI and diff review pass. Keep the 10-second, 8-MiB, 16-KiB, and two-client caps unchanged.
