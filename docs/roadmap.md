@@ -426,3 +426,8 @@ Added opt-in test test/vless-local-tcp.integration.test.js for the actual VLESS 
 
 - Added IPv4/IPv6 literal-destination regression matrices based on the IANA Special-Purpose Address Registries. The tests explicitly preserve conservative deny behavior for the 192.0.0.0/24 and 2001::/23 parent ranges and keep globally reachable AS112-v6 eligible for an explicit host allowlist.
 - CI for the initial PR #155 head passed `npm run verify`; the documentation update creates a new head and requires a fresh exact-head CI check. Phase 6 remains **In progress**; no runtime or Nova parity claim is made.
+
+
+## 2026-11-02 — Phase 6 runtime gate prepared, not executed
+
+A manually dispatched GitHub Actions workflow and runner are prepared for the actual VLESS handler under Wrangler remote preview with a dedicated disposable D1 binding and controlled Worker-to-Worker TCP echo Service Binding. Migrations are applied through the Cloudflare D1 API; the run checks exact bytes, D1 settlement and lease release, then deletes and verifies only run-owned resources. The workflow has not yet been dispatched. Phase 6 remains **In progress** and Phase 12 remains **Blocked**; no new runtime acceptance evidence or Nova parity claim is recorded.
