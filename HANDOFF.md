@@ -1307,3 +1307,13 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - Limitation: the ring buffer is isolate-local. If the diagnostic fetch reaches a different Worker isolate, an empty response is inconclusive. Do not interpret it as proof that handler events did not occur.
 - No Cloudflare workflow was dispatched; no Cloudflare resources were created or modified. Existing Production and staging remain out of scope. Preserve the 10-second, 8-MiB, 16-KiB, and two-client limits.
 - Next: verify exact-head CI, inspect the clean diff against `main`, open a focused PR, and wait for exact PR-head CI before the user manually dispatches the isolated smoke workflow.
+
+## Post-merge update — 2026-11-02
+
+- PR #173 merged successfully as `ff3c25ae1013357cffdc5035f876de1d321fc8dc`: https://github.com/ijoolaie/imoxy-net/pull/173.
+- Exact PR-head CI run [41520377660](https://github.com/ijoolaie/imoxy-net/actions/runs/41520377660) passed `npm run verify`; post-merge `main` CI run [41520550650](https://github.com/ijoolaie/imoxy-net/actions/runs/41520550650) also passed `npm run verify` on the merge commit.
+- Superseded PR #172 was closed unmerged because it included duplicate historical changes from the already-merged PR #170. The replacement PR #173 is based directly on `main` and contains only 10 focused files.
+- Issue #78 updated with the merge and runtime gate.
+- No Cloudflare workflow was dispatched and no Cloudflare resources were created or modified. The diagnostics buffer is isolate-local; an empty response from another isolate is inconclusive.
+- Next: manually dispatch `VLESS Cloudflare disposable smoke` from `main` with `confirm_disposable_run=true`, then inspect the stage diagnostics, exact bidirectional byte totals, D1 reservation settlement, zero active leases, and verified deletion of only run-owned resources. Keep the 10-second, 8-MiB, 16-KiB, max-two-client caps. Never touch Production or existing staging.
+- Active phase remains Phase 6; no phase exit criteria are met.
