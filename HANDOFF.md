@@ -1120,3 +1120,12 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Branch: `test/vless-dns-partial-family-resilience-20261102`; final test+documentation head `48417fa8f86ab1dc1d93cc38a33a9e211782cb95` passed GitHub Actions run #931 (`npm run verify`). PR #157 is open pending merge.
 - No production Worker, D1, route, DNS, binding, proxy setting, or external destination was changed. Synthetic DoH response tests are not live DNS/Cloudflare runtime/Nova evidence. Issue #78 remains open.
 - Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
+
+
+## 2026-11-02 — PR #157 merged; partial DNS-family resilience
+
+- PR #157 `test(vless): cover partial DNS family failures` merged as `979bbfe9af60e785a2335aa3edb61b42f087699d`. Exact final PR head `9e046337506d83b09b203cf35e705c1a977d4342` passed GitHub Actions run #932; post-merge `main` CI run #933 also passed `npm run verify` on the exact merge commit.
+- Added deterministic tests for valid AAAA results surviving an A-query failure, valid A results surviving an AAAA-query failure, and malformed or RR-type/family-mismatched DNS records being ignored. The resolver fails closed when no valid public answer remains.
+- The test inputs are synthetic DoH responses. No live DNS, Cloudflare Worker/D1/TCP, production resource, or Nova runtime was used. Issue #78 remains open.
+- No open PRs remained at the time of this handoff update. Main was at `979bbfe9af60e785a2335aa3edb61b42f087699d` with post-merge CI success.
+- Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
