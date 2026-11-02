@@ -122,3 +122,6 @@ The first disposable Worker-bound D1 + Service Binding smoke run (GitHub Actions
 ## 2026-11-02 — second Service Binding smoke and next evidence gate
 
 Run [41471462310](https://github.com/ijoolaie/imoxy-net/actions/runs/41471462310) reached a VLESS handshake and sent frames but returned only 16,390 of 65,542 expected bytes before timeout. It did not prove complete relay, D1 settlement, or lease release. This is not Nova reference evidence and changes no parity status. The next controlled diagnostic uses test-only counters and timings at the D1 reserve/mark/settle, TCP write/read, WebSocket send, and echo chunk boundaries. No credentials, payloads, IDs, or destination identifiers are logged. Existing caps and isolation requirements remain unchanged.
+
+
+The test-only instrumentation and regression test passed `npm run verify` on exact branch head `c3906ceee8c6912c3b9a99800ee26caf5655f614` (run 41474182459). This remains implementation-test evidence, not Cloudflare Worker/D1 runtime acceptance or Nova reference parity evidence.
