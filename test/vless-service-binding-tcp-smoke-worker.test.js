@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import worker, { recordDiagnostic } from "./vless-service-binding-tcp-smoke-worker.js";
 import {
   VLESS_SERVICE_BINDING_SMOKE_HOST,
   VLESS_SERVICE_BINDING_SMOKE_PEER,
@@ -72,4 +73,48 @@ test("service-binding connector rejects any other target and missing binding", a
     connector({ hostname: VLESS_SERVICE_BINDING_SMOKE_PEER, port: VLESS_SERVICE_BINDING_SMOKE_PORT }, {}),
     /binding is unavailable/
   );
+});
+
+
+test("test-only diagnostics endpoint is token-gated, bounded, and payload-free", async () => {
+  for (let index = 0; index < 260; index += 1) {
+    recordDiagnostic({
+      event: "tcp.read_chunk",
+      direction: "download",
+      bytes: index + 1,
+      durationMs: 1.5,
+      errorName: "ExampleError",
+      accountId: "must-not-appear",
+      reservationId: "must-not-appear",
+      payload: "must-not-appear"
+    });
+  }
+
+  const env = { SMOKE_DIAGNOSTICS_TOKEN: "a".repeat(36) };
+  const unauthorized = await worker.fetch(
+    new Request("https://smoke.test/_test/diagnostics"),
+    env
+  );
+  assert.equal(unauthorized.status, 404);
+
+  const response = await worker.fetch(
+    new Request("https://smoke.test/_test/diagnostics", {
+      headers: { "x-imoxy-smoke-diagnostics-token": env.SMOKE_DIAGNOSTICS_TOKEN }
+    }),
+    env
+  );
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  const body = await response.json();
+  assert.equal(body.scope, "current-worker-isolate");
+  assert.equal(body.events.length, 256);
+  assert.equal(body.droppedEvents, 4);
+  assert.deepEqual(body.events.at(-1), {
+    event: "tcp.read_chunk",
+    direction: "download",
+    bytes: 260,
+    durationMs: 1.5,
+    errorName: "ExampleError"
+  });
+  assert.equal(JSON.stringify(body).includes("must-not-appear"), false);
 });
