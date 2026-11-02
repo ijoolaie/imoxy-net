@@ -6,7 +6,7 @@
 
 - PR #32 rate-limit cleanup fix merged as `3a7f6e3417bac0692c0ef3da9064ed8d09b64a9a`; exact-head PR CI passed on `94688a1251987566b0b35ea6c43a31c8d4ac3056` (run 40502142149) and post-merge main CI passed on `3a7f6e3417bac0692c0ef3da9064ed8d09b64a9a` (run 40502210626). The regression test verifies successful login clears both IP and normalized-username rate-limit counters. This is an imoxy correctness fix, not Nova parity evidence.
 
-- Repository: https://github.com/ijoolaie/imoxy-net (private).
+- Repository: https://github.com/ijoolaie/imoxy-net (public as of 2026-11-02). Treat repository source and commit history as public; no secret scan has been performed as part of this update.
 - Product target: independently implement behaviorally compatible behavior against Nova Proxy 5.0.0, pinned commit `ad2116aa89f8c7db8248f8142c1432900d835eb7`, then add separately approved imoxy improvements.
 - Interfaces: web panel, Telegram bot, Android APK. Shared API/domain services and authorization/quota policy are required.
 - Required modes: panel only; Cloudflare resources/settings only; panel + Cloudflare resources/settings.
@@ -1081,3 +1081,14 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Re-ran the default full suite: **212 passed, 0 failed, 1 skipped** (the opt-in local Echo integration test), total 213 tests.
 - `node --check worker.js` passed. `git diff --check` passed; Git emitted only the repository's expected LF-to-CRLF working-copy warnings for edited Markdown files.
 - The `npm run verify` wrapper could not be started through the managed-process tool because `npm` was not on that tool's PATH (`spawn npm ENOENT`). Its constituent checks were run separately: worker syntax check and full `npm_test` check both passed. Do not claim the wrapper command itself ran.
+
+
+## Latest work session — 2026-11-02 (VLESS DNS family fallback)
+
+- PR #153 was squash-merged as `d163868f3e72063ab72ba9e1884ae15997a41d95`; post-merge GitHub Actions check on that exact main commit completed **success**. The local worktree was fast-forwarded from `bd68f56` to this exact `main` commit before starting the next change.
+- Added a deterministic test to `test/vless-websocket-handler.test.js` that exercises the real VLESS handler with synthetic mixed A/AAAA DoH answers. It filters private IPv4/ULA IPv6 answers, attempts a validated public IPv4 candidate, falls back after a dial failure to a public IPv6 candidate, validates the connected peer against the pinned IPv6 address, then forwards and settles the initial upload.
+- Focused VLESS handler suite passed **53/53**, 0 failed/skipped. Full repository suite on the base main commit passed **212**, 0 failed, 1 skipped (the opt-in local TCP Echo integration test); full suite after this new test and documentation update is pending.
+- No production Worker, D1, route, DNS, binding, proxy setting, or external TCP destination was changed or contacted. This test uses synthetic DNS responses and fake WebSocket/TCP adapters; it is not Cloudflare runtime or Nova parity evidence.
+- Issue #78 remains open. Internal Workers WebSocket buffer behavior, real Worker-bound D1 + controlled TCP, longer/aggregate slow-reader behavior, and isolate-termination lifecycle evidence remain outstanding.
+- Branch: `test/vless-ipv4-ipv6-dial-fallback-20261102`. This work is not merged until exact-head CI passes and the PR diff is reviewed.
+- Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
