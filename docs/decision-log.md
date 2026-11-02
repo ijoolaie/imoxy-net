@@ -205,3 +205,10 @@ The Wrangler remote-migration command was previously blocked by the execution sa
 Decision: use the user's loopback-only TCP Echo Server as a controlled local destination for an opt-in integration test of the production VLESS handler, rather than changing production destination policy to permit private addresses. The test injects a local connector adapter and synthetic public peer identity while the actual TCP socket connects only to 127.0.0.1:5000. It exercises the production handler, Node SQLite D1 adapter, migrations 0001–0008, credential authentication, session lease, bidirectional byte forwarding, quota reservation and settlement. The test remains opt-in (IMOXY_TCP_ECHO_TEST=1) so ordinary CI does not depend on a developer's local server.
 
 This test seam deliberately bypasses DNS resolution and peer-address verification; it must never be wired into production Worker configuration. It does not establish Cloudflare Worker-to-TCP reachability, live D1 binding behavior, runtime WebSocket buffering, or Nova parity. No Cloudflare resource or setting is changed.
+
+
+## 2026-11-02 — mixed DNS answers and cross-family TCP fallback
+
+- Decision: retain the current bounded sequential address fallback policy and explicitly test the combined path rather than adding a parallel-dial race. Mixed A/AAAA records are normalized and filtered first; candidates are attempted in resolver order, at most the existing fixed maximum; no payload is forwarded until the connected peer matches the pinned numeric candidate.
+- Evidence: the new deterministic handler test exercises private-answer filtering, IPv4 dial failure, IPv6 success, peer validation, initial-payload forwarding and quota settlement. Focused suite passed 53/53.
+- Limitation: this is a Node test with synthetic DNS responses and a fake WebSocket. It does not prove Cloudflare Workers TCP behavior, external DNS behavior, D1 binding, or Nova parity. Issue #78 remains open.
