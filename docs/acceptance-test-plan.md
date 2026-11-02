@@ -275,3 +275,12 @@ Important test seam: the injected local connector maps the handler's synthetic p
 - Deploy the echo Worker with no public URL, route, or domain. Deploy the VLESS Worker with a new disposable D1 database and only the Service Binding to the echo Worker.
 - Required live acceptance still needs an external WebSocket client, actual Worker-bound D1 credentials/quota state, exact upload/download/usage verification, cleanup, and post-cleanup resource inventory. Hard limits: 10 seconds, 8 MiB, 16 KiB frames, at most 2 clients.
 - Passing this test does not establish Workers VPC, private-network Tunnel behavior, public TCP ingress, or Cloudflare-internal WebSocket send-buffer bounds.
+
+
+## 2026-11-02 — Cloudflare runtime attempt result
+
+- PR #162 added an external Node WebSocket client and a one-shot workflow. Workflow run `41452175268` failed immediately with `WebSocket error in session 1`; the deployed VLESS smoke Worker also returned HTTP 500 for `/health`. No successful VLESS handshake, TCP echo, or Worker-bound D1 usage settlement was observed.
+- PR #163 corrected the Worker entrypoint module shape by moving the connector helper out of the main Worker module; CI passed, but the API-uploaded disposable Worker still returned HTTP 500.
+- All disposable Workers and the disposable D1 created for this attempt were deleted, and a fresh inventory verified their absence. Existing staging and Production were not changed.
+- The current one-shot workflow is removed because its disposable endpoint has been deleted. The reusable external client remains in `scripts/vless-cloudflare-runtime-smoke.mjs`; run only against a newly deployed, isolated target with a fresh test credential.
+- Status remains **Blocked / not accepted** pending a Wrangler-native deployment, a working Worker health route, real VLESS handshake + TCP echo, D1 usage settlement and lease release, and verified cleanup. Do not mark Phase 6 or Phase 11 complete.
