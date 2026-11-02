@@ -38,6 +38,30 @@ test("service-binding connector forwards only the fixed peer and maps the test p
   assert.equal(typeof result.close, "function");
 });
 
+test("service-binding connector awaits an asynchronous TCP connection", async () => {
+  let address;
+  const readable = new ReadableStream({ start(controller) { controller.close(); } });
+  const writable = new WritableStream();
+  const socket = {
+    opened: Promise.resolve({ localAddress: "worker-local" }),
+    readable,
+    writable,
+    close() {}
+  };
+  const connector = createServiceBindingTcpConnector();
+  const result = await connector(
+    { hostname: VLESS_SERVICE_BINDING_SMOKE_PEER, port: VLESS_SERVICE_BINDING_SMOKE_PORT },
+    { PROXY_TCP_ECHO: { async connect(value) { address = value; return socket; } } }
+  );
+  assert.equal(address, "93.184.216.34:5000");
+  assert.equal(result.readable, readable);
+  assert.equal(result.writable, writable);
+  assert.deepEqual(await result.opened, {
+    localAddress: "worker-local",
+    remoteAddress: VLESS_SERVICE_BINDING_SMOKE_PEER
+  });
+});
+
 test("service-binding connector rejects any other target and missing binding", async () => {
   const connector = createServiceBindingTcpConnector();
   await assert.rejects(
