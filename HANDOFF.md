@@ -1099,6 +1099,15 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - PR #153 merged as `d163868f3e72063ab72ba9e1884ae15997a41d95`; exact post-merge main CI passed. PR #154 merged as `58b117d9b3b3ec2bb7454eb3d06f733f2c496d54`; exact PR-head CI run #919 and post-merge main CI both passed `npm run verify`.
 - PR #154 adds deterministic mixed A/AAAA DNS filtering and IPv4-to-IPv6 fallback coverage. Its test validates peer pinning before forwarding initial payload and checks upload settlement and lease cleanup. This uses synthetic DNS and fake WebSocket/TCP adapters only.
 - PR #155 adds IPv4/IPv6 numeric-literal regression matrices based on the IANA Special-Purpose Address Registries (updated 2025-10-09). It documents conservative rejection of the full 192.0.0.0/24 and 2001::/23 parent blocks, including more-specific protocol-anycast entries, while preserving the globally reachable AS112-v6 range for explicit allowlisting.
-- PR #155 is open on branch `test/vless-iana-special-purpose-addresses-20261102`; initial head `1e05c7e0140e88b5c5c45e4ff8c0ac1c9f3f4cf9` passed GitHub Actions run #920, and the documentation-aligned head `e29b94edd6821e2aa46b26aff1d76bfbf4be079d` passed run #926 (`npm run verify`). This final handoff-only update creates a newer head; check its exact-head CI before merge.
+- PR #155 `test(vless): cover IANA special-purpose address ranges` merged as `c75e61d73126cd352c734792b4a80babd1ae2c79`; final PR head `5f43890ea3a4394a8d576727e228a75630dde777` passed exact-head CI run #927 and post-merge main CI run #928, both including `npm run verify`.
 - Issue #78 remains open. No Cloudflare Worker, D1, route, DNS, binding, proxy setting, or external TCP destination was changed. Workers internal WebSocket buffering, actual Worker-bound D1 + controlled TCP, aggregate slow-reader behavior, isolate-termination lifecycle, and Nova parity remain unproven.
+- Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
+
+
+## 2026-11-02 — PR #155 merged; IANA address-filter regression coverage
+
+- PR #155 merged as `c75e61d73126cd352c734792b4a80babd1ae2c79`. Exact PR-head CI run #927 and post-merge main CI run #928 both completed **success**, including `npm run verify`.
+- The merged tests cover numeric IPv4/IPv6 special-purpose destination samples from the IANA registries last updated 2025-10-09. They verify conservative rejection of 192.0.0.0/24 and 2001::/23 parent ranges (including more-specific protocol-anycast exceptions), and keep globally reachable AS112-v6 eligible for explicit destination-host allowlisting.
+- PR #154 also merged as `58b117d9b3b3ec2bb7454eb3d06f733f2c496d54`; exact PR-head CI run #919 and post-merge main CI both passed.
+- Issue #78 remains open. The new coverage is deterministic Node address-policy evidence only; no live Worker/D1/TCP runtime or Nova parity is established.
 - Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
