@@ -5,7 +5,7 @@ import {
   VLESS_SERVICE_BINDING_SMOKE_PEER,
   VLESS_SERVICE_BINDING_SMOKE_PORT,
   createServiceBindingTcpConnector
-} from "./vless-service-binding-tcp-smoke-worker.js";
+} from "./vless-service-binding-tcp-connector.js";
 
 test("service-binding smoke target is a fixed synthetic hostname, peer, and TCP port", () => {
   assert.equal(VLESS_SERVICE_BINDING_SMOKE_HOST, "probe.imoxy.invalid");
