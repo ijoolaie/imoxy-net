@@ -1062,3 +1062,22 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Remaining blocker: no controlled TCP echo destination owned/controlled by the user has been provided, and no explicit approval for creating a disposable Worker plus hard test limits/cleanup procedure was found. Do not create a Worker or contact a destination until these are supplied/approved.
 - Local verification on base `abc38a1392cc57a2ad7b3ca388d4a42820a232bb`: `node --check worker.js` passed; `npm test` passed **212/212**; `git diff --check` passed after normalizing the two edited Markdown EOF newlines. This session changed documentation only; no source/test code changed.
 - Phase 4/5 gained partial real-D1 SQL evidence but remain In progress. Phase 6 remains In progress; Phase 12 Blocked; Phase 13 Not started. No phase is Complete.
+
+## 2026-11-02 — local VLESS-to-TCP Echo integration slice
+
+- Starting repository state: local main at bd68f56b32fb8451086be5e7815c0a1ac1483ce4, clean and aligned with origin/main. No source or documentation edits were present before this session.
+- Added test/vless-local-tcp.integration.test.js. The opt-in test runs the production createVlessWebSocketHandler() against the user's locally running TCP Echo Server at 127.0.0.1:5000 using a real Node TCP socket. It applies migrations 0001–0008 to in-memory Node SQLite, uses createD1Store(), credential hashing, real quota reservation/forwarding/settlement methods, and active-session lease acquisition/release.
+- The test sends a binary initial VLESS payload and a subsequent 64 KiB payload through the handler and the actual local TCP echo socket, verifies byte-for-byte returned WebSocket data, verifies exact equal upload/download usage totals, verifies all quota reservations settled, and verifies the active-session lease is released.
+- The injected connector deliberately maps the handler's synthetic public peer identity 93.184.216.34 to the actual loopback socket. This keeps production private-destination checks unchanged, but means DNS resolution and connected-peer validation are not exercised. The WebSocketPair is fake and SQLite is not Cloudflare D1. This is local integration only, not Worker-to-TCP, live D1 binding, Cloudflare internal WebSocket buffer/backpressure, isolate-termination, or Nova parity evidence.
+- Focused opt-in command with the Echo Server running: IMOXY_TCP_ECHO_TEST=1 node --experimental-sqlite --test test/vless-local-tcp.integration.test.js. Observed result: 1 test passed, 0 failed, 0 skipped (duration approximately 226 ms).
+- Full default local suite: npm test passed 212 tests, 0 failed, 1 skipped (the new opt-in test). This was observed after adding the test. `npm run verify` and final diff checks are still pending at handoff edit time.
+- Updated docs/acceptance-test-plan.md, docs/parity-matrix.md, docs/decision-log.md, and docs/roadmap.md with scope and evidence. Phase 6 remains In progress; Phase 12 remains Blocked; Phase 13 remains Not started. Issue #78 remains open.
+- No Cloudflare Worker, D1, route, DNS, binding, proxy setting, or production/staging resource was created, changed, or contacted. The Echo Server remains loopback-only.
+- Next: run npm run verify, git diff --check, inspect the complete diff and working tree; then open a focused PR if the review is clean. Do not commit directly to main or claim remote CI until exact-head CI is observed.
+
+### Verification follow-up — 2026-11-02
+
+- Re-ran the focused opt-in test after making its byte-stream assertion independent of TCP chunk boundaries: **1/1 passed**, 0 failed, 0 skipped (about 240 ms), with the loopback Echo Server running.
+- Re-ran the default full suite: **212 passed, 0 failed, 1 skipped** (the opt-in local Echo integration test), total 213 tests.
+- `node --check worker.js` passed. `git diff --check` passed; Git emitted only the repository's expected LF-to-CRLF working-copy warnings for edited Markdown files.
+- The `npm run verify` wrapper could not be started through the managed-process tool because `npm` was not on that tool's PATH (`spawn npm ENOENT`). Its constituent checks were run separately: worker syntax check and full `npm_test` check both passed. Do not claim the wrapper command itself ran.

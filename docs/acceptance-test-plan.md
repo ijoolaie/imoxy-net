@@ -231,3 +231,16 @@ A disposable EU D1 received the SQL contents of migrations 0001–0008 through t
 - 12 concurrent 10-byte reservation attempts under a 50-byte cap, with exactly 5 admitted and 50 bytes reserved.
 
 The disposable D1 was deleted and inventory confirmed it absent. This was direct D1 API SQL, not the repository's D1Store/VLESS handler running in a Worker and not a Wrangler migration-history test. It does not satisfy the full Worker/D1/TCP smoke gate or establish Nova parity. Do not mark the VLESS transport or quota parity rows Verified.
+
+## Local VLESS-to-TCP Echo integration — 2026-11-02
+
+Adds an opt-in integration test in test/vless-local-tcp.integration.test.js against the user's TCP Echo Server on 127.0.0.1:5000. Start that server first, then run:
+
+```powershell
+$env:IMOXY_TCP_ECHO_TEST = "1"
+npm test -- --test-name-pattern="real local TCP echo server"
+```
+
+The test uses the production VLESS handler, an actual Node TCP socket connected to loopback, migrations 0001–0008, createD1Store() through the existing Node/SQLite D1-compatible adapter, credential hashing, session admission, and quota reserve/forward/settle. It checks a binary initial VLESS payload plus a 64 KiB later upload, byte-for-byte echoed WebSocket output, exact upload/download usage totals, settled reservations, and session-lease release.
+
+Important test seam: the injected local connector maps the handler's synthetic public peer identity (93.184.216.34) to the local loopback TCP socket so the production private-destination policy remains unchanged. DNS resolution and connected-peer identity validation are therefore not tested here. WebSocketPair is a deterministic fake; SQLite is not Cloudflare D1. This proves local handler-to-real-TCP integration only, not a deployed Worker, remote D1, public TCP connectivity, Cloudflare internal WebSocket buffering, or Nova parity. The test is opt-in and skipped by default unless IMOXY_TCP_ECHO_TEST=1.
