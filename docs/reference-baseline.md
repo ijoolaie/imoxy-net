@@ -117,3 +117,8 @@ This is a reproducible acceptance harness design, not runtime evidence. It has n
 ## 2026-11-02 — runtime smoke evidence boundary update
 
 The first disposable Worker-bound D1 + Service Binding smoke run (GitHub Actions 41469175764) successfully provisioned D1, applied migrations 0001–0008, deployed the echo Worker, and verified deletion of the run-owned resources. The external client timed out before a VLESS session completed. This is a failed imoxy runtime acceptance attempt, not Nova Proxy evidence; no parity row is verified by it.
+
+
+## 2026-11-02 — second Service Binding smoke and next evidence gate
+
+Run [41471462310](https://github.com/ijoolaie/imoxy-net/actions/runs/41471462310) reached a VLESS handshake and sent frames but returned only 16,390 of 65,542 expected bytes before timeout. It did not prove complete relay, D1 settlement, or lease release. This is not Nova reference evidence and changes no parity status. The next controlled diagnostic uses test-only counters and timings at the D1 reserve/mark/settle, TCP write/read, WebSocket send, and echo chunk boundaries. No credentials, payloads, IDs, or destination identifiers are logged. Existing caps and isolation requirements remain unchanged.
