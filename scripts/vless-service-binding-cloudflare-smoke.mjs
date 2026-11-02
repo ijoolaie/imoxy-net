@@ -38,6 +38,7 @@ let databaseAttempted = false;
 let echoAttempted = false;
 let vlessAttempted = false;
 let previewProcess = null;
+let previewLogs = "";
 let primaryError = null;
 
 function headers() {
@@ -166,18 +167,18 @@ async function startRemotePreview() {
     detached: true,
     stdio: ["ignore", "pipe", "pipe"]
   });
-  let logs = "";
+  previewLogs = "";
   const capture = (chunk) => {
-    logs = (logs + chunk.toString()).slice(-12000);
+    previewLogs = (previewLogs + chunk.toString()).slice(-12000);
   };
   previewProcess.stdout.on("data", capture);
   previewProcess.stderr.on("data", capture);
-  previewProcess.on("error", (error) => { logs += "\n" + error.message; });
+  previewProcess.on("error", (error) => { previewLogs += "\n" + error.message; });
   vlessAttempted = true;
   try {
     await waitForHealth(previewProcess);
   } catch (error) {
-    throw new Error(error.message + "\nWrangler output:\n" + logs.slice(-6000));
+    throw new Error(error.message + "\nWrangler output:\n" + previewLogs.slice(-6000));
   }
 }
 
@@ -308,7 +309,7 @@ async function main() {
   if (smoke.error) throw smoke.error;
   if (smoke.status !== 0) {
     throw new Error("The VLESS WebSocket/TCP smoke client failed (" + smoke.status + "):\n" +
-      [smoke.stdout, smoke.stderr].filter(Boolean).join("\n").slice(-6000));
+      [smoke.stdout, smoke.stderr, "Wrangler remote preview output:\n" + previewLogs].filter(Boolean).join("\n").slice(-12000));
   }
   console.log("VLESS smoke client result:\n" + smoke.stdout.trim());
 

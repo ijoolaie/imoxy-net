@@ -1229,3 +1229,22 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - The current main branch contains the fixed runner. No Cloudflare resources were created or modified, and the manual workflow has not been dispatched. GitHub secret presence/value is not readable by the repository integration.
 - Next: after the handoff note merges, owner manually runs Actions → VLESS Cloudflare disposable smoke with confirm_disposable_run=true. Inspect exact D1 usage, settled reservations, session lease release, and cleanup verification before making any runtime claim. Stop on any cleanup error and inspect inventory.
 - Active phase remains Phase 6. The Worker-bound D1/TCP gate remains In progress/Blocked pending a real successful workflow run; Phase 12 remains Blocked. Other phase states remain as recorded in docs/roadmap.md.
+
+## 2026-11-02 — Cloudflare Service Binding smoke failure and correction in progress
+
+- Objective: diagnose the first real disposable Cloudflare Worker-bound D1 + Worker-to-Worker TCP Service Binding smoke run.
+- Repository: `ijoolaie/imoxy-net`; branch: `fix/vless-service-binding-await-and-smoke-diagnostics`; base: current `main` at `6da9570433129f0b5e74cb7a56d0cb5b268f119b`.
+- User supplied GitHub Actions job URL: https://github.com/ijoolaie/imoxy-net/actions/runs/41469175764/job/125357924676.
+- Observed run: workflow `VLESS Cloudflare disposable smoke`, event `workflow_dispatch`, run 41469175764, job 125357924676; conclusion **failure**.
+- Verified successful steps: all D1 migrations 0001–0008 applied via Cloudflare D1 API; internal-only disposable TCP Echo Worker deployed via Wrangler; cleanup deleted the run-owned VLESS/Echo Worker scripts and disposable D1; the workflow logged that absence was verified.
+- Failure: external Node WebSocket client timed out in session 1 after 8.5 seconds. No successful VLESS handshake/echo, Worker-bound usage settlement, or session-lease release was established.
+- Corrective branch changes:
+  - `test/vless-service-binding-tcp-connector.js`: await `env.PROXY_TCP_ECHO.connect(...)`, supporting both Promise and synchronous Socket return values.
+  - `test/vless-service-binding-tcp-smoke-worker.test.js`: add asynchronous binding regression test.
+  - `scripts/vless-cloudflare-runtime-smoke.mjs`: timeout reports readyState, handshake state, frame-send state, and received bytes.
+  - `scripts/vless-service-binding-cloudflare-smoke.mjs`: include captured Wrangler remote-preview output on client failure.
+  - Updated parity matrix, acceptance plan, decision log, reference baseline, roadmap, and non-production smoke gate with the observed failure and limits.
+- No Cloudflare resource was created or modified by this corrective branch work. The failed workflow's cleanup was verified in its own logs. Production and pre-existing staging remain untouched.
+- Tests: GitHub CI run [41470748385](https://github.com/ijoolaie/imoxy-net/actions/runs/41470748385) passed `npm run verify` on branch head `0182d50a5f96bdd714ba963e610d11e829d984df` (including the corrected connector, regression test, diagnostics, and documentation). The exact code/test portion had also passed on `f017a158a6c5acbf96526453c6062003d746f6d2` in run 41470557428. Earlier intermediate CI failures were caused by malformed literal newline escapes and then a comment swallowing the connector declaration; both were corrected before the passing run. No local test run was performed.
+- PR #169 is open: https://github.com/ijoolaie/imoxy-net/pull/169. Final diff and exact-head CI were reviewed; after merge, dispatch a fresh isolated workflow and inspect detailed Wrangler/client diagnostics plus D1 accounting and cleanup. Do not claim runtime acceptance unless all gates pass.
+- Active phase: Phase 6. Phases 0–5 and 7–11 remain In progress; Phase 12 Blocked; Phase 13 Not started. No phase is Complete.

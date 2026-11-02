@@ -431,3 +431,7 @@ Added opt-in test test/vless-local-tcp.integration.test.js for the actual VLESS 
 ## 2026-11-02 — Phase 6 runtime gate prepared, not executed
 
 A manually dispatched GitHub Actions workflow and runner are prepared for the actual VLESS handler under Wrangler remote preview with a dedicated disposable D1 binding and controlled Worker-to-Worker TCP echo Service Binding. Migrations are applied through the Cloudflare D1 API; the run checks exact bytes, D1 settlement and lease release, then deletes and verifies only run-owned resources. The workflow has not yet been dispatched. Phase 6 remains **In progress** and Phase 12 remains **Blocked**; no new runtime acceptance evidence or Nova parity claim is recorded.
+
+## 2026-11-02 — Phase 6 Cloudflare gate update
+
+The first manually dispatched Worker-bound D1 + Worker-to-Worker TCP Service Binding run (41469175764) successfully provisioned disposable D1, applied migrations 0001–0008, deployed the internal-only echo Worker, and verified cleanup. The external VLESS client timed out after 8.5 seconds in its first session. Phase 6 remains **In progress**; the live Worker/D1/TCP acceptance exit gate remains open. A targeted connector-await correction and improved failure diagnostics are in review; a successful repeat run with exact bytes, D1 settlement, lease release, and verified cleanup is still required.

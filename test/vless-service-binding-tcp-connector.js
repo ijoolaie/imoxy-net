@@ -14,7 +14,9 @@ export function createServiceBindingTcpConnector() {
     // The destination identity is intentionally synthetic: Service Binding
     // forwards to a Worker, not to a public IP. Preserve the handler's peer-pin
     // invariant as a test seam, not as proof of the actual network peer.
-    const socket = env.PROXY_TCP_ECHO.connect(`${hostname}:${port}`);
+    // Service Binding calls are asynchronous. Await also remains compatible
+    // with runtimes/mocks that return the Socket synchronously.
+    const socket = await env.PROXY_TCP_ECHO.connect(`${hostname}:${port}`);
     if (!socket?.opened || !socket.readable || !socket.writable || typeof socket.close !== "function") {
       try { socket?.close?.(); } catch {}
       throw new TypeError("The service-binding TCP socket is incomplete.");
