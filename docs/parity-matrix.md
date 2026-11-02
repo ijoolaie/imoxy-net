@@ -159,3 +159,7 @@ Run [41471462310](https://github.com/ijoolaie/imoxy-net/actions/runs/41471462310
 
 
 The diagnostic instrumentation branch head `c3906ceee8c6912c3b9a99800ee26caf5655f614` passed `npm run verify` in GitHub Actions run [41474182459](https://github.com/ijoolaie/imoxy-net/actions/runs/41474182459). This is unit/CI evidence only; no Cloudflare diagnostic runtime was dispatched.
+
+## 2026-11-02 — explicit smoke diagnostic retrieval
+
+The prior console-only stage instrumentation did not appear in Wrangler remote-preview output during run 41477742794. The disposable VLESS Worker now keeps a bounded (256-event) isolate-local ring buffer containing only stage name, direction, byte count, duration, and error class. The runner reads it through a test-only endpoint protected by a per-run random token; no payload, credential, account/session identifier, reservation ID, or destination is exposed. This is an observability improvement only. The endpoint is isolate-local, so an empty result remains inconclusive if the diagnostic request is routed to a different Worker isolate. The unit test covers token gating, bounded retention, and field allowlisting. No new runtime attempt has been made and no parity row changes status.

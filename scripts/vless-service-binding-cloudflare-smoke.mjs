@@ -112,7 +112,7 @@ function configForEcho() {
   ].join("\n");
 }
 
-function configForVless(databaseUuid) {
+function configForVless(databaseUuid, diagnosticsToken) {
   return [
     "name = " + tomlString(vlessName),
     'main = "./test/vless-service-binding-tcp-smoke-worker.js"',
@@ -130,6 +130,7 @@ function configForVless(databaseUuid) {
     'PROXY_MAX_SESSION_DURATION_MS = "10000"',
     'PROXY_MAX_CONCURRENT_SESSIONS = "2"',
     'PROXY_SESSION_LEASE_GRACE_MS = "30000"',
+    "SMOKE_DIAGNOSTICS_TOKEN = " + tomlString(diagnosticsToken),
     "",
     "[[d1_databases]]",
     'binding = "DB"',
@@ -239,6 +240,19 @@ async function cleanup() {
   if (failures.length) throw new Error("Cleanup verification failed:\n" + failures.join("\n"));
 }
 
+async function fetchSmokeDiagnostics(token) {
+  try {
+    const response = await fetch("http://127.0.0.1:8787/_test/diagnostics", {
+      headers: { "x-imoxy-smoke-diagnostics-token": token },
+      signal: AbortSignal.timeout(2000)
+    });
+    if (!response.ok) return { available: false, status: response.status };
+    return { available: true, ...(await response.json()) };
+  } catch (error) {
+    return { available: false, error: error?.name ?? "Error" };
+  }
+}
+
 async function main() {
   const dbByNamePath = databasePath + "/" + encodeURIComponent(databaseName);
   if (await workerExists(echoName)) throw new Error("Refusing to overwrite an existing Worker: " + echoName);
@@ -271,6 +285,7 @@ async function main() {
   const accountId = randomUUID();
   const credentialId = randomUUID();
   const credential = randomUUID();
+  const diagnosticsToken = randomUUID();
   const credentialHash = createHash("sha256").update(credential.toLowerCase()).digest("hex");
   const createdAt = new Date().toISOString();
   const username = "vless-smoke-" + suffix;
@@ -288,7 +303,7 @@ async function main() {
   );
 
   await writeFile(echoConfig, configForEcho(), { mode: 0o600 });
-  await writeFile(vlessConfig, configForVless(databaseId), { mode: 0o600 });
+  await writeFile(vlessConfig, configForVless(databaseId, diagnosticsToken), { mode: 0o600 });
 
   echoAttempted = true;
   await run("npx", ["--yes", "wrangler@4.156.0", "deploy", "--config", echoConfig], { timeout: 180_000 });
@@ -307,6 +322,8 @@ async function main() {
     maxBuffer: 2 * 1024 * 1024
   });
   if (smoke.error) throw smoke.error;
+  const diagnostics = await fetchSmokeDiagnostics(diagnosticsToken);
+  console.log("VLESS smoke stage diagnostics (payload-free):\\n" + JSON.stringify(diagnostics, null, 2));
   if (smoke.status !== 0) {
     throw new Error("The VLESS WebSocket/TCP smoke client failed (" + smoke.status + "):\n" +
       [smoke.stdout, smoke.stderr, "Wrangler remote preview output:\n" + previewLogs].filter(Boolean).join("\n").slice(-12000));
