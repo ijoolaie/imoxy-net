@@ -1,7 +1,7 @@
 # imoxy.net — Product Roadmap and Phase Gates
 
 **Status:** Active execution baseline; foundation merged, core design work started  
-**Last updated:** 2026-11-01
+**Last updated:** 2026-11-02
 **Reference target:** Nova Proxy 5.0.0, pinned in [reference-baseline.md](reference-baseline.md)  
 **Rule:** A phase is not complete because code exists; it is complete only when its exit criteria have reproducible evidence.
 
