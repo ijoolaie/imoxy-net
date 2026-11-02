@@ -12,6 +12,31 @@ const DEFAULT_INITIAL_HANDSHAKE_TIMEOUT_MS = 10_000;
 const DEFAULT_IDLE_TIMEOUT_MS = 120_000;
 const MAX_SESSION_TIMER_MS = 2_147_483_647;
 
+function emitDiagnostic(onDiagnostic, event, fields = {}) {
+  if (typeof onDiagnostic !== "function") return;
+  try { onDiagnostic({ event, ...fields }); } catch {}
+}
+
+async function measureDiagnostic(onDiagnostic, stage, fields, operation) {
+  const startedAt = globalThis.performance?.now?.() ?? Date.now();
+  emitDiagnostic(onDiagnostic, `${stage}.start`, fields);
+  try {
+    const result = await operation();
+    const endedAt = globalThis.performance?.now?.() ?? Date.now();
+    emitDiagnostic(onDiagnostic, `${stage}.complete`, {
+      ...fields, durationMs: Math.max(0, endedAt - startedAt)
+    });
+    return result;
+  } catch (error) {
+    const endedAt = globalThis.performance?.now?.() ?? Date.now();
+    emitDiagnostic(onDiagnostic, `${stage}.error`, {
+      ...fields, durationMs: Math.max(0, endedAt - startedAt),
+      errorName: typeof error?.name === "string" ? error.name : "Error"
+    });
+    throw error;
+  }
+}
+
 function positiveIntegerSetting(value, maximum = Number.MAX_SAFE_INTEGER) {
   if (typeof value !== "string" || !/^[1-9][0-9]*$/.test(value)) return null;
   const parsed = Number(value);
