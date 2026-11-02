@@ -787,6 +787,53 @@ test("bounds sequential DNS fallback attempts to a fixed maximum", async () => {
 
 
 
+test("mixed DNS answers filter private addresses and fall back from IPv4 to IPv6", async () => {
+  const fetchImpl = async (url) => {
+    const type = new URL(url).searchParams.get("type");
+    return {
+      ok: true,
+      async json() {
+        return type === "A"
+          ? { Status: 0, Answer: [
+              { type: 1, data: "10.0.0.7" },
+              { type: 1, data: "93.184.216.34" }
+            ] }
+          : { Status: 0, Answer: [
+              { type: 28, data: "fd00::1" },
+              { type: 28, data: "2606:4700:4700::1111" }
+            ] };
+      }
+    };
+  };
+  const upstream = fakeSocket("2606:4700:4700:0:0:0:0:1111");
+  const h = harness({
+    resolveDestination: (host) => resolvePublicDestinations(host, fetchImpl),
+    connectTcp: async ({ hostname }) => {
+      if (hostname === "93.184.216.34") throw new Error("IPv4 path unavailable");
+      return upstream.socket;
+    }
+  });
+
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest());
+  await settle();
+
+  assert.deepEqual(
+    h.connectCalls.map(({ hostname }) => hostname),
+    ["93.184.216.34", "2606:4700:4700:0:0:0:0:1111"]
+  );
+  assert.deepEqual(upstream.writes, [[0x11, 0x22]], "initial payload is forwarded only after the IPv6 fallback connects");
+  assert.ok(h.server.sent.some((message) => message.length === 2 && message[0] === 0 && message[1] === 0));
+  assert.equal(h.quotaCalls.reserve.length, 1);
+  assert.equal(h.quotaCalls.settle[0].uploadBytes, 2);
+
+  h.server.close();
+  await settle();
+  assert.equal(upstream.closed, true);
+  assert.equal(h.sessionCalls.release.length, 1);
+});
+
+
 test("handshake timeout closes a socket whose opened promise never settles", async () => {
   const timerCallbacks = [];
   let resolveOpened;
