@@ -219,3 +219,12 @@ This test seam deliberately bypasses DNS resolution and peer-address verificatio
 - Decision: keep the full IPv4 192.0.0.0/24 and IPv6 2001::/23 parent ranges blocked, including their more-specific protocol-anycast entries, rather than trying to special-case those exceptions in the proxy destination filter. This is intentionally conservative and may exclude protocol service anycasts.
 - The IANA AS112-v6 block 2620:4f:8000::/48 is globally reachable in the registry and remains eligible for an explicit destination-host allowlist; not every special-purpose registry entry is treated as non-public.
 - Evidence: numeric-literal regression matrices cover the IANA IPv4/IPv6 registry families as of 2025-10-09. These tests do not prove Cloudflare runtime behavior or Nova parity. Issue #78 remains open.
+
+
+## 2026-11-02 — distinguish Wrangler remote-preview success from direct API-upload failure
+
+The actual VLESS handler/module graph previously passed a Wrangler 4.156.0 `wrangler dev --remote` partial runtime probe: 3/3 WebSocket handshakes; 3/3 synthetic in-memory TCP sessions with fake store/quota adapters; and a ~6.2-second paused-reader test that subsequently received 4 MiB. This is evidence that the actual handler can execute on the remote Workers runtime in that Wrangler-preview configuration.
+
+A later direct multipart API-upload workflow independently failed at the external WebSocket client's first connection, and its uploaded disposable Worker returned HTTP 500 on `/health`. That API-upload path is not the same deployment mechanism and its failure must not be generalized into a failure of the Wrangler remote-preview result. Conversely, the Wrangler preview used synthetic TCP and fake store/quota adapters; it does not prove Worker-bound D1, real Cloudflare TCP, quota settlement against D1, lease release in D1, or internal WebSocket buffer boundedness.
+
+Decision: keep the full VLESS Worker/D1/TCP gate open. Next run should use Wrangler-native remote preview, add only a newly created disposable D1 binding and the isolated Service Binding TCP echo path, and verify each layer incrementally. Do not bypass execution safety controls around remote migrations. Existing staging/Production resources remain out of scope.

@@ -284,3 +284,18 @@ Important test seam: the injected local connector maps the handler's synthetic p
 - All disposable Workers and the disposable D1 created for this attempt were deleted, and a fresh inventory verified their absence. Existing staging and Production were not changed.
 - The current one-shot workflow is removed because its disposable endpoint has been deleted. The reusable external client remains in `scripts/vless-cloudflare-runtime-smoke.mjs`; run only against a newly deployed, isolated target with a fresh test credential.
 - Status remains **Blocked / not accepted** pending a Wrangler-native deployment, a working Worker health route, real VLESS handshake + TCP echo, D1 usage settlement and lease release, and verified cleanup. Do not mark Phase 6 or Phase 11 complete.
+
+
+## 2026-11-02 — reconcile Wrangler remote-preview evidence with failed API-upload attempt
+
+A prior Wrangler 4.156.0 `wrangler dev --remote` run successfully executed the actual VLESS handler/module graph on Cloudflare's remote Workers runtime. The recorded evidence is:
+
+- 3/3 real WebSocket handshakes at `/proxy/vless` succeeded.
+- 3/3 VLESS sessions using synthetic in-memory TCP and fake store/quota adapters returned the expected two-byte VLESS response `[0,0]` and exact four-byte initial payload.
+- A raw TCP WebSocket client paused reads for approximately 6.2 seconds, then resumed and received all 4,194,304 bytes in 256 binary data frames (257 frames including the VLESS response); the session closed normally with `upstream_closed`.
+
+This is partial Cloudflare remote-runtime evidence for the real handler/module graph and synthetic relay. It does **not** include a D1 binding, real Cloudflare outbound TCP, real credential persistence/quota settlement, or real D1 lease lifecycle. The slow-reader observation does not measure or prove Cloudflare-internal WebSocket buffer bounds.
+
+This evidence is distinct from the later one-shot direct multipart API upload attempt (PR #162 workflow run `41452175268`), which failed at the external client's first WebSocket connection and whose uploaded disposable Worker returned HTTP 500 on `/health`. PR #163 corrected its module export shape but did not resolve that API-upload harness failure. Those failures do not invalidate the independently successful Wrangler remote-preview run; neither do they satisfy the full Worker/D1/TCP acceptance gate.
+
+All disposable resources from the API-upload attempt were deleted and their absence verified. Existing staging and Production remain untouched. The next useful gate is to run the actual handler under a Wrangler-native remote preview with a dedicated disposable D1 binding and controlled Worker-to-Worker TCP echo Service Binding, using the existing external Node WebSocket client and the approved limits (10 seconds, 8 MiB, 16 KiB frames, max 2 clients). Do not bypass the safety control that blocked Wrangler remote D1 migration execution; use only an approved D1 provisioning/migration path. Keep the D1 and TCP acceptance claims blocked until the exact Worker-bound results and cleanup are observed.

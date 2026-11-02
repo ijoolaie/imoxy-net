@@ -133,3 +133,10 @@ The opt-in test/vless-local-tcp.integration.test.js was executed against the loc
 
 - Added regression matrices for the current resolver's IPv4 and IPv6 handling against the IANA Special-Purpose Address Registries (2025-10-09 snapshot). The tests cover the registered private/shared, loopback, link-local, documentation, benchmarking, multicast/reserved, NAT64, transition, ULA, and IETF protocol-assignment families.
 - This verifies the current implementation's conservative destination policy under Node, not Nova Proxy 5.0.0 behavior. Proxy/DNS rows remain **Not assessed** until reference black-box scenarios are executed.
+
+
+## 2026-11-02 — partial Cloudflare remote-runtime evidence for VLESS handler
+
+The actual VLESS handler/module graph executed under Wrangler 4.156.0 `wrangler dev --remote`: 3/3 WebSocket handshakes passed; 3/3 sessions using synthetic in-memory TCP and fake store/quota adapters returned the expected VLESS response and exact initial payload; a ~6.2-second paused-reader test later delivered all 4 MiB. This supports the narrow claim that the handler/module graph can execute and relay synthetic bytes on the remote Workers runtime.
+
+It does not establish Nova Proxy 5.0.0 behavior, D1 binding integration, real outbound TCP, durable quota settlement, D1 session-lease lifecycle, DNS/peer identity under the Cloudflare connector, or Cloudflare-internal WebSocket buffer bounds. Keep VLESS transport and quota parity rows **Not assessed** pending black-box Nova comparison; keep the full non-production Worker/D1/TCP gate open.
