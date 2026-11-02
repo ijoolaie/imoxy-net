@@ -151,3 +151,11 @@ This is test infrastructure only. It has not yet been run from GitHub Actions. N
 ## 2026-11-02 — disposable Cloudflare Service Binding smoke result
 
 Workflow run [41469175764](https://github.com/ijoolaie/imoxy-net/actions/runs/41469175764) successfully created the disposable EU D1 database, applied migrations 0001–0008 through the D1 API, deployed the internal-only TCP Echo Worker, and then deleted the run-owned Worker and D1 with absence verification. The VLESS client did not complete its first session and timed out after 8.5 seconds. No successful VLESS handshake, TCP echo, Worker-bound usage settlement, or session-lease release was established. Keep all VLESS transport/accounting parity rows unverified.
+
+
+## 2026-11-02 — second disposable Service Binding run and diagnostic instrumentation
+
+Run [41471462310](https://github.com/ijoolaie/imoxy-net/actions/runs/41471462310) completed the VLESS handshake and sent client frames, but received only 16,390 of 65,542 expected bytes before the 8.5-second client timeout. D1 usage/reservation settlement and session-lease lifecycle acceptance did not complete. The run's run-owned Workers and D1 were cleaned up and absence verified. This is a failed runtime acceptance attempt; no VLESS parity row is Verified. A follow-up branch adds opt-in, payload-free stage timing/counters and test-only echo chunk counts so the next run can identify whether progress stops in D1 reserve/mark/settle, TCP write/read, or WebSocket send. No timeout/quota/frame/concurrency cap is increased.
+
+
+The diagnostic instrumentation branch head `c3906ceee8c6912c3b9a99800ee26caf5655f614` passed `npm run verify` in GitHub Actions run [41474182459](https://github.com/ijoolaie/imoxy-net/actions/runs/41474182459). This is unit/CI evidence only; no Cloudflare diagnostic runtime was dispatched.

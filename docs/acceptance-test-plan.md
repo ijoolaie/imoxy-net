@@ -324,3 +324,11 @@ The first real disposable Wrangler + D1 + Worker-to-Worker TCP Service Binding r
 - rerun only after the correction passes exact-head CI, then require exact bidirectional byte counts, D1 usage/reservation settlement, zero active leases, and verified cleanup.
 
 The failed run is not a passing handshake/relay/D1-accounting test.
+
+
+## 2026-11-02 — second-run failure localization
+
+The second disposable runtime attempt (run 41471462310) completed the VLESS handshake and sent frames, but timed out after receiving 16,390/65,542 expected bytes. The test did not establish complete echo, D1 accounting, or lease release. The next test build emits payload-free start/completion/error timings for D1 reserve, forwarding mark, TCP write/read, WebSocket send, and D1 settle, plus test-only echo chunk counters. Acceptance requires identifying the stalled boundary, preserving the 10-second/8-MiB/16-KiB/two-client caps, exact bidirectional byte totals, successful D1 settlement, zero active leases, and verified cleanup. Do not rerun Cloudflare until exact-head CI passes and the diagnostic diff is reviewed.
+
+
+The diagnostic implementation and handler regression test passed `npm run verify` on exact branch head `c3906ceee8c6912c3b9a99800ee26caf5655f614` (GitHub Actions run [41474182459](https://github.com/ijoolaie/imoxy-net/actions/runs/41474182459)). No live Cloudflare rerun has been performed.

@@ -241,3 +241,11 @@ The runner and workflow are prepared in a feature branch but have not been execu
 ## 2026-11-02 — await Service Binding TCP connect and improve smoke diagnostics
 
 The first manually dispatched disposable Cloudflare smoke run (41469175764) provisioned/migrated disposable D1 and deployed the echo Worker, but the client timed out before completing its first session. The runner did verify cleanup of the run-owned Worker and D1. The test connector now awaits the Service Binding `connect()` result, which is safe for both promise-returning and synchronous Socket adapters, and a regression test covers an asynchronous binding. The runner now reports the client state at timeout and includes captured Wrangler remote-preview logs on failure. This is a targeted diagnostic/correctness hypothesis; it is not yet proven to be the sole cause until exact-head CI and a new isolated runtime run pass.
+
+
+## 2026-11-02 — instrument relay boundaries before another runtime attempt
+
+The second disposable Cloudflare run (41471462310) reached the VLESS handshake and sent frames but stalled at 16,390/65,542 expected bytes. This does not establish whether the cause is D1, TCP stream backpressure, echo forwarding, or WebSocket send. Decision: add an optional onDiagnostic callback to the handler, disabled by default, and use it only from the disposable test Worker. Events contain stage names, byte counts, durations, and error class only; no payloads, account/session identifiers, or reservation IDs. The test-only echo Worker adds chunk counters. Keep existing runtime limits unchanged and do not run Cloudflare again until exact-head CI and diff review.
+
+
+Verification note: the first CI run on the intermediate instrumentation commit failed because the new handler test had not yet been wired to pass its diagnostic callback. The harness wiring was corrected; exact head `c3906ceee8c6912c3b9a99800ee26caf5655f614` then passed `npm run verify` in run 41474182459. No runtime deployment followed.
