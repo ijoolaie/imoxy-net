@@ -1261,3 +1261,11 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - Tests: not yet observed for this branch. No Cloudflare workflow dispatched and no Cloudflare resources created or modified. Runtime caps remain 10 seconds, 8 MiB, 16 KiB frames, max two clients.
 - Next: review the exact diff and syntax; run npm run verify via branch CI; fix any failures; update docs with exact CI SHA/result; open a focused PR. Do not rerun Cloudflare until diagnostics code/test passes CI and the diff is reviewed. Then a manually dispatched isolated run may proceed under the existing approval and cleanup rules.
 - Active phase: Phase 6. Phases 0–5 and 7–11 In progress; Phase 12 Blocked; Phase 13 Not started. No phase is Complete.
+
+
+## Verification update — 2026-11-02
+
+- Exact code/test head `c3906ceee8c6912c3b9a99800ee26caf5655f614` passed GitHub Actions CI run [41474182459](https://github.com/ijoolaie/imoxy-net/actions/runs/41474182459), step `npm run verify` success.
+- Intermediate commit `e6bfc0fc31453ad306cd523597a0e72bc8e35b02` had a failing CI run [41474144661](https://github.com/ijoolaie/imoxy-net/actions/runs/41474144661): the diagnostic regression test was added before the harness passed the callback. The callback wiring was added in `c3906ce...`, and the exact latest code/test head passed. No failure is being hidden or treated as passing.
+- Current branch has documentation-only follow-up commits after the tested code/test head. Recheck exact final branch head and its CI before PR review.
+- No Cloudflare workflow dispatched; no Cloudflare resources created or modified.
