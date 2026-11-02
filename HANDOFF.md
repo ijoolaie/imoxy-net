@@ -1205,3 +1205,17 @@ All disposable resources from the API-upload attempt were deleted and their abse
 
 
 Restart point: main currently includes PR #164 (merge commit `894901cf482c67491348f58073d373f8c4ba87fd`). There are no open PRs at the start of this session. Worktree/branch is not available through the GitHub connector; a documentation-only branch `docs/reconcile-vless-wrangler-runtime-evidence` contains the reconciliation in progress. No Cloudflare resource was created or changed in this documentation pass.
+
+
+## 2026-11-02 — prepare isolated Wrangler + D1 + Service Binding smoke workflow
+
+- User reports that the Cloudflare API token was created with D1 Read/Edit and Workers Scripts Edit, limited to the imoxy Cloudflare account, and stored as the GitHub repository secret CLOUDFLARE_API_TOKEN. The integration cannot read GitHub secret presence or value; no token was requested or exposed in chat.
+- Repository state before edits: main at 932df5314bd41636015bbc45c008e38f722c7601; no open PRs; main had only android.yml and ci.yml under .github/workflows.
+- Created branch test/vless-cloudflare-service-binding-gate.
+- Added scripts/vless-service-binding-cloudflare-smoke.mjs and .github/workflows/vless-cloudflare-smoke.yml. The manual workflow requires confirm_disposable_run=true and runs only from main. It pins the approved account ID, uses run/attempt-specific names, creates D1 through the Cloudflare API, applies migrations 0001–0008 through the D1 query API, seeds a hash-only credential, deploys the internal-only TCP Echo Worker with Wrangler, and starts the VLESS handler through Wrangler remote preview with D1 and a Worker-to-Worker TCP Service Binding.
+- Acceptance assertions: two concurrent clients, 16 KiB frames, 8.5-second external-client timeout, 10-second handler lifetime, 8 MiB account quota; exact upload/download totals 131,084 bytes each, request count 2, fully settled reservation bytes, no active/released reservations, and no remaining session leases.
+- Cleanup uses only run-specific Worker names and the created D1 UUID, then verifies exact resource absence. Echo and VLESS configs set workers_dev=false and preview_urls=false; no routes or custom domains are added. Existing Production and staging resources are excluded.
+- Updated docs/parity-matrix.md, docs/acceptance-test-plan.md, docs/decision-log.md, docs/reference-baseline.md, docs/nonprod-vless-smoke-gate.md, docs/roadmap.md, and package.json. The CI syntax check now includes both VLESS smoke scripts.
+- No Cloudflare resource was created or modified in this session. The new workflow has not been dispatched. No remote tests were run. CI will run on the PR head.
+- Next: inspect the full branch diff and workflow/script; run PR CI; merge only after checks pass; owner must manually dispatch Actions → VLESS Cloudflare disposable smoke with confirmation enabled. Inspect logs and verify cleanup before reporting any runtime result.
+- Active phase: Phase 6. Full Worker-bound D1/TCP gate remains blocked/not accepted until the workflow has actually passed. Phases 0–13 remain as recorded in docs/roadmap.md.
