@@ -8,7 +8,7 @@ const MAX_DIAGNOSTIC_EVENTS = 256;
 const diagnosticEvents = [];
 let droppedDiagnosticEvents = 0;
 
-function recordDiagnostic(event) {
+export function recordDiagnostic(event) {
   // Keep only the small, explicitly approved payload-free fields.
   const record = { event: String(event?.event ?? "unknown") };
   for (const key of ["direction", "bytes", "durationMs", "errorName"]) {
