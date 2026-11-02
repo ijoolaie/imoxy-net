@@ -441,6 +441,88 @@ test("DNS-over-HTTPS resolution selects only a validated public A or AAAA answer
   assert.ok(calls.every((item) => item.origin === "https://cloudflare-dns.com"), "DNS queries must use the configured HTTPS resolver");
 });
 
+test("keeps a valid AAAA result when the A DNS query fails", async () => {
+  const calls = [];
+  const fetchImpl = async (url) => {
+    const type = new URL(url).searchParams.get("type");
+    calls.push(type);
+    if (type === "A") return { ok: false };
+    return {
+      ok: true,
+      async json() {
+        return {
+          Status: 0,
+          Answer: [{ type: 28, data: "2606:4700:4700::1111" }]
+        };
+      }
+    };
+  };
+
+  assert.deepEqual(
+    await resolvePublicDestinations("example.test", fetchImpl),
+    ["2606:4700:4700:0:0:0:0:1111"]
+  );
+  assert.deepEqual(calls.sort(), ["A", "AAAA"]);
+});
+
+
+test("keeps a valid A result when the AAAA DNS query fails", async () => {
+  const fetchImpl = async (url) => {
+    const type = new URL(url).searchParams.get("type");
+    if (type === "AAAA") throw new Error("injected AAAA resolver outage");
+    return {
+      ok: true,
+      async json() {
+        return {
+          Status: 0,
+          Answer: [{ type: 1, data: "93.184.216.34" }]
+        };
+      }
+    };
+  };
+
+  assert.deepEqual(
+    await resolvePublicDestinations("example.test", fetchImpl),
+    ["93.184.216.34"]
+  );
+});
+
+
+test("ignores malformed and family-mismatched DNS records", async () => {
+  const fetchImpl = async (url) => {
+    const type = new URL(url).searchParams.get("type");
+    return {
+      ok: true,
+      async json() {
+        return type === "A"
+          ? {
+              Status: 0,
+              Answer: [
+                { type: 1, data: "2606:4700:4700::1111" },
+                { type: 1, data: "999.1.1.1" },
+                { type: 28, data: "93.184.216.34" },
+                { type: 1, data: "93.184.216.34" }
+              ]
+            }
+          : {
+              Status: 0,
+              Answer: [
+                { type: 28, data: "93.184.216.35" },
+                { type: 1, data: "2606:4700:4700::1111" },
+                { type: 28, data: "2606:4700:4700::1111" }
+              ]
+            };
+      }
+    };
+  };
+
+  assert.deepEqual(
+    await resolvePublicDestinations("example.test", fetchImpl),
+    ["93.184.216.34", "2606:4700:4700:0:0:0:0:1111"]
+  );
+});
+
+
 test("returns deduplicated validated public A and AAAA candidates for fallback", async () => {
   const fetchImpl = async (url) => {
     const type = new URL(url).searchParams.get("type");
