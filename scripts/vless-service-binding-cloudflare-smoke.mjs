@@ -32,7 +32,7 @@ const databaseName = "imoxy-vless-smoke-d1-" + suffix;
 const echoConfig = path.join(ROOT, ".tmp-" + echoName + ".toml");
 const vlessConfig = path.join(ROOT, ".tmp-" + vlessName + ".toml");
 const databasePath = "/accounts/" + ACCOUNT_ID + "/d1/database";
-const workerPath = "/accounts/" + ACCOUNT_ID + "/workers/scripts/";
+const workerPath = "/accounts/" + ACCOUNT_ID + "/workers/scripts";
 let databaseId = null;
 let databaseAttempted = false;
 let echoAttempted = false;
@@ -133,7 +133,7 @@ function configForVless(credentialAccountId) {
     "[[d1_databases]]",
     'binding = "DB"',
     "database_name = " + tomlString(databaseName),
-    "database_id = " + tomlString(credentialAccountId),
+    "database_id = " + tomlString(databaseUuid),
     'migrations_dir = "./migrations"',
     "remote = true",
     "",
@@ -188,6 +188,7 @@ async function stopRemotePreview() {
   for (let i = 0; i < 50 && previewProcess.exitCode === null; i += 1) await delay(200);
   if (previewProcess.exitCode === null) {
     try { process.kill(-previewProcess.pid, "SIGKILL"); } catch {}
+    for (let i = 0; i < 20 && previewProcess.exitCode === null; i += 1) await delay(100);
   }
   previewProcess = null;
 }
@@ -199,7 +200,7 @@ async function workerExists(name) {
 
 async function deleteWorker(name) {
   if (await workerExists(name)) {
-    await api(workerPath + encodeURIComponent(name), { method: "DELETE" });
+    await api(workerPath + "/" + encodeURIComponent(name), { method: "DELETE" });
   }
   for (let attempt = 0; attempt < 10; attempt += 1) {
     if (!(await workerExists(name))) return;
