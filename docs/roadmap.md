@@ -435,3 +435,7 @@ A manually dispatched GitHub Actions workflow and runner are prepared for the ac
 ## 2026-11-02 — Phase 6 Cloudflare gate update
 
 The first manually dispatched Worker-bound D1 + Worker-to-Worker TCP Service Binding run (41469175764) successfully provisioned disposable D1, applied migrations 0001–0008, deployed the internal-only echo Worker, and verified cleanup. The external VLESS client timed out after 8.5 seconds in its first session. Phase 6 remains **In progress**; the live Worker/D1/TCP acceptance exit gate remains open. PR #169 merged the connector-await correction, Promise-returning binding regression test, and improved failure diagnostics; exact PR-head and post-merge main CI passed. A successful repeat run with exact bytes, D1 settlement, lease release, and verified cleanup is still required.
+
+## 2026-11-02 — Phase 6 diagnostic retrieval refinement
+
+The latest disposable runtime attempt (41477742794) completed the handshake but stalled before the full relay and did not expose console-only stage markers. The smoke harness now retrieves bounded, payload-free handler diagnostics through a per-run-token-protected test endpoint. Exact-head CI passed (run 41480382039); no Cloudflare rerun has occurred. Phase 6 remains **In progress** until full Worker-bound relay, D1 settlement, lease release, and verified cleanup pass. Existing traffic caps and isolation constraints remain unchanged.
