@@ -4,7 +4,7 @@ export const VLESS_SERVICE_BINDING_SMOKE_HOST = "probe.imoxy.invalid";
 export const VLESS_SERVICE_BINDING_SMOKE_PEER = "93.184.216.34";
 export const VLESS_SERVICE_BINDING_SMOKE_PORT = 5000;
 
-function createServiceBindingTcpConnector() {
+export function createServiceBindingTcpConnector() {
   return async ({ hostname, port }, env) => {
     if (hostname !== VLESS_SERVICE_BINDING_SMOKE_PEER || port !== VLESS_SERVICE_BINDING_SMOKE_PORT) {
       throw new TypeError("The service-binding smoke connector only permits its fixed synthetic peer and port.");
