@@ -1278,3 +1278,14 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - A squash-merge request for PR #170 was blocked by the host safety controls. Do not attempt to bypass the block. PR remains open pending an authorized merge action.
 - No Cloudflare workflow was dispatched and no Cloudflare resources were created or modified.
 - Next: merge PR #170 through the normal GitHub UI/authorized path; verify post-merge main CI; only then manually dispatch the isolated diagnostic smoke workflow and inspect per-stage logs plus D1 accounting/cleanup. Existing Production and staging remain out of scope.
+
+## 2026-11-02 — bounded diagnostics retrieval follow-up
+
+- Objective: make the failed disposable relay run observable after Wrangler remote-preview console output omitted the callback markers.
+- Repository: `ijoolaie/imoxy-net`; branch: `test/vless-relay-stage-diagnostics`.
+- Added a test-only `GET /_test/diagnostics` endpoint to the disposable VLESS smoke Worker. Access requires a random per-run token from the temporary Wrangler config. The response is `no-store` and contains at most 256 allowlisted records (event, direction, bytes, durationMs, errorName), plus a dropped-event count. No payloads, credentials, account/session identifiers, reservation IDs, or destinations are included.
+- Added tests for token gating, field allowlisting/redaction, and bounded retention. Exact-head CI run [41480382039](https://github.com/ijoolaie/imoxy-net/actions/runs/41480382039) passed `npm run verify` on commit `309818f08946f700a490b0423b384e2e9c511948`.
+- Updated parity matrix, acceptance plan, decision log, reference baseline, roadmap, and nonproduction smoke gate to record the new diagnostic channel and its evidence boundary. Subsequent commits are documentation-only; exact final branch-head CI must be checked again before PR creation.
+- Limitation: the ring buffer is isolate-local. If the diagnostic fetch reaches a different Worker isolate, an empty response is inconclusive. Do not interpret it as proof that handler events did not occur.
+- No Cloudflare workflow was dispatched; no Cloudflare resources were created or modified. Existing Production and staging remain out of scope. Preserve the 10-second, 8-MiB, 16-KiB, and two-client limits.
+- Next: verify the final branch head and CI, inspect the full diff against `main`, open a focused PR, then wait for exact PR-head CI before asking the user to manually dispatch the isolated smoke workflow.
