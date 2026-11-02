@@ -228,3 +228,12 @@ The actual VLESS handler/module graph previously passed a Wrangler 4.156.0 `wran
 A later direct multipart API-upload workflow independently failed at the external WebSocket client's first connection, and its uploaded disposable Worker returned HTTP 500 on `/health`. That API-upload path is not the same deployment mechanism and its failure must not be generalized into a failure of the Wrangler remote-preview result. Conversely, the Wrangler preview used synthetic TCP and fake store/quota adapters; it does not prove Worker-bound D1, real Cloudflare TCP, quota settlement against D1, lease release in D1, or internal WebSocket buffer boundedness.
 
 Decision: keep the full VLESS Worker/D1/TCP gate open. Next run should use Wrangler-native remote preview, add only a newly created disposable D1 binding and the isolated Service Binding TCP echo path, and verify each layer incrementally. Do not bypass execution safety controls around remote migrations. Existing staging/Production resources remain out of scope.
+
+
+## 2026-11-02 — isolate the next VLESS runtime gate with Wrangler and D1 API
+
+Decision: use a manually dispatched, run-scoped GitHub Actions workflow rather than the failed direct multipart Worker-upload path. The workflow provisions D1 and applies migrations using the documented D1 API, deploys only the internal TCP Echo Worker through Wrangler, and executes the VLESS handler with wrangler dev --remote and a Worker-to-Worker TCP Service Binding. This avoids reusing the existing staging Worker/database and avoids the blocked Wrangler remote-migration execution path.
+
+Safety controls: fixed Cloudflare account ID; token supplied only as CLOUDFLARE_API_TOKEN; explicit boolean confirmation; unique imoxy-vless-smoke-* resource names; exact-name collision checks; no Production/staging targets; no routes, custom domains, workers.dev URLs, or preview URLs; 10-second handler lifetime, 8 MiB account quota, 16 KiB frames, and two clients; cleanup and absence verification in a finally path.
+
+The runner and workflow are prepared in a feature branch but have not been executed. The user's GitHub Secret cannot be read by the integration, so its presence/value is not independently verifiable. After merge, the repository owner must manually start the workflow with the confirmation input enabled. No Cloudflare resource has been created by this change.
