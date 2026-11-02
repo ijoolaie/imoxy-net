@@ -244,3 +244,10 @@ npm test -- --test-name-pattern="real local TCP echo server"
 The test uses the production VLESS handler, an actual Node TCP socket connected to loopback, migrations 0001–0008, createD1Store() through the existing Node/SQLite D1-compatible adapter, credential hashing, session admission, and quota reserve/forward/settle. It checks a binary initial VLESS payload plus a 64 KiB later upload, byte-for-byte echoed WebSocket output, exact upload/download usage totals, settled reservations, and session-lease release.
 
 Important test seam: the injected local connector maps the handler's synthetic public peer identity (93.184.216.34) to the local loopback TCP socket so the production private-destination policy remains unchanged. DNS resolution and connected-peer identity validation are therefore not tested here. WebSocketPair is a deterministic fake; SQLite is not Cloudflare D1. This proves local handler-to-real-TCP integration only, not a deployed Worker, remote D1, public TCP connectivity, Cloudflare internal WebSocket buffering, or Nova parity. The test is opt-in and skipped by default unless IMOXY_TCP_ECHO_TEST=1.
+
+
+## 2026-11-02 — mixed DNS answers and cross-family TCP fallback
+
+- Added a deterministic VLESS-handler test using mixed A/AAAA DNS-over-HTTPS answers: RFC1918/ULA answers are filtered, a public IPv4 candidate is attempted first, and when that dial fails the handler connects to the validated public IPv6 candidate.
+- The test verifies the connected peer matches the pinned IPv6 address, the initial VLESS payload is not forwarded until connection/peer validation succeeds, usage is reserved/settled only for the forwarded upload, and session cleanup releases the lease.
+- Focused handler suite: 53/53 passed. This is Node adapter evidence with synthetic DNS responses and a fake WebSocket; it does not prove external DNS, Cloudflare TCP runtime, Worker/D1 integration, or Nova parity. The remote runtime gate in Issue #78 remains open.
