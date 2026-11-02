@@ -315,3 +315,12 @@ The runner:
 - Stops the preview, deletes only the two run-specific Worker script names and D1 database, then verifies that those exact resources are absent.
 
 The workflow has **not yet been dispatched**. A successful run would establish a bounded Worker-bound D1 + Service Binding TCP smoke for this harness only; it would not establish Nova parity, real public outbound TCP, VPC/private-network behavior, or Cloudflare-internal WebSocket buffer bounds. Any cleanup-verification failure is a hard failure and requires manual inventory review before another run.
+
+## 2026-11-02 — Service Binding TCP smoke follow-up
+
+The first real disposable Wrangler + D1 + Worker-to-Worker TCP Service Binding run (GitHub Actions run 41469175764) applied all eight migrations and deployed the echo Worker, but the first external VLESS client timed out after 8.5 seconds. Cleanup of the run-owned Worker and D1 completed and their absence was verified. Follow-up acceptance must:
+- await the Service Binding TCP connect call before inspecting the returned Socket;
+- include timeout-stage diagnostics (handshake received, frame-send state, echoed bytes, socket ready state) and captured Wrangler remote-preview output;
+- rerun only after the correction passes exact-head CI, then require exact bidirectional byte counts, D1 usage/reservation settlement, zero active leases, and verified cleanup.
+
+The failed run is not a passing handshake/relay/D1-accounting test.
