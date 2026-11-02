@@ -111,7 +111,7 @@ function configForEcho() {
   ].join("\n");
 }
 
-function configForVless(credentialAccountId) {
+function configForVless(databaseUuid) {
   return [
     "name = " + tomlString(vlessName),
     'main = "./test/vless-service-binding-tcp-smoke-worker.js"',
@@ -134,7 +134,6 @@ function configForVless(credentialAccountId) {
     'binding = "DB"',
     "database_name = " + tomlString(databaseName),
     "database_id = " + tomlString(databaseUuid),
-    'migrations_dir = "./migrations"',
     "remote = true",
     "",
     "[[services]]",
