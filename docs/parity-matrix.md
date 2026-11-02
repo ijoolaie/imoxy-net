@@ -121,3 +121,9 @@ A disposable Cloudflare D1 database received the SQL contents of migrations 0001
 ## Local VLESS handler-to-TCP integration evidence — 2026-11-02
 
 The opt-in test/vless-local-tcp.integration.test.js was executed against the locally running TCP Echo Server on 127.0.0.1:5000. The actual VLESS handler and Node TCP socket exchanged a binary initial payload plus a 64 KiB later payload; returned bytes matched, SQLite-backed usage recorded equal upload/download totals, reservations settled, and the session lease was released. This is local integration evidence for the current implementation, not Nova Proxy 5.0.0 behavior. The connector uses a test-only synthetic peer identity to reach loopback; DNS and peer-validation policy are not covered. No VLESS/transport/quota parity row becomes Verified, and Issue #78 remains open for actual remote Worker + D1 + controlled TCP and backpressure/lifecycle evidence.
+
+
+## 2026-11-02 — mixed DNS answers and cross-family TCP fallback
+
+- Added an end-to-end handler regression over synthetic mixed A/AAAA DNS responses. Private IPv4 and ULA IPv6 records are filtered; failed IPv4 connection falls back to the next validated IPv6 address; peer pinning is checked before the initial payload is forwarded; upload quota is settled only after successful forwarding.
+- The focused Node handler suite passed 53/53. This verifies current implementation behavior under deterministic adapters, not Nova Proxy 5.0.0 behavior. All relevant Nova proxy/DNS/transport parity rows remain **Not assessed** until black-box reference tests are run.
