@@ -249,3 +249,7 @@ The second disposable Cloudflare run (41471462310) reached the VLESS handshake a
 
 
 Verification note: the first CI run on the intermediate instrumentation commit failed because the new handler test had not yet been wired to pass its diagnostic callback. The harness wiring was corrected; exact head `c3906ceee8c6912c3b9a99800ee26caf5655f614` then passed `npm run verify` in run 41474182459. No runtime deployment followed.
+
+## 2026-11-02 — retrieve diagnostics through an isolated test endpoint
+
+Run 41477742794 did not include the expected console records, so console-only stage instrumentation did not localize the relay stall. The disposable smoke Worker now retains at most 256 allowlisted event records and exposes them through GET /_test/diagnostics. Access requires a random per-run token in a dedicated header; the response is no-store. Fields are limited to event, direction, bytes, durationMs, and errorName. The buffer is isolate-local, so an empty result is inconclusive if the request is routed to another isolate. Tests cover token gating, bounded retention, and redaction. Exact-head npm run verify passed on 309818f08946f700a490b0423b384e2e9c511948 (run 41480382039). No runtime rerun yet; no cap increases or production/staging changes.
