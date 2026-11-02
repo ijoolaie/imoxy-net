@@ -113,3 +113,7 @@ A Wrangler 4.156.0 remote-preview execution of imoxy's actual VLESS handler/modu
 A manually gated workflow has been prepared to run the actual VLESS handler/module graph under Wrangler remote preview with a disposable Worker-bound D1 database and a Worker-to-Worker TCP Echo Service Binding. D1 migrations are applied through the Cloudflare D1 API; the echo Worker is deployed with Wrangler and has no public URL or route. The harness expects exact bidirectional byte counts, D1 quota settlement, and session lease release, followed by deletion and inventory verification of only run-owned resources.
 
 This is a reproducible acceptance harness design, not runtime evidence. It has not been dispatched; no new Cloudflare Worker/D1 runtime result exists. It does not test Nova Proxy 5.0.0 and must not change any parity row to Verified.
+
+## 2026-11-02 — runtime smoke evidence boundary update
+
+The first disposable Worker-bound D1 + Service Binding smoke run (GitHub Actions 41469175764) successfully provisioned D1, applied migrations 0001–0008, deployed the echo Worker, and verified deletion of the run-owned resources. The external client timed out before a VLESS session completed. This is a failed imoxy runtime acceptance attempt, not Nova Proxy evidence; no parity row is verified by it.
