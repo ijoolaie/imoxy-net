@@ -125,3 +125,7 @@ Run [41471462310](https://github.com/ijoolaie/imoxy-net/actions/runs/41471462310
 
 
 The test-only instrumentation and regression test passed `npm run verify` on exact branch head `c3906ceee8c6912c3b9a99800ee26caf5655f614` (run 41474182459). This remains implementation-test evidence, not Cloudflare Worker/D1 runtime acceptance or Nova reference parity evidence.
+
+## 2026-11-02 — smoke diagnostic observability correction
+
+Run 41477742794 reached the VLESS handshake but stalled before full relay and did not expose the expected console-only stage markers. The disposable harness now includes a token-gated, no-store diagnostics endpoint backed by a 256-record isolate-local ring buffer. It returns only stage, direction, byte count, duration, and error class. The per-run token is written only to the temporary Wrangler config. An empty response is inconclusive if the diagnostics request reaches another isolate. Exact-head CI passed in run 41480382039; this is implementation evidence only, not Worker/D1 runtime acceptance or Nova reference evidence.
