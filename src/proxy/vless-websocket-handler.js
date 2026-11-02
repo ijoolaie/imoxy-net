@@ -303,7 +303,8 @@ export function createVlessWebSocketHandler({
   initialHandshakeTimeoutMs = DEFAULT_INITIAL_HANDSHAKE_TIMEOUT_MS,
   idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS,
   setTimeoutImpl = globalThis.setTimeout,
-  clearTimeoutImpl = globalThis.clearTimeout
+  clearTimeoutImpl = globalThis.clearTimeout,
+  onDiagnostic = null
 } = {}) {
   return {
     async fetch(request, env = {}) {
@@ -473,12 +474,12 @@ export function createVlessWebSocketHandler({
         const reservedAt = new Date(now()).toISOString();
         let reservation;
         try {
-          const result = await quotaService.reserve({
+          const result = await measureDiagnostic(onDiagnostic, "quota.reserve", { direction, bytes: bytes.byteLength }, () => quotaService.reserve({
             reservationId,
             accountId: state.accountId,
             reservedBytes: bytes.byteLength,
             at: reservedAt
-          });
+          }));
           if (!result?.allowed) {
             await closeSession(1008, "quota_exceeded");
             return false;
@@ -503,15 +504,18 @@ export function createVlessWebSocketHandler({
         }
 
         try {
-          const marked = await quotaService.markForwarding({
+          const marked = await measureDiagnostic(onDiagnostic, "quota.mark_forwarding", { direction, bytes: bytes.byteLength }, () => quotaService.markForwarding({
             reservationId, accountId: state.accountId, at: new Date(now()).toISOString()
-          });
+          }));
           if (!marked) {
             await closeSession(1011, "quota_reservation_forwarding_failed");
             return false;
           }
-          if (direction === "upload") await state.writer.write(bytes);
-          else server.send(bytes);
+          if (direction === "upload") {
+            await measureDiagnostic(onDiagnostic, "tcp.write", { bytes: bytes.byteLength }, () => state.writer.write(bytes));
+          } else {
+            await measureDiagnostic(onDiagnostic, "websocket.send", { bytes: bytes.byteLength }, () => server.send(bytes));
+          }
         } catch {
           // The transport may have accepted a partial chunk before throwing.
           // Keep its reservation; releasing it could permit over-quota traffic.
@@ -522,7 +526,7 @@ export function createVlessWebSocketHandler({
         const requestCount = state.requestCountClaimed ? 0 : 1;
         state.requestCountClaimed = true;
         try {
-          await quotaService.settle({
+          await measureDiagnostic(onDiagnostic, "quota.settle", { direction, bytes: bytes.byteLength }, () => quotaService.settle({
             producerId: env.PROXY_USAGE_PRODUCER_ID,
             eventId,
             reservationId,
@@ -532,7 +536,7 @@ export function createVlessWebSocketHandler({
             downloadBytes: direction === "download" ? bytes.byteLength : 0,
             requestCount,
             at: new Date(now()).toISOString()
-          });
+          }));
           return true;
         } catch {
           // Bytes may already have crossed the forwarding boundary. Retain the
@@ -545,8 +549,10 @@ export function createVlessWebSocketHandler({
       const pumpUpstream = async () => {
         try {
           while (!state.closed && state.reader) {
-            const { value, done } = await state.reader.read();
-            if (done) break;
+            const read = await measureDiagnostic(onDiagnostic, "tcp.read", {}, () => state.reader.read());
+            const { value, done } = read;
+            if (done) { emitDiagnostic(onDiagnostic, "tcp.read_done"); break; }
+            if (value?.byteLength) emitDiagnostic(onDiagnostic, "tcp.read_chunk", { bytes: value.byteLength });
             if (value?.byteLength && !state.closed) {
               resetIdleTimeout();
               if (value.byteLength > maxDownloadBytes - state.downloadBytesForwarded) {
