@@ -101,3 +101,8 @@ Imoxy now enforces an installation-wide VLESS session ceiling and an account-lev
 ## Concurrent-session limit — evidence gap (2026-10-30)
 
 The pinned Nova 5.0.0 README and GUIDE do not document a per-account `max_connections` contract or define the zero value. The pinned `version.json` marks the shipped worker artifact as protected; the release metadata, package manifest and user guide are not evidence of its runtime semantics. Do not infer whether zero means unlimited or deny-all, what counts as one connection, or how existing sessions are handled when a limit changes. REF-032 defines the required controlled black-box scenarios. Status remains **Not documented / Not run / Not verified**.
+
+
+## Cloudflare VLESS remote-runtime evidence boundary — 2026-11-02
+
+A Wrangler 4.156.0 remote-preview execution of imoxy's actual VLESS handler/module graph passed 3/3 WebSocket handshakes and 3/3 synthetic relay sessions using in-memory TCP and fake store/quota adapters; a paused-reader probe later received the complete 4 MiB payload. This is evidence about imoxy's current implementation on one Cloudflare remote-preview path only. It is not evidence about Nova Proxy 5.0.0, does not make any parity row Verified, and does not cover D1 binding, real TCP, or internal WebSocket buffer limits.
