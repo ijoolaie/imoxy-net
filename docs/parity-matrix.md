@@ -140,3 +140,10 @@ The opt-in test/vless-local-tcp.integration.test.js was executed against the loc
 The actual VLESS handler/module graph executed under Wrangler 4.156.0 `wrangler dev --remote`: 3/3 WebSocket handshakes passed; 3/3 sessions using synthetic in-memory TCP and fake store/quota adapters returned the expected VLESS response and exact initial payload; a ~6.2-second paused-reader test later delivered all 4 MiB. This supports the narrow claim that the handler/module graph can execute and relay synthetic bytes on the remote Workers runtime.
 
 It does not establish Nova Proxy 5.0.0 behavior, D1 binding integration, real outbound TCP, durable quota settlement, D1 session-lease lifecycle, DNS/peer identity under the Cloudflare connector, or Cloudflare-internal WebSocket buffer bounds. Keep VLESS transport and quota parity rows **Not assessed** pending black-box Nova comparison; keep the full non-production Worker/D1/TCP gate open.
+
+
+## 2026-11-02 — disposable Wrangler Service Binding smoke workflow prepared
+
+A manual GitHub Actions workflow and Node runner now provision a uniquely named disposable D1 database through the Cloudflare D1 API, apply checked-in migrations 0001–0008 through that API, seed one hash-only proxy credential, deploy the internal-only TCP Echo Worker with Wrangler, and start the actual VLESS handler under Wrangler remote preview with Worker-bound D1 and a Worker-to-Worker TCP Service Binding. The runner checks two concurrent clients, exact byte echo, D1 upload/download/request aggregates, settled reservation bytes, zero active reservations and zero remaining session leases, then deletes the run-owned Workers and D1 and verifies absence.
+
+This is test infrastructure only. It has not yet been run from GitHub Actions. No new Cloudflare resource was created by this change, and it provides no new runtime or Nova parity evidence. All VLESS/transport/quota parity rows remain **Not assessed** until the workflow's actual result and separate reference comparisons exist.
