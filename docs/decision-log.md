@@ -246,3 +246,6 @@ The first manually dispatched disposable Cloudflare smoke run (41469175764) prov
 ## 2026-11-02 — instrument relay boundaries before another runtime attempt
 
 The second disposable Cloudflare run (41471462310) reached the VLESS handshake and sent frames but stalled at 16,390/65,542 expected bytes. This does not establish whether the cause is D1, TCP stream backpressure, echo forwarding, or WebSocket send. Decision: add an optional onDiagnostic callback to the handler, disabled by default, and use it only from the disposable test Worker. Events contain stage names, byte counts, durations, and error class only; no payloads, account/session identifiers, or reservation IDs. The test-only echo Worker adds chunk counters. Keep existing runtime limits unchanged and do not run Cloudflare again until exact-head CI and diff review.
+
+
+Verification note: the first CI run on the intermediate instrumentation commit failed because the new handler test had not yet been wired to pass its diagnostic callback. The harness wiring was corrected; exact head `c3906ceee8c6912c3b9a99800ee26caf5655f614` then passed `npm run verify` in run 41474182459. No runtime deployment followed.
