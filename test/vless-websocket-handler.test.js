@@ -95,7 +95,7 @@ async function settle() {
   for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = () => NOW, timerCallbacks = null, idleTimeoutMs = 120_000, quotaAllowed = true, quotaSettleFails = false, quotaSettleWait = null, quotaReserveFails = false, quotaReserveConflict = false, downstreamSendFails = false, sessionAdmissionAllowed = true, sessionAdmissionFails = false, sessionReleaseFails = false } = {}) {
+function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = () => NOW, timerCallbacks = null, idleTimeoutMs = 120_000, quotaAllowed = true, quotaSettleFails = false, quotaSettleWait = null, quotaReserveFails = false, quotaReserveConflict = false, downstreamSendFails = false, sessionAdmissionAllowed = true, sessionAdmissionFails = false, sessionReleaseFails = false, diagnostics = null } = {}) {
   const client = new FakeWebSocket();
   const server = new FakeWebSocket();
   const originalSend = server.send.bind(server);
@@ -232,6 +232,30 @@ test("valid credential is authenticated before dialing and relays initial and la
   assert.equal(h.sessionCalls.release.length, 1);
 });
 
+
+
+test("optional diagnostics identify each upload and download forwarding boundary without payload data", async () => {
+  const upstream = fakeSocket();
+  const diagnostics = [];
+  const h = harness({ connectTcp: async () => upstream.socket, diagnostics: (event) => diagnostics.push(event) });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest());
+  await settle();
+  upstream.push([0xaa, 0xbb]);
+  await settle();
+
+  const names = diagnostics.map((event) => event.event);
+  assert.ok(names.includes("quota.reserve.complete"));
+  assert.ok(names.includes("quota.mark_forwarding.complete"));
+  assert.ok(names.includes("tcp.write.complete"));
+  assert.ok(names.includes("websocket.send.complete"));
+  assert.ok(names.includes("quota.settle.complete"));
+  assert.ok(names.includes("tcp.read_chunk"));
+  assert.ok(diagnostics.every((event) => !("payload" in event) && !("reservationId" in event)));
+  assert.ok(diagnostics.every((event) => event.durationMs === undefined || Number.isFinite(event.durationMs)));
+  h.server.close();
+  await settle();
+});
 
 test("bounds queued client messages and closes before the queue can grow without limit", async () => {
   const upstream = fakeSocket();
