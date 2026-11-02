@@ -251,3 +251,10 @@ Important test seam: the injected local connector maps the handler's synthetic p
 - Added a deterministic VLESS-handler test using mixed A/AAAA DNS-over-HTTPS answers: RFC1918/ULA answers are filtered, a public IPv4 candidate is attempted first, and when that dial fails the handler connects to the validated public IPv6 candidate.
 - The test verifies the connected peer matches the pinned IPv6 address, the initial VLESS payload is not forwarded until connection/peer validation succeeds, usage is reserved/settled only for the forwarded upload, and session cleanup releases the lease.
 - Focused handler suite: 53/53 passed. This is Node adapter evidence with synthetic DNS responses and a fake WebSocket; it does not prove external DNS, Cloudflare TCP runtime, Worker/D1 integration, or Nova parity. The remote runtime gate in Issue #78 remains open.
+
+
+## 2026-11-02 — IANA special-purpose address coverage
+
+- Added IPv4 and IPv6 literal-destination matrices based on the IANA Special-Purpose Address Registries (both last updated 2025-10-09). Cases cover private/shared, loopback, link-local, documentation, benchmarking, multicast/reserved, NAT64, transition, ULA, and IETF protocol-assignment blocks.
+- The tests explicitly document the conservative deny policy for the full 192.0.0.0/24 and 2001::/23 parent blocks, including more-specific protocol-anycast entries. The globally reachable 2620:4f:8000::/48 AS112-v6 block remains eligible for explicit host allowlisting.
+- The resolver is exercised with numeric literals, so these tests do not depend on external DNS. This is address-policy regression evidence only; it is not Cloudflare Worker/D1/TCP or Nova parity evidence.
