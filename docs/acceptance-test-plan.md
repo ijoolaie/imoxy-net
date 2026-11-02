@@ -258,3 +258,10 @@ Important test seam: the injected local connector maps the handler's synthetic p
 - Added IPv4 and IPv6 literal-destination matrices based on the IANA Special-Purpose Address Registries (both last updated 2025-10-09). Cases cover private/shared, loopback, link-local, documentation, benchmarking, multicast/reserved, NAT64, transition, ULA, and IETF protocol-assignment blocks.
 - The tests explicitly document the conservative deny policy for the full 192.0.0.0/24 and 2001::/23 parent blocks, including more-specific protocol-anycast entries. The globally reachable 2620:4f:8000::/48 AS112-v6 block remains eligible for explicit host allowlisting.
 - The resolver is exercised with numeric literals, so these tests do not depend on external DNS. This is address-policy regression evidence only; it is not Cloudflare Worker/D1/TCP or Nova parity evidence.
+
+
+## 2026-11-02 — partial DNS-family failure and malformed answer handling
+
+- Added deterministic resolver tests for A-query failure with a valid AAAA answer, AAAA-query failure with a valid A answer, and malformed or family-mismatched DNS JSON records.
+- Expected behavior: a failed address-family lookup does not discard valid candidates from the other family; malformed records and records whose declared RR type does not match the address family are ignored; if no valid public candidate remains, resolution still fails closed.
+- These are Node tests with synthetic DoH responses, not live DNS, Cloudflare Worker TCP, or Nova parity evidence.
