@@ -1,0 +1,33 @@
+# Copy this file to wrangler.vless-smoke.toml and replace the two IDs.
+# This configuration is ONLY for a disposable, unaffiliated smoke Worker.
+# Do not add a route, custom domain, production D1 binding, or production secret.
+name = "imoxy-vless-smoke-disposable"
+main = "./test/vless-vpc-smoke-worker.js"
+compatibility_date = "2026-11-02"
+workers_dev = true
+preview_urls = false
+
+[vars]
+PROXY_WS_PATH = "/proxy/vless"
+PROXY_ALLOWED_HOSTS = "probe.imoxy.invalid"
+PROXY_ALLOWED_PORTS = "5000"
+PROXY_USAGE_PRODUCER_ID = "imoxy-vless-vpc-smoke"
+PROXY_MAX_DOWNLOAD_BYTES = "1048576"
+PROXY_MAX_SESSION_DURATION_MS = "60000"
+PROXY_MAX_CONCURRENT_SESSIONS = "2"
+PROXY_SESSION_LEASE_GRACE_MS = "30000"
+# Must be the RFC1918 IPv4 address of the machine running TCP Echo Server.
+PROXY_VPC_TCP_TARGET_IP = "192.168.1.25"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "imoxy-vless-smoke-disposable"
+database_id = "REPLACE_WITH_DISPOSABLE_D1_ID"
+migrations_dir = "./migrations"
+
+# Workers VPC Network binding directly to the dedicated Cloudflare Tunnel UUID.
+# Direct tunnel bindings use `tunnel_id`; `network_id` is for cf1:network/cf1:vnet.
+[[vpc_networks]]
+binding = "PROXY_VPC"
+tunnel_id = "REPLACE_WITH_DISPOSABLE_TUNNEL_UUID"
+remote = true

@@ -146,3 +146,25 @@ A disposable EU D1 received the SQL contents of migrations 0001–0008 through t
 - 12 concurrent 10-byte reservation attempts under a 50-byte cap, with exactly 5 admitted and 50 bytes reserved.
 
 The disposable D1 was deleted and inventory confirmed it absent. This was direct D1 API SQL, not the repository's D1Store/VLESS handler running in a Worker and not a Wrangler migration-history test. It does not satisfy the full Worker/D1/TCP smoke gate or establish Nova parity. Do not mark the VLESS transport or quota parity rows Verified.
+
+## Optional controlled TCP path through Workers VPC
+
+The repository has a test-only Worker wrapper in `test/vless-vpc-smoke-worker.js` and an isolated example config in `wrangler.vless-smoke.toml.example`. This provides a possible route to exercise the actual VLESS handler against a private TCP Echo Server without exposing that server to the public Internet.
+
+### Architecture and limits
+
+- The disposable Worker uses the production VLESS handler, but injects a fixed resolver and a test-only connector. Only the reserved hostname `probe.imoxy.invalid`, synthetic handler peer `93.184.216.34`, and TCP port `5000` are accepted.
+- The connector maps that fixed synthetic peer to one RFC1918 IPv4 target through the `PROXY_VPC` binding. It deliberately substitutes the handler-visible `remoteAddress` with the synthetic public identity. **This bypasses actual private-peer identity verification and is a test seam only**; it must never be imported by `worker.js` or production configuration.
+- Workers VPC Network bindings support raw TCP via `connect()`. For a direct binding to a specific Cloudflare Tunnel, Wrangler uses `tunnel_id`; `network_id` is for `cf1:network` or `cf1:vnet:<UUID>`. See the [VPC Networks configuration](https://developers.cloudflare.com/workers-vpc/configuration/vpc-networks/) and [Workers Binding API](https://developers.cloudflare.com/workers-vpc/api/).
+- Workers VPC is currently beta and VPC TCP is plaintext. The tunnel connector must be able to route to the chosen private target. Cloudflare documents `cloudflared` 2025.7.0 or later and QUIC/UDP 7844 for this VPC tunnel path; see [Cloudflare Tunnel for Workers VPC](https://developers.cloudflare.com/workers-vpc/configuration/tunnel/).
+
+### Required isolation before running
+
+1. Create a dedicated disposable Cloudflare Tunnel and a dedicated disposable D1 database; do not reuse `imoxy-net-api-staging`, its existing D1, or any unrelated project resource.
+2. Run `cloudflared` on the same private network as the TCP Echo Server. Configure a private network route to the server's RFC1918 address and ensure the server listens only on that private interface. Do not expose port 5000 publicly or add a public hostname/ingress.
+3. Confirm the tunnel UUID, private target IP, account, and cleanup owner. Use the corrected `tunnel_id` field in `wrangler.vless-smoke.toml.example`; replace only the disposable D1 ID and tunnel UUID.
+4. Apply migrations only to the disposable D1, create one staging-only proxy credential through a reviewed path, and use the config's narrow host/port and byte/session limits.
+5. Test one baseline and one slow-reading client sequentially. Capture exact bidirectional bytes, quota totals, session lease release, Worker logs, tunnel network logs, and cleanup evidence. Do not run throughput or multi-client stress tests in this gate.
+6. Delete the disposable Worker and D1, remove the disposable Tunnel and private route, stop `cloudflared`, and verify exact resource absence.
+
+The VPC harness unit tests validate fixed peer/port/target gating and adapter cleanup only. They do not create Cloudflare resources, prove VPC connectivity, exercise a live Worker, validate the actual private peer address, or establish internal WebSocket buffer bounds. The live VPC smoke gate remains **not executed** until a separately authorized disposable environment and cleanup plan are actually used.

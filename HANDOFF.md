@@ -1129,3 +1129,15 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - The test inputs are synthetic DoH responses. No live DNS, Cloudflare Worker/D1/TCP, production resource, or Nova runtime was used. Issue #78 remains open.
 - No open PRs remained at the time of this handoff update. Main was at `979bbfe9af60e785a2335aa3edb61b42f087699d` with post-merge CI success.
 - Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
+
+
+## Latest work session — 2026-11-02 (Workers VPC controlled TCP smoke harness)
+
+- Reviewed an existing three-commit test branch based on the previous main commit. Rebased its content onto the current main line after PRs #157 and #158 had advanced main.
+- Corrected the Wrangler config: direct Workers VPC Network bindings to a specific Cloudflare Tunnel use `tunnel_id`; `network_id` is for `cf1:network` or `cf1:vnet:<UUID>`. This was checked against Cloudflare's current VPC Networks and Binding API documentation.
+- Added a test-only Worker wrapper, unit tests, and a disposable Wrangler config. The wrapper maps one fixed synthetic public peer to one RFC1918 TCP target through `PROXY_VPC.connect()`. It overrides the handler-visible `remoteAddress`; therefore it deliberately bypasses real private-peer identity validation and must never be imported by production code.
+- Added a bounded runbook section documenting Workers VPC beta/plaintext-TCP caveats, `cloudflared` version/QUIC prerequisites, isolation and cleanup steps. Expanded CI push branch coverage to include `test/**` so test branches receive the same `npm run verify` workflow.
+- No Tunnel, Worker, D1, route, DNS record, binding, firewall rule, or local TCP server configuration was created or changed. The live VPC smoke test remains not executed. Existing staging Worker/D1 remain excluded.
+- PR #159 contains the rebased VPC harness. Exact-head CI and review are pending.
+- Issue #78 remains open: this harness can potentially exercise the VLESS handler with a controlled private TCP endpoint, but does not itself establish live VPC reachability, Worker-bound D1 correctness, slow-reader behavior, or Cloudflare-internal WebSocket buffer bounds.
+- Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
