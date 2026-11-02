@@ -1166,3 +1166,13 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Tests: not run in this environment; CI result pending. Do not report pass until exact PR-head CI is observed.
 - Runtime: no Cloudflare resources created or changed. No disposable D1, Workers, routes, secrets, tunnels or VPC services created. No Production or existing staging resources touched.
 - Remaining: run exact branch CI; review diff; add a real external WebSocket VLESS client runner and safe disposable deploy/cleanup workflow; seed only disposable D1 with a test credential; run the approved probe (10 s, 8 MiB, 16 KiB frames, max 2 clients); delete test resources and verify absence. Keep this Service Binding result separate from Workers VPC acceptance and Cloudflare-internal WebSocket backpressure claims.
+
+
+## Post-merge verification — 2026-11-02 — PR #161
+
+- PR #161 merged by squash: https://github.com/ijoolaie/imoxy-net/pull/161; main commit `60918bba2eecba04e947a1701f85adcf1d8f960b`.
+- Exact PR-head CI for `38322c433afd5c4ac11eb06833a651a9d1d6a1f3`: `npm run verify` passed (runs 41450169221 and 41450176376).
+- Exact post-merge main CI for `60918bba2eecba04e947a1701f85adcf1d8f960b`: passed (run 41450325053).
+- The PR introduces only test scaffolding, unit tests, and acceptance documentation. No runtime Cloudflare deployment or live VLESS/D1/TCP probe was run. No Cloudflare resources were created or changed.
+- Next concrete step: implement and verify an isolated external test client and a disposable deploy/seed/cleanup workflow. First prove whether Worker-to-Worker Service Binding HTTP forwarding can deliver a WebSocket upgrade; current Cloudflare docs explicitly document raw TCP Service Binding forwarding but do not clearly document this WebSocket test-client route. If unsupported, use a dedicated external CI runner after safe deployment. Do not claim the runtime test is ready until that client path is demonstrated.
+- Keep Workers VPC, actual peer identity, D1-in-Worker integration, and Cloudflare-internal WebSocket buffer/backpressure as separate acceptance claims. Existing production and staging resources remain untouched.
