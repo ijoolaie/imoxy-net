@@ -299,3 +299,19 @@ This is partial Cloudflare remote-runtime evidence for the real handler/module g
 This evidence is distinct from the later one-shot direct multipart API upload attempt (PR #162 workflow run `41452175268`), which failed at the external client's first WebSocket connection and whose uploaded disposable Worker returned HTTP 500 on `/health`. PR #163 corrected its module export shape but did not resolve that API-upload harness failure. Those failures do not invalidate the independently successful Wrangler remote-preview run; neither do they satisfy the full Worker/D1/TCP acceptance gate.
 
 All disposable resources from the API-upload attempt were deleted and their absence verified. Existing staging and Production remain untouched. The next useful gate is to run the actual handler under a Wrangler-native remote preview with a dedicated disposable D1 binding and controlled Worker-to-Worker TCP echo Service Binding, using the existing external Node WebSocket client and the approved limits (10 seconds, 8 MiB, 16 KiB frames, max 2 clients). Do not bypass the safety control that blocked Wrangler remote D1 migration execution; use only an approved D1 provisioning/migration path. Keep the D1 and TCP acceptance claims blocked until the exact Worker-bound results and cleanup are observed.
+
+
+## 2026-11-02 — manually dispatched Wrangler + D1 + Service Binding smoke
+
+The new .github/workflows/vless-cloudflare-smoke.yml is restricted to workflow_dispatch on main and requires the operator to set confirm_disposable_run=true. It consumes only CLOUDFLARE_API_TOKEN; the account ID is pinned in the runner and checked before any write. Resource names are unique to the GitHub run/attempt and use the imoxy-vless-smoke- prefix. Existing Workers, D1 databases, Production, and staging resources are never selected as targets.
+
+The runner:
+- Creates one EU D1 database through the Cloudflare D1 API and applies exactly migrations 0001–0008 through the D1 query API (not Wrangler remote migrations).
+- Seeds one disposable active account and a SHA-256-only credential record.
+- Deploys the TCP Echo Worker with Wrangler, workers_dev=false, preview_urls=false, and no route/domain.
+- Runs the production VLESS handler/module graph through wrangler dev --remote, with a D1 binding and the Service Binding to that echo Worker; the VLESS Worker config also disables workers.dev and preview URLs.
+- Uses the existing external Node client for two concurrent sessions, 16 KiB frames, an 8.5-second client timeout, a 10-second handler lifetime, and an 8 MiB account quota. Each client sends 65,542 payload bytes; expected D1 upload and download totals are each 131,084 bytes and request count is 2.
+- Requires settled reservation bytes to equal combined upload/download bytes, no active or released reservations, and no remaining session leases.
+- Stops the preview, deletes only the two run-specific Worker script names and D1 database, then verifies that those exact resources are absent.
+
+The workflow has **not yet been dispatched**. A successful run would establish a bounded Worker-bound D1 + Service Binding TCP smoke for this harness only; it would not establish Nova parity, real public outbound TCP, VPC/private-network behavior, or Cloudflare-internal WebSocket buffer bounds. Any cleanup-verification failure is a hard failure and requires manual inventory review before another run.
