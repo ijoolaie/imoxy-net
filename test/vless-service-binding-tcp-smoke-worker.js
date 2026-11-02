@@ -6,7 +6,12 @@ import {
 
 const vlessProxy = createVlessWebSocketHandler({
   connectTcp: createServiceBindingTcpConnector(),
-  resolveDestination: resolveServiceBindingSmokeDestination
+  resolveDestination: resolveServiceBindingSmokeDestination,
+  onDiagnostic(event) {
+    // Test-only, payload-free timing and byte counters. Never log credentials,
+    // destination identifiers, reservation IDs, or payload contents.
+    console.log(`VLESS_SMOKE_DIAG ${JSON.stringify(event)}`);
+  }
 });
 
 export default {
