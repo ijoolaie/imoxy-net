@@ -1269,3 +1269,12 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - Intermediate commit `e6bfc0fc31453ad306cd523597a0e72bc8e35b02` had a failing CI run [41474144661](https://github.com/ijoolaie/imoxy-net/actions/runs/41474144661): the diagnostic regression test was added before the harness passed the callback. The callback wiring was added in `c3906ce...`, and the exact latest code/test head passed. No failure is being hidden or treated as passing.
 - Current branch has documentation-only follow-up commits after the tested code/test head. Recheck exact final branch head and its CI before PR review.
 - No Cloudflare workflow dispatched; no Cloudflare resources created or modified.
+
+
+## PR review and merge gate — 2026-11-02
+
+- Opened PR #170: https://github.com/ijoolaie/imoxy-net/pull/170 (`test(vless): instrument disposable relay stages`). Exact PR-head CI run [41474770298](https://github.com/ijoolaie/imoxy-net/actions/runs/41474770298) completed `npm run verify` successfully on `2f961bf196f6140eb932cb7f61da45181ea3f408`.
+- Reviewed the nine-file diff: optional callback defaults to null; production callers do not enable it; the disposable Worker alone emits redacted stage events; the echo transform logs byte/chunk counts only; tests cover callback event presence and redaction. Existing limits and resource isolation are unchanged.
+- A squash-merge request for PR #170 was blocked by the host safety controls. Do not attempt to bypass the block. PR remains open pending an authorized merge action.
+- No Cloudflare workflow was dispatched and no Cloudflare resources were created or modified.
+- Next: merge PR #170 through the normal GitHub UI/authorized path; verify post-merge main CI; only then manually dispatch the isolated diagnostic smoke workflow and inspect per-stage logs plus D1 accounting/cleanup. Existing Production and staging remain out of scope.
