@@ -68,7 +68,7 @@ function runSession(sessionIndex) {
       }
     };
 
-    const timer = setTimeout(() => finish(new Error(`session ${sessionIndex + 1} exceeded ${SESSION_TIMEOUT_MS}ms`)), SESSION_TIMEOUT_MS);
+    const timer = setTimeout(() => finish(new Error(\n      `session ${sessionIndex + 1} exceeded ${SESSION_TIMEOUT_MS}ms ` +\n      `(readyState=${socket.readyState}, handshakeReceived=${handshakeReceived}, ` +\n      `sentFrames=${sentFrames}, receivedBytes=${receivedBytes}/${expected.byteLength})`\n    )), SESSION_TIMEOUT_MS);
 
     socket.addEventListener("open", () => {
       socket.send(vlessRequest(initial));
