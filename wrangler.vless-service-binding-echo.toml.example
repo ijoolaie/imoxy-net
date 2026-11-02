@@ -1,0 +1,6 @@
+# Internal-only disposable TCP echo Worker. No public URL, routes, or domains.
+name = "imoxy-vless-tcp-echo-disposable"
+main = "./test/vless-service-binding-tcp-echo-worker.js"
+compatibility_date = "2026-11-02"
+workers_dev = false
+preview_urls = false

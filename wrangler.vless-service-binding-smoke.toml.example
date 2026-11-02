@@ -1,0 +1,29 @@
+# Dedicated disposable VLESS Worker. Never point this at existing staging or production.
+name = "imoxy-vless-service-smoke-disposable"
+main = "./test/vless-service-binding-tcp-smoke-worker.js"
+compatibility_date = "2026-11-02"
+workers_dev = true
+preview_urls = false
+
+[vars]
+PROXY_WS_PATH = "/proxy/vless"
+PROXY_ALLOWED_HOSTS = "probe.imoxy.invalid"
+PROXY_ALLOWED_PORTS = "5000"
+PROXY_USAGE_PRODUCER_ID = "imoxy-vless-service-binding-smoke"
+PROXY_MAX_DOWNLOAD_BYTES = "8388608"
+PROXY_MAX_SESSION_DURATION_MS = "10000"
+PROXY_MAX_CONCURRENT_SESSIONS = "2"
+PROXY_SESSION_LEASE_GRACE_MS = "30000"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "imoxy-vless-service-smoke-disposable"
+database_id = "REPLACE_WITH_NEW_DISPOSABLE_D1_ID"
+migrations_dir = "./migrations"
+
+[[services]]
+binding = "PROXY_TCP_ECHO"
+service = "imoxy-vless-tcp-echo-disposable"
+
+# Deploy the backend from wrangler.vless-service-binding-echo.toml.example
+# with workers_dev = false and no routes/domains.
