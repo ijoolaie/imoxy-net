@@ -123,10 +123,18 @@ test("VLESS handler relays through a real local TCP echo server and settles both
   const quotaService = createQuotaReservationService({ store, now: () => NOW, leaseDurationMs: 30_000 });
   const client = new FakeWebSocket();
   const server = new FakeWebSocket();
+  let tcpConnection;
+  t.after(async () => {
+    server.close(1000, "local_echo_test_cleanup");
+    await tcpConnection?.close();
+  });
   const handler = createVlessWebSocketHandler({
     storeFactory: () => store,
     quotaServiceFactory: () => quotaService,
-    connectTcp: async () => connectLocalEcho(),
+    connectTcp: async () => {
+      tcpConnection = connectLocalEcho();
+      return tcpConnection;
+    },
     // Deliberately synthetic: destination policy/DNS pinning is not the subject
     // of this local transport integration test.
     resolveDestination: async () => ["93.184.216.34"],
