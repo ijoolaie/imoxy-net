@@ -1092,3 +1092,13 @@ Follow-up branch: `fix/worker-websocket-backpressure-compat`. It removes the unv
 - Issue #78 remains open. Internal Workers WebSocket buffer behavior, real Worker-bound D1 + controlled TCP, longer/aggregate slow-reader behavior, and isolate-termination lifecycle evidence remain outstanding.
 - Branch: `test/vless-ipv4-ipv6-dial-fallback-20261102`; PR #154 exact head `184e82397c06fc99fdeb864406befeb46abbe234` passed GitHub Actions CI run #918, including `npm run verify`. The subsequent handoff-only update requires its own exact-head CI check before merge.
 - Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
+
+
+## Latest work session — 2026-11-02 (IANA destination-address coverage)
+
+- PR #153 merged as `d163868f3e72063ab72ba9e1884ae15997a41d95`; exact post-merge main CI passed. PR #154 merged as `58b117d9b3b3ec2bb7454eb3d06f733f2c496d54`; exact PR-head CI run #919 and post-merge main CI both passed `npm run verify`.
+- PR #154 adds deterministic mixed A/AAAA DNS filtering and IPv4-to-IPv6 fallback coverage. Its test validates peer pinning before forwarding initial payload and checks upload settlement and lease cleanup. This uses synthetic DNS and fake WebSocket/TCP adapters only.
+- PR #155 adds IPv4/IPv6 numeric-literal regression matrices based on the IANA Special-Purpose Address Registries (updated 2025-10-09). It documents conservative rejection of the full 192.0.0.0/24 and 2001::/23 parent blocks, including more-specific protocol-anycast entries, while preserving the globally reachable AS112-v6 range for explicit allowlisting.
+- PR #155 is open on branch `test/vless-iana-special-purpose-addresses-20261102`; initial head `1e05c7e0140e88b5c5c45e4ff8c0ac1c9f3f4cf9` passed GitHub Actions run #920 (`npm run verify`). This handoff update creates a newer PR head and must receive its own exact-head CI check before merge.
+- Issue #78 remains open. No Cloudflare Worker, D1, route, DNS, binding, proxy setting, or external TCP destination was changed. Workers internal WebSocket buffering, actual Worker-bound D1 + controlled TCP, aggregate slow-reader behavior, isolate-termination lifecycle, and Nova parity remain unproven.
+- Phase 6 remains **In progress**; Phase 12 remains **Blocked**; Phase 13 remains **Not started**. No phase is Complete.
