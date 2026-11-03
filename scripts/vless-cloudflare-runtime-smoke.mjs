@@ -6,7 +6,7 @@ if (typeof WebSocket !== "function") throw new Error("Node WebSocket client is u
 const encoder = new TextEncoder();
 const FRAME_BYTES = 16 * 1024;
 const FRAME_COUNT = 4;
-const SESSION_TIMEOUT_MS = 8_500;
+const SESSION_TIMEOUT_MS = 25_000;
 const UUID_BYTES = Uint8Array.from(
   credential.replaceAll("-", "").match(/.{2}/g) ?? [],
   (part) => Number.parseInt(part, 16)

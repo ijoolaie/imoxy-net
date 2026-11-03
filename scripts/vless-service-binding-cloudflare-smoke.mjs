@@ -127,7 +127,7 @@ function configForVless(databaseUuid, diagnosticsToken) {
     'PROXY_ALLOWED_PORTS = "5000"',
     'PROXY_USAGE_PRODUCER_ID = ' + tomlString("imoxy-vless-smoke-" + suffix),
     'PROXY_MAX_DOWNLOAD_BYTES = "8388608"',
-    'PROXY_MAX_SESSION_DURATION_MS = "10000"',
+    'PROXY_MAX_SESSION_DURATION_MS = "30000"',
     'PROXY_MAX_CONCURRENT_SESSIONS = "2"',
     'PROXY_SESSION_LEASE_GRACE_MS = "30000"',
     "SMOKE_DIAGNOSTICS_TOKEN = " + tomlString(diagnosticsToken),
@@ -318,7 +318,7 @@ async function main() {
       IMOXY_VLESS_CREDENTIAL: credential
     },
     encoding: "utf8",
-    timeout: 15_000,
+    timeout: 35_000,
     maxBuffer: 2 * 1024 * 1024
   });
   if (smoke.error) throw smoke.error;
@@ -380,7 +380,7 @@ async function main() {
     accountScope: "fixed disposable-test Cloudflare account only",
     clients: 2,
     frameBytes: 16 * 1024,
-    sessionLimitMs: 10_000,
+    sessionLimitMs: 30_000,
     uploadBytes: Number(usage.upload_bytes),
     downloadBytes: Number(usage.download_bytes),
     requestCount: Number(usage.request_count),

@@ -5,6 +5,8 @@ import {
 } from "./vless-service-binding-tcp-connector.js";
 
 const MAX_DIAGNOSTIC_EVENTS = 256;
+const MAX_LOGGED_DIAGNOSTIC_EVENTS = 64;
+let loggedDiagnosticEvents = 0;
 const diagnosticEvents = [];
 let droppedDiagnosticEvents = 0;
 
@@ -22,6 +24,13 @@ export function recordDiagnostic(event) {
     droppedDiagnosticEvents += 1;
   }
   diagnosticEvents.push(record);
+  if (loggedDiagnosticEvents < MAX_LOGGED_DIAGNOSTIC_EVENTS) {
+    console.log("VLESS_SMOKE_DIAGNOSTIC " + JSON.stringify(record));
+    loggedDiagnosticEvents += 1;
+  } else if (loggedDiagnosticEvents === MAX_LOGGED_DIAGNOSTIC_EVENTS) {
+    console.log("VLESS_SMOKE_DIAGNOSTIC further events suppressed");
+    loggedDiagnosticEvents += 1;
+  }
 }
 
 const vlessProxy = createVlessWebSocketHandler({
