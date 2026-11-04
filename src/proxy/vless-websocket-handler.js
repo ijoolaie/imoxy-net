@@ -397,9 +397,14 @@ export function createVlessWebSocketHandler({
       const releaseSessionLease = async () => {
         if (!state.sessionLeaseAcquired || state.sessionLeaseReleaseStarted) return;
         state.sessionLeaseReleaseStarted = true;
+        emitDiagnostic(onDiagnostic, "session.lease_release.start");
         try {
-          await store.releaseProxySession({ sessionId: state.sessionId, accountId: state.accountId });
-        } catch {
+          const released = await store.releaseProxySession({ sessionId: state.sessionId, accountId: state.accountId });
+          emitDiagnostic(onDiagnostic, "session.lease_release.complete", { released: released === true });
+        } catch (error) {
+          emitDiagnostic(onDiagnostic, "session.lease_release.error", {
+            errorName: typeof error?.name === "string" ? error.name : "Error"
+          });
           // Keep an uncertain lease counted until its expiry; never free capacity
           // based on an ambiguous release outcome.
         }
@@ -407,6 +412,7 @@ export function createVlessWebSocketHandler({
 
       const closeSession = async (code = 1000, reason = "closed") => {
         if (state.closed) return;
+        emitDiagnostic(onDiagnostic, "session.close.start", { code, reason });
         state.closed = true;
         resolveSessionClosed(SESSION_CLOSED);
         if (handshakeTimer !== null) {
@@ -431,10 +437,13 @@ export function createVlessWebSocketHandler({
           catch { return Promise.resolve(); }
         };
         const socketClosures = [];
+        const closeSocket = (socket, kind) => runCleanup(() =>
+          measureDiagnostic(onDiagnostic, "tcp.socket_close", { kind }, () => socket.close())
+        );
         const pendingSocket = state.pendingSocket;
         state.pendingSocket = null;
-        if (pendingSocket) socketClosures.push(runCleanup(() => pendingSocket.close()));
-        if (state.socket) socketClosures.push(runCleanup(() => state.socket.close()));
+        if (pendingSocket) socketClosures.push(closeSocket(pendingSocket, "pending"));
+        if (state.socket) socketClosures.push(closeSocket(state.socket, "active"));
         await Promise.all(socketClosures);
         try { Promise.resolve(state.reader?.cancel()).catch(() => {}); } catch {}
         try { Promise.resolve(state.writer?.abort()).catch(() => {}); } catch {}
@@ -677,6 +686,7 @@ export function createVlessWebSocketHandler({
               return;
             }
             state.sessionLeaseAcquired = true;
+            emitDiagnostic(onDiagnostic, "session.lease_acquired");
 
             // DNS may return both IPv4 and IPv6. Try each validated numeric pin
             // if opening the transport fails; never retry after forwarding data.
@@ -797,7 +807,10 @@ export function createVlessWebSocketHandler({
           }
         }).catch(() => closeSession(1011, "proxy_session_failed"));
       });
-      server.addEventListener("close", () => { void closeSession(1000, "client_closed"); });
+      server.addEventListener("close", () => {
+        emitDiagnostic(onDiagnostic, "websocket.close_event");
+        void closeSession(1000, "client_closed");
+      });
       server.addEventListener("error", () => { void closeSession(1011, "websocket_error"); });
 
       if (!Number.isSafeInteger(initialHandshakeTimeoutMs) || initialHandshakeTimeoutMs < 1 ||

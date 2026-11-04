@@ -6,16 +6,20 @@ import {
 
 const MAX_DIAGNOSTIC_EVENTS = 256;
 const MAX_LOGGED_DIAGNOSTIC_EVENTS = 64;
+const MAX_LOGGED_LIFECYCLE_EVENTS = 32;
 let loggedDiagnosticEvents = 0;
+let loggedLifecycleEvents = 0;
 const diagnosticEvents = [];
 let droppedDiagnosticEvents = 0;
 
 export function recordDiagnostic(event) {
   // Keep only the small, explicitly approved payload-free fields.
   const record = { event: String(event?.event ?? "unknown") };
-  for (const key of ["direction", "bytes", "durationMs", "errorName"]) {
+  for (const key of ["direction", "bytes", "durationMs", "errorName", "kind", "reason", "code", "released"]) {
     const value = event?.[key];
-    if (typeof value === "string" || (typeof value === "number" && Number.isFinite(value))) {
+    if (typeof value === "string" ||
+        (typeof value === "number" && Number.isFinite(value)) ||
+        typeof value === "boolean") {
       record[key] = value;
     }
   }
@@ -24,6 +28,13 @@ export function recordDiagnostic(event) {
     droppedDiagnosticEvents += 1;
   }
   diagnosticEvents.push(record);
+  const isLifecycleEvent = record.event.startsWith("session.") ||
+    record.event === "websocket.close_event" ||
+    record.event.startsWith("tcp.socket_close.");
+  if (isLifecycleEvent && loggedLifecycleEvents < MAX_LOGGED_LIFECYCLE_EVENTS) {
+    console.log("VLESS_SMOKE_LIFECYCLE " + JSON.stringify(record));
+    loggedLifecycleEvents += 1;
+  }
   if (loggedDiagnosticEvents < MAX_LOGGED_DIAGNOSTIC_EVENTS) {
     console.log("VLESS_SMOKE_DIAGNOSTIC " + JSON.stringify(record));
     loggedDiagnosticEvents += 1;
