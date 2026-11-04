@@ -1397,3 +1397,11 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - Local `npm run verify` passed: 234 tests, 233 passed, 0 failed, 1 skipped (opt-in local TCP integration). `git diff --check` passed and the worktree was clean before this handoff update.
 - No PR was merged. PR #175 remains open and untouched; PR #176 remains merged. Cloudflare smoke run #5 remains a runtime acceptance failure (`activeSessions=1`). No new Cloudflare workflow dispatch, deploy, or resource mutation occurred. Production and existing staging remain untouched.
 - Phase status unchanged: Phase 6 In Progress; Phase 12 Blocked; Phase 13 Not started; no phase is Complete.
+
+## 2026-11-04 - lifecycle diagnostics continuation verification
+
+- Reconnected to the local Raya workspace and revalidated the repository state: branch `fix/vless-lifecycle-diagnostics`, HEAD `ebdd22531a5ce846b9f56d2b58ef67ebfa16501b`, tracking `origin/fix/vless-lifecycle-diagnostics`; worktree clean before this handoff-only update. `git diff --check` passed.
+- Re-ran the complete local Node test suite through the predefined `npm_test` check: 234 tests, 233 passed, 0 failed, 1 skipped; exit code 0. The single skip is the opt-in local TCP integration test. This check is `npm test`, not the composite `npm run verify` command.
+- Rechecked PR #178: open and unmerged; no issue comments, inline review threads, or submitted reviews. Exact-head CI run `41803280852` (run 1096) is completed/success on `ebdd22531a5ce846b9f56d2b58ef67ebfa16501b`.
+- Re-read the lifecycle close path and diagnostics recorder. No additional deterministic defect was established. The close listener still starts `closeSession` fire-and-forget; the local fake WebSocket dispatches close synchronously, so local tests do not prove Cloudflare event-delivery/lifetime behavior. Do not infer this is the root cause without runtime evidence.
+- No source changes, Cloudflare dispatches/reruns, deployments, resource mutations, PR merges, or roadmap phase changes. PR #175 remains untouched; PR #176 remains merged. Production and pre-existing staging remain untouched. Phase 6 remains In Progress; Phase 12 Blocked; Phase 13 Not started; no phase is Complete.
