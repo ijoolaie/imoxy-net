@@ -90,6 +90,16 @@ test("test-only diagnostics endpoint is token-gated, bounded, and payload-free",
     });
   }
 
+  recordDiagnostic({
+    event: "session.lease_release.complete",
+    released: true,
+    kind: "active",
+    reason: "client_closed",
+    code: 1000,
+    sessionId: "must-not-appear",
+    payload: "must-not-appear"
+  });
+
   const env = { SMOKE_DIAGNOSTICS_TOKEN: "a".repeat(36) };
   const unauthorized = await worker.fetch(
     new Request("https://smoke.test/_test/diagnostics"),
@@ -108,13 +118,13 @@ test("test-only diagnostics endpoint is token-gated, bounded, and payload-free",
   const body = await response.json();
   assert.equal(body.scope, "current-worker-isolate");
   assert.equal(body.events.length, 256);
-  assert.equal(body.droppedEvents, 4);
+  assert.equal(body.droppedEvents, 5);
   assert.deepEqual(body.events.at(-1), {
-    event: "tcp.read_chunk",
-    direction: "download",
-    bytes: 260,
-    durationMs: 1.5,
-    errorName: "ExampleError"
+    event: "session.lease_release.complete",
+    kind: "active",
+    reason: "client_closed",
+    code: 1000,
+    released: true
   });
   assert.equal(JSON.stringify(body).includes("must-not-appear"), false);
 });
