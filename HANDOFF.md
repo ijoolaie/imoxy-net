@@ -1388,3 +1388,12 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - `git diff --check` passed; only the standard Windows LF-to-CRLF working-copy warnings appeared. Changes remain limited to `HANDOFF.md`, the VLESS WebSocket handler, disposable smoke Worker, and their two focused test files.
 - Runtime acceptance is still unproven: Cloudflare disposable smoke run #5 remains failed with `activeSessions=1`. No new Cloudflare dispatch, deployment, or resource mutation was performed. Production and existing staging remain untouched.
 - PR #175 remains open and untouched; PR #176 remains merged. No merge was performed. Phase 6 remains In Progress; Phase 12 Blocked; Phase 13 Not started; no phase is Complete.
+
+## 2026-11-04 - lifecycle diagnostics PR handoff
+
+- Final review branch: `fix/vless-lifecycle-diagnostics`, based directly on `main`; implementation commit `720b59bde17a542bea32454445b6e19abd6d21cd` (`fix(vless): add session lifecycle diagnostics`). The branch comparison against `main` contained exactly one commit and five intended files: this handoff, the VLESS WebSocket handler, the disposable smoke Worker, and their two focused test files.
+- Opened PR #178: https://github.com/ijoolaie/imoxy-net/pull/178. It is open and unmerged. PR #177 was closed unmerged as a superseded draft because its original branch ancestry included already-squash-merged PR #176 changes. The temporary branch `fix/vless-smoke-timeout-diagnostics` was left intact; no force-push was used.
+- Exact-head CI for implementation commit `720b59bde17a542bea32454445b6e19abd6d21cd` completed successfully: run 41803187022 (CI run 1094), job `test`, including `npm run verify`.
+- Local `npm run verify` passed: 234 tests, 233 passed, 0 failed, 1 skipped (opt-in local TCP integration). `git diff --check` passed and the worktree was clean before this handoff update.
+- No PR was merged. PR #175 remains open and untouched; PR #176 remains merged. Cloudflare smoke run #5 remains a runtime acceptance failure (`activeSessions=1`). No new Cloudflare workflow dispatch, deploy, or resource mutation occurred. Production and existing staging remain untouched.
+- Phase status unchanged: Phase 6 In Progress; Phase 12 Blocked; Phase 13 Not started; no phase is Complete.
