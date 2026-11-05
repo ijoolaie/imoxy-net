@@ -1594,3 +1594,12 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - Exact-head push CI run `42114169318` and pull_request CI run `42114189574` both completed successfully; each test job's `Run npm run verify` step passed. GitHub reports PR #179 mergeable and `clean`; there are no submitted reviews or inline review threads.
 - PR #179 was created after the earlier request to merge the then-completed PRs #175 and #178. It remains open and unmerged pending an explicit merge instruction for this newly created PR. No branch protection or review requirements were bypassed.
 - The current code change remains limited to cooperative cancellation before the default Cloudflare TCP `connect()` call; dynamic module import and connectors that ignore the signal remain possible pending cases. No Cloudflare runtime test was run and smoke run #5's `activeSessions=1` remains unexplained.
+
+## 2026-11-06 - PR #179 merged and post-merge CI
+
+- PR #179 (`fix(vless): cancel pending TCP socket creation on close`) was squash-merged as `f7fc73b8364c91851eabd22041b8913857fb9a71` after its exact final head `c19a0cb20a680d3cd08de0d2430710d01fc88768` passed both push CI `42114278915` and pull_request CI `42114286336` (each `Run npm run verify` succeeded; no reviews or inline threads were outstanding).
+- Post-merge `main` push CI run `42114365418` completed successfully. PR #179 is closed/merged and there are no open PRs.
+- The abortable dial change is cooperative: the default Cloudflare connector checks cancellation after module import and before synchronous `connect()`; an import that never settles or a custom connector that ignores the signal may remain pending. Existing sockets are still closed before D1 lease release; no speculative release was introduced.
+- Local validation before merge: focused VLESS handler 62/62; full `cmd.exe /c npm run verify` exit 0 with 239 total, 238 passed, 0 failed, 1 skipped; `git diff --check` passed.
+- Cloudflare runtime acceptance remains unresolved: smoke run #5 ended with `activeSessions=1`. No new Cloudflare run, deployment, D1 mutation, route/DNS change, or resource mutation was performed. A new run still requires separate explicit authorization. Production and existing staging remain untouched.
+- Issue #78 remains open. Roadmap phase statuses remain unchanged (0–11 In progress, 12 Blocked, 13 Not started); no phase is Complete.
