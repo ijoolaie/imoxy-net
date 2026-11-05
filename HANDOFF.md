@@ -1429,3 +1429,11 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - PR #178 remains open, unmerged, and mergeable, with head exactly `4642bbf86bdb8d5d835ad1b7ea3e834018756198`. No merge was performed.
 - No source changes, Cloudflare workflow dispatch/rerun, deployment, or resource mutation. Cloudflare smoke run #5 remains failed runtime acceptance (`activeSessions=1` at the end of polling); CI success does not establish runtime acceptance or identify the lease-release root cause. Production and pre-existing staging remain untouched. PR #175 remains untouched; PR #176 remains merged.
 - Roadmap phase statuses remain unchanged; no phase is marked Complete. Runtime acceptance remains unproven and requires a separately authorized disposable Cloudflare smoke run.
+## 2026-11-05 - PR #178 review-state and local regression recheck
+
+- Reconnected to Raya and confirmed the feature worktree is clean at `363aa27c9d6d846a549dcb5b745813388c82d5be`; `git diff --check` passed.
+- Rechecked PR #178: open, unmerged, mergeable, exact head `363aa27c9d6d846a549dcb5b745813388c82d5be`, base `main`. No issue comments, inline review threads, or submitted reviews are present. No reviewer feedback or requested changes are pending.
+- Re-ran the predefined local `npm_test` check: exit code 0; 234 tests, 233 passed, 0 failed, 1 skipped (opt-in local TCP integration). This is `npm test`, not a fresh local `npm run verify`.
+- Exact-head CI for this commit remains successful: push run 41975868218 (run 1101) and pull_request run 41975874976 (run 1102), both with the `test` job completed/success.
+- Roadmap audit table remains unchanged: phases 0-11 In Progress, phase 12 Blocked, phase 13 Not started; no phase is Complete. Phase 6's full Worker/D1/TCP runtime acceptance remains unverified.
+- No source changes, PR review submission, merge, Cloudflare workflow dispatch/rerun, deployment, or resource mutation. Cloudflare smoke run #5 remains failed acceptance with `activeSessions=1`. Production and pre-existing staging remain untouched; PR #175 remains untouched.
