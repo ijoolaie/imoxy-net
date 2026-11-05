@@ -1587,3 +1587,10 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - Focused `test/vless-websocket-handler.test.js`: 62/62 passed. Full `cmd.exe /c npm run verify`: exit 0; syntax checks passed; 239 tests total, 238 passed, 0 failed, 1 skipped (opt-in local TCP integration). `git diff --check` passed.
 - This only cancels cooperative connection adapters before socket creation; the default Workers adapter checks the signal after module import and before synchronous `connect()`. Module import itself and non-cooperative adapters remain possible pending risks. Existing late-socket close ordering and conservative lease release are unchanged.
 - Next: push `fix/vless-abortable-dial-cancellation`, verify exact-head push/PR CI, then open a focused PR. No Cloudflare smoke run is authorized or performed.
+
+## 2026-11-06 - PR #179 exact-head CI result
+
+- PR #179 opened: https://github.com/ijoolaie/imoxy-net/pull/179, branch `fix/vless-abortable-dial-cancellation`, head `07ef18a5ecdb846890a92c923e695e3ab11579aa`, base `main` at `241a3c1a51f0e9dfa41788673f3c500662f58d4a`.
+- Exact-head push CI run `42114169318` and pull_request CI run `42114189574` both completed successfully; each test job's `Run npm run verify` step passed. GitHub reports PR #179 mergeable and `clean`; there are no submitted reviews or inline review threads.
+- PR #179 was created after the earlier request to merge the then-completed PRs #175 and #178. It remains open and unmerged pending an explicit merge instruction for this newly created PR. No branch protection or review requirements were bypassed.
+- The current code change remains limited to cooperative cancellation before the default Cloudflare TCP `connect()` call; dynamic module import and connectors that ignore the signal remain possible pending cases. No Cloudflare runtime test was run and smoke run #5's `activeSessions=1` remains unexplained.
