@@ -378,6 +378,7 @@ export function createVlessWebSocketHandler({
         buffer: new Uint8Array(),
         socket: null,
         pendingSocket: null,
+        pendingConnectPromise: null,
         reader: null,
         writer: null,
         writeQueue: Promise.resolve(),
@@ -397,9 +398,14 @@ export function createVlessWebSocketHandler({
       const releaseSessionLease = async () => {
         if (!state.sessionLeaseAcquired || state.sessionLeaseReleaseStarted) return;
         state.sessionLeaseReleaseStarted = true;
+        emitDiagnostic(onDiagnostic, "session.lease_release.start");
         try {
-          await store.releaseProxySession({ sessionId: state.sessionId, accountId: state.accountId });
-        } catch {
+          const released = await store.releaseProxySession({ sessionId: state.sessionId, accountId: state.accountId });
+          emitDiagnostic(onDiagnostic, "session.lease_release.complete", { released: released === true });
+        } catch (error) {
+          emitDiagnostic(onDiagnostic, "session.lease_release.error", {
+            errorName: typeof error?.name === "string" ? error.name : "Error"
+          });
           // Keep an uncertain lease counted until its expiry; never free capacity
           // based on an ambiguous release outcome.
         }
@@ -407,6 +413,7 @@ export function createVlessWebSocketHandler({
 
       const closeSession = async (code = 1000, reason = "closed") => {
         if (state.closed) return;
+        emitDiagnostic(onDiagnostic, "session.close.start", { code, reason });
         state.closed = true;
         resolveSessionClosed(SESSION_CLOSED);
         if (handshakeTimer !== null) {
@@ -423,6 +430,14 @@ export function createVlessWebSocketHandler({
           idleTimer = null;
         }
         try { server.close(code, reason); } catch {}
+        // A connect attempt may still be creating a socket. Wait for its tracked
+        // completion: if it resolves after closure, its continuation closes the
+        // late socket before the promise settles. This keeps lease release behind
+        // every in-flight dial cleanup, not only sockets already assigned below.
+        const pendingConnect = state.pendingConnectPromise;
+        if (pendingConnect) {
+          try { await pendingConnect; } catch {}
+        }
         // Close the TCP socket(s) before releasing the admission lease. Socket.close()
         // forcibly closes both stream sides; do not let a separate reader.cancel()
         // or writer.abort() promise block socket closure or lease cleanup.
@@ -431,10 +446,13 @@ export function createVlessWebSocketHandler({
           catch { return Promise.resolve(); }
         };
         const socketClosures = [];
+        const closeSocket = (socket, kind) => runCleanup(() =>
+          measureDiagnostic(onDiagnostic, "tcp.socket_close", { kind }, () => socket.close())
+        );
         const pendingSocket = state.pendingSocket;
         state.pendingSocket = null;
-        if (pendingSocket) socketClosures.push(runCleanup(() => pendingSocket.close()));
-        if (state.socket) socketClosures.push(runCleanup(() => state.socket.close()));
+        if (pendingSocket) socketClosures.push(closeSocket(pendingSocket, "pending"));
+        if (state.socket) socketClosures.push(closeSocket(state.socket, "active"));
         await Promise.all(socketClosures);
         try { Promise.resolve(state.reader?.cancel()).catch(() => {}); } catch {}
         try { Promise.resolve(state.writer?.abort()).catch(() => {}); } catch {}
@@ -656,7 +674,16 @@ export function createVlessWebSocketHandler({
               }))
               .then(async (result) => {
                 if (state.closed && result?.allowed) {
-                  try { await store.releaseProxySession({ sessionId, accountId: account.id }); } catch {}
+                  emitDiagnostic(onDiagnostic, "session.lease_release_late.start");
+                  try {
+                    const released = await store.releaseProxySession({ sessionId, accountId: account.id });
+                    emitDiagnostic(onDiagnostic, "session.lease_release_late.complete", { released: released === true });
+                  } catch (error) {
+                    emitDiagnostic(onDiagnostic, "session.lease_release_late.error", {
+                      errorName: typeof error?.name === "string" ? error.name : "Error"
+                    });
+                    // An uncertain late release remains counted until persisted expiry.
+                  }
                   return SESSION_CLOSED;
                 }
                 return result;
@@ -668,7 +695,16 @@ export function createVlessWebSocketHandler({
             if (admission === SESSION_CLOSED) return;
             if (state.closed) {
               if (admission?.allowed) {
-                try { await store.releaseProxySession({ sessionId, accountId: account.id }); } catch {}
+                emitDiagnostic(onDiagnostic, "session.lease_release_late.start");
+                try {
+                  const released = await store.releaseProxySession({ sessionId, accountId: account.id });
+                  emitDiagnostic(onDiagnostic, "session.lease_release_late.complete", { released: released === true });
+                } catch (error) {
+                  emitDiagnostic(onDiagnostic, "session.lease_release_late.error", {
+                    errorName: typeof error?.name === "string" ? error.name : "Error"
+                  });
+                  // An uncertain late release remains counted until persisted expiry.
+                }
               }
               return;
             }
@@ -677,6 +713,7 @@ export function createVlessWebSocketHandler({
               return;
             }
             state.sessionLeaseAcquired = true;
+            emitDiagnostic(onDiagnostic, "session.lease_acquired");
 
             // DNS may return both IPv4 and IPv6. Try each validated numeric pin
             // if opening the transport fails; never retry after forwarding data.
@@ -697,8 +734,17 @@ export function createVlessWebSocketHandler({
                       try { await createdSocket?.close?.(); } catch {}
                       return SESSION_CLOSED;
                     }
+                    state.pendingSocket = createdSocket;
                     return createdSocket;
+                  })
+                  .then((result) => {
+                    if (state.pendingConnectPromise === connectPromise) state.pendingConnectPromise = null;
+                    return result;
+                  }, (error) => {
+                    if (state.pendingConnectPromise === connectPromise) state.pendingConnectPromise = null;
+                    throw error;
                   });
+                state.pendingConnectPromise = connectPromise;
                 candidateSocket = await Promise.race([
                   connectPromise,
                   sessionClosed.then(() => SESSION_CLOSED)
@@ -797,7 +843,10 @@ export function createVlessWebSocketHandler({
           }
         }).catch(() => closeSession(1011, "proxy_session_failed"));
       });
-      server.addEventListener("close", () => { void closeSession(1000, "client_closed"); });
+      server.addEventListener("close", () => {
+        emitDiagnostic(onDiagnostic, "websocket.close_event");
+        void closeSession(1000, "client_closed");
+      });
       server.addEventListener("error", () => { void closeSession(1011, "websocket_error"); });
 
       if (!Number.isSafeInteger(initialHandshakeTimeoutMs) || initialHandshakeTimeoutMs < 1 ||

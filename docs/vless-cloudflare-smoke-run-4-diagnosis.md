@@ -1,7 +1,7 @@
 # Cloudflare disposable smoke run 4 — deployment authorization diagnosis
 
-Date: 2026-11-03  
-Workflow run: [41583822792](https://github.com/ijoolaie/imoxy-net/actions/runs/41583822792)  
+Date: 2026-11-03\
+Workflow run: [41583822792](https://github.com/ijoolaie/imoxy-net/actions/runs/41583822792)\
 Commit: `9e48326280753dbcde96faa6d7e10f5b53074edf`
 
 ## Observed result

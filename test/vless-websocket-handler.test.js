@@ -95,7 +95,7 @@ async function settle() {
   for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = () => NOW, timerCallbacks = null, idleTimeoutMs = 120_000, quotaAllowed = true, quotaSettleFails = false, quotaSettleWait = null, quotaReserveFails = false, quotaReserveConflict = false, downstreamSendFails = false, sessionAdmissionAllowed = true, sessionAdmissionFails = false, sessionReleaseFails = false, diagnostics = null } = {}) {
+function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = () => NOW, timerCallbacks = null, idleTimeoutMs = 120_000, quotaAllowed = true, quotaSettleFails = false, quotaSettleWait = null, quotaReserveFails = false, quotaReserveConflict = false, downstreamSendFails = false, sessionAdmissionAllowed = true, sessionAdmissionFails = false, sessionAdmissionWait = null, sessionReleaseFails = false, diagnostics = null } = {}) {
   const client = new FakeWebSocket();
   const server = new FakeWebSocket();
   const originalSend = server.send.bind(server);
@@ -120,6 +120,7 @@ function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = 
         sessionCalls.acquire.push(input);
         events.push("admit");
         if (sessionAdmissionFails) throw new Error("injected session admission failure");
+        if (sessionAdmissionWait) await sessionAdmissionWait;
         return { allowed: sessionAdmissionAllowed, duplicate: false };
       },
       async releaseProxySession(input) {
@@ -1053,12 +1054,17 @@ test("handshake timeout closes a socket whose opened promise never settles", asy
 });
 
 
-test("handshake timeout closes a TCP socket that resolves after session closure", async () => {
+test("handshake timeout waits for a late TCP connection to close before releasing its lease", async () => {
   const timerCallbacks = [];
   let resolveConnect;
+  let resolveSocketClose;
   let closed = false;
+  const socketCloseGate = new Promise((resolve) => { resolveSocketClose = resolve; });
   const upstream = fakeSocket();
-  upstream.socket.close = async () => { closed = true; };
+  upstream.socket.close = async () => {
+    await socketCloseGate;
+    closed = true;
+  };
   const connectPending = new Promise((resolve) => { resolveConnect = resolve; });
   const h = harness({ timerCallbacks, connectTcp: async () => connectPending });
   await h.handler.fetch(request(), h.env);
@@ -1069,13 +1075,19 @@ test("handshake timeout closes a TCP socket that resolves after session closure"
   timerCallbacks[0]();
   await settle();
   assert.ok(h.server.closeCalls.some((item) => item.reason === "initial_request_timeout"));
+  assert.equal(h.sessionCalls.release.length, 0, "lease must remain held while TCP connection creation is unresolved");
+
   resolveConnect(upstream.socket);
   await settle();
+  assert.equal(closed, false, "cleanup must wait for the late TCP socket close operation");
+  assert.equal(h.sessionCalls.release.length, 0, "lease release must wait for late socket close completion");
+
+  resolveSocketClose();
+  await settle();
   assert.equal(closed, true, "late-created TCP socket must be closed");
+  assert.equal(h.sessionCalls.release.length, 1);
   assert.equal(h.quotaCalls.reserve.length, 0);
 });
-
-
 
 test("handshake timeout releases the message queue when DNS never settles", async () => {
   const timerCallbacks = [];
@@ -1360,7 +1372,11 @@ test("session capacity denial and ambiguous admission fail closed before TCP dia
 });
 
 test("session admission lease is released when upstream setup fails and repeated close events do not release twice", async () => {
-  const h = harness({ connectTcp: async () => { throw new Error("injected dial failure"); } });
+  const diagnostics = [];
+  const h = harness({
+    connectTcp: async () => { throw new Error("injected dial failure"); },
+    diagnostics: (event) => diagnostics.push(event)
+  });
   await h.handler.fetch(request(), h.env);
   h.server.receive(vlessRequest({ payload: [] }));
   await settle();
@@ -1370,6 +1386,13 @@ test("session admission lease is released when upstream setup fails and repeated
   h.server.fail();
   await settle();
   assert.equal(h.sessionCalls.release.length, 1);
+  const names = diagnostics.map((event) => event.event);
+  assert.ok(names.includes("session.lease_acquired"));
+  assert.ok(names.includes("session.close.start"));
+  assert.ok(names.includes("session.lease_release.start"));
+  assert.ok(names.includes("session.lease_release.complete"));
+  assert.ok(names.indexOf("websocket.close_event") < names.indexOf("session.lease_release.start"));
+  assert.ok(diagnostics.every((event) => !("sessionId" in event) && !("accountId" in event) && !("payload" in event)));
 });
 
 test("session close does not let stalled stream cleanup block TCP socket close or lease release", async () => {
@@ -1417,6 +1440,68 @@ test("session close does not let stalled stream cleanup block TCP socket close o
   assert.equal(writerAbortCalled, true);
   assert.equal(socketCloseCalled, true);
   assert.equal(h.sessionCalls.release.length, 1, "a stalled stream cleanup must not hold the lease after the TCP socket has closed");
+});
+
+test("late session admission release emits lifecycle diagnostics after websocket closure", async () => {
+  let resolveAdmission;
+  const admissionGate = new Promise((resolve) => { resolveAdmission = resolve; });
+  const diagnostics = [];
+  const h = harness({
+    sessionAdmissionWait: admissionGate,
+    diagnostics: (event) => diagnostics.push(event)
+  });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+  assert.equal(h.sessionCalls.acquire.length, 1);
+
+  h.server.close();
+  await settle();
+  assert.equal(h.sessionCalls.release.length, 0, "no lease exists until the delayed admission resolves");
+
+  resolveAdmission();
+  await settle();
+  assert.equal(h.sessionCalls.release.length, 1);
+  const names = diagnostics.map((event) => event.event);
+  assert.ok(names.includes("session.lease_release_late.start"));
+  assert.ok(names.includes("session.lease_release_late.complete"));
+  assert.equal(names.includes("session.lease_acquired"), false);
+});
+
+test("session lease release waits for TCP socket close and emits lifecycle diagnostics", async () => {
+  let resolveSocketClose;
+  let socketCloseStarted = false;
+  const closeGate = new Promise((resolve) => { resolveSocketClose = resolve; });
+  const upstream = fakeSocket();
+  const originalClose = upstream.socket.close.bind(upstream.socket);
+  upstream.socket.close = async () => {
+    socketCloseStarted = true;
+    await closeGate;
+    await originalClose();
+  };
+  const diagnostics = [];
+  const h = harness({
+    connectTcp: async () => upstream.socket,
+    diagnostics: (event) => diagnostics.push(event)
+  });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  h.server.close();
+  await settle();
+  assert.equal(socketCloseStarted, true);
+  assert.equal(h.sessionCalls.release.length, 0, "lease release must wait for socket close completion");
+
+  resolveSocketClose();
+  await settle();
+  assert.equal(h.sessionCalls.release.length, 1);
+  const names = diagnostics.map((event) => event.event);
+  assert.ok(names.includes("websocket.close_event"));
+  assert.ok(names.includes("tcp.socket_close.start"));
+  assert.ok(names.includes("tcp.socket_close.complete"));
+  assert.ok(names.includes("session.lease_release.complete"));
+  assert.ok(names.indexOf("tcp.socket_close.complete") < names.indexOf("session.lease_release.start"));
 });
 
 test("session release failure does not prevent socket cleanup and is not retried", async () => {

@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { checkPreviewHealth, redactPreviewOutput, summarizePreviewProcess } from "./vless-smoke-preview-diagnostics.mjs";
 import { setTimeout as delay } from "node:timers/promises";
 
 const ROOT = process.cwd();
@@ -174,7 +175,10 @@ async function startRemotePreview() {
   };
   previewProcess.stdout.on("data", capture);
   previewProcess.stderr.on("data", capture);
-  previewProcess.on("error", (error) => { previewLogs += "\n" + error.message; });
+  previewProcess.on("error", (error) => {
+    previewProcess.spawnErrorName = error?.name ?? "Error";
+    previewLogs += "\n" + error.message;
+  });
   vlessAttempted = true;
   try {
     await waitForHealth(previewProcess);
@@ -241,15 +245,26 @@ async function cleanup() {
 }
 
 async function fetchSmokeDiagnostics(token) {
+  const unavailableContext = async (details) => ({
+    available: false,
+    ...details,
+    previewProcess: summarizePreviewProcess(previewProcess),
+    previewHealth: await checkPreviewHealth(),
+    previewOutputTail: redactPreviewOutput(previewLogs, [
+      TOKEN,
+      token,
+      process.env.IMOXY_VLESS_CREDENTIAL
+    ]).slice(-4000)
+  });
   try {
     const response = await fetch("http://127.0.0.1:8787/_test/diagnostics", {
       headers: { "x-imoxy-smoke-diagnostics-token": token },
       signal: AbortSignal.timeout(2000)
     });
-    if (!response.ok) return { available: false, status: response.status };
+    if (!response.ok) return unavailableContext({ status: response.status });
     return { available: true, ...(await response.json()) };
   } catch (error) {
-    return { available: false, error: error?.name ?? "Error" };
+    return unavailableContext({ errorName: error?.name ?? "Error" });
   }
 }
 
