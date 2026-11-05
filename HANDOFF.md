@@ -1466,3 +1466,10 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - Added a regression case in `test/vless-smoke-preview-diagnostics.test.js` for a child with null exit code and a recorded spawn error.
 - Local `npm run verify` completed with exit code 0: syntax checks passed; 237 tests total, 236 passed, 0 failed, 1 skipped (opt-in local TCP integration). This is local evidence only; exact-head CI has not yet run for this new change.
 - No Cloudflare run/dispatch, deployment, resource mutation, PR merge, or production/pre-existing staging changes. PR #178 remains open and unmerged; PR #175 remains untouched. Cloudflare smoke run #5 remains failed runtime acceptance (`activeSessions=1`); this diagnostics improvement neither fixes nor proves the runtime lease issue. Roadmap phase statuses remain unchanged; no phase is Complete.
+
+## 2026-11-05 - spawn-error diagnostics exact-head CI verification
+
+- Committed and pushed the preview spawn-error classification change as `c6005a16ba4fa7fba36f5b048a1ea60ebf7767b6` (`test(vless): classify preview spawn failures`) on `fix/vless-lifecycle-diagnostics`.
+- Exact-head CI completed successfully: push run `41994185263` (CI 1109) and pull_request run `41994194972` (CI 1110), both with the `test` job and `Run npm run verify` step completed successfully.
+- PR #178 remains open, unmerged, mergeable, and points at exact head `c6005a16ba4fa7fba36f5b048a1ea60ebf7767b6`. Its description was updated with the spawn-error behavior, exact-head local/CI evidence, and unchanged runtime limitation. No issue comments, review threads, or submitted reviews are present at the latest check.
+- The handoff is being updated after the code commit; this documentation-only follow-up creates a new commit and requires its own exact-head CI verification. No merge or Cloudflare run was performed.
