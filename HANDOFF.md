@@ -1414,3 +1414,18 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - PR #178 remains open, unmerged, and mergeable; head is the exact SHA above, base is `main`, and five files are changed. Issue comments, review threads, and submitted reviews are empty. No merge was performed.
 - No source changes, Cloudflare workflow dispatch/rerun, deployment, or resource mutation. Cloudflare smoke run #5 remains failed runtime acceptance with `activeSessions=1`; lifecycle instrumentation does not prove or fix that runtime condition. Production and pre-existing staging remain untouched. PR #175 remains untouched; PR #176 remains merged.
 - Phase status unchanged: Phase 6 In Progress; Phase 12 Blocked; Phase 13 Not started; no phase is Complete. Runtime acceptance remains unproven and requires a separately authorized disposable Cloudflare smoke run.
+## 2026-11-05 - exact-head CI completion on 4642bbf
+
+- Reconnected to the configured Raya workspace. Confirmed branch `fix/vless-lifecycle-diagnostics`, HEAD `4642bbf86bdb8d5d835ad1b7ea3e834018756198`, tracking origin; worktree clean before this handoff update and `git diff --check` passed.
+- Rechecked GitHub Actions for the exact HEAD: push run 41973970088 (CI run 1099) and pull_request run 41973974382 (CI run 1100) both completed successfully. The `test` job in each run completed with conclusion `success`.
+- PR #178 remains open, unmerged, and mergeable; exact head is `4642bbf86bdb8d5d835ad1b7ea3e834018756198`, base `main`, five changed files. No merge was performed.
+- No source changes, Cloudflare workflow dispatch/rerun, deployment, or resource mutation. Cloudflare smoke run #5 remains failed runtime acceptance with `activeSessions=1`; the new CI success does not establish runtime acceptance or resolve that lease. Production and pre-existing staging remain untouched. PR #175 remains untouched; PR #176 remains merged.
+- Roadmap phase statuses are unchanged: phases 0-11 In Progress, phase 12 Blocked, phase 13 Not started; no phase is Complete.
+
+## 2026-11-05 - lifecycle diagnostics exact final-head CI completion
+
+- Reconnected to Raya and rechecked the disposable review worktree. Branch `fix/vless-lifecycle-diagnostics` is at `4642bbf86bdb8d5d835ad1b7ea3e834018756198`, tracking its origin branch; `git status` is clean and `git diff --check` passes.
+- GitHub Actions on this exact HEAD are now complete and successful: push run 41973970088 (CI run 1099) and pull_request run 41973974382 (CI run 1100). Both `test` jobs completed with conclusion `success`; the `Run npm run verify` step also completed successfully in both jobs.
+- PR #178 remains open, unmerged, and mergeable, with head exactly `4642bbf86bdb8d5d835ad1b7ea3e834018756198`. No merge was performed.
+- No source changes, Cloudflare workflow dispatch/rerun, deployment, or resource mutation. Cloudflare smoke run #5 remains failed runtime acceptance (`activeSessions=1` at the end of polling); CI success does not establish runtime acceptance or identify the lease-release root cause. Production and pre-existing staging remain untouched. PR #175 remains untouched; PR #176 remains merged.
+- Roadmap phase statuses remain unchanged; no phase is marked Complete. Runtime acceptance remains unproven and requires a separately authorized disposable Cloudflare smoke run.
