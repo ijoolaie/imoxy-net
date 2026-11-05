@@ -1317,3 +1317,16 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - No Cloudflare workflow was dispatched and no Cloudflare resources were created or modified. The diagnostics buffer is isolate-local; an empty response from another isolate is inconclusive.
 - Next: manually dispatch `VLESS Cloudflare disposable smoke` from `main` with `confirm_disposable_run=true`, then inspect the stage diagnostics, exact bidirectional byte totals, D1 reservation settlement, zero active leases, and verified deletion of only run-owned resources. Keep the 10-second, 8-MiB, 16-KiB, max-two-client caps. Never touch Production or existing staging.
 - Active phase remains Phase 6; no phase exit criteria are met.
+
+
+## 2026-11-03 — disposable Cloudflare smoke run 4: Worker creation authorization
+
+- Owner manually dispatched workflow run [41583822792](https://github.com/ijoolaie/imoxy-net/actions/runs/41583822792) on `main` commit `9e48326280753dbcde96faa6d7e10f5b53074edf`.
+- D1 creation and all migrations 0001–0008 succeeded through the Cloudflare D1 API.
+- The run failed at the first Wrangler deploy, the run-specific internal TCP Echo Worker `imoxy-vless-smoke-echo-41583822792-1`. Wrangler 4.156.0 reported successful upload, then Cloudflare API path `/accounts/<account>/workers/workers/<worker-name>` returned code 10007, “This Worker does not exist on your account.”
+- Failure occurred at `scripts/vless-service-binding-cloudflare-smoke.mjs:309`, before remote preview startup and before any VLESS client/relay activity. This run provides no handshake, byte-transfer, D1 settlement, or lease-release evidence.
+- The finally block completed cleanup and verified absence of run-owned Worker/D1 resources. Production and pre-existing staging were not targeted.
+- Likely cause: the run-specific Worker is a new Worker resource. Cloudflare's current [Workers roles and permissions](https://developers.cloudflare.com/workers/authorization/workers/) docs say new Worker creation requires product-level Admin; per-Worker roles cannot authorize creation of a not-yet-existing Worker. The previously reported CI token permissions (D1 Read/Edit and Workers Scripts Edit) do not establish that it has this Workers product role. The actual token policy is not readable here, so treat this as the strongest diagnosis, not a verified token-policy fact.
+- Detailed evidence and safe remediation options: [docs/vless-cloudflare-smoke-run-4-diagnosis.md](docs/vless-cloudflare-smoke-run-4-diagnosis.md). Do not paste token values into chat or grant broad Admin casually. Inspect the token's Workers product role/scope before another run.
+- No application code or Cloudflare resources were changed by this investigation. Do not rerun until the authorization model is deliberately corrected. Preserve the existing disposable limits and cleanup checks.
+- Phase 6 remains in progress; the Worker-bound D1/TCP acceptance gate remains blocked.
