@@ -336,3 +336,15 @@ The diagnostic implementation and handler regression test passed `npm run verify
 ## 2026-11-02 â€” diagnostic retrieval follow-up
 
 The console-only callback events were absent from Wrangler remote-preview logs in run 41477742794. The smoke Worker now exposes a test-only GET /_test/diagnostics endpoint, protected by a random per-run token passed in a temporary Wrangler config and required in a request header. It returns no-store JSON with at most 256 allowlisted payload-free events and a dropped-event count. The buffer is isolate-local; an empty response is inconclusive if the request reaches another isolate. The harness test covers token gating, field allowlisting/redaction, and bounded retention. Do not rerun Cloudflare until exact-head CI and diff review pass. Keep the 10-second, 8-MiB, 16-KiB, and two-client caps unchanged.
+
+## Current Workers WebSocket API and close semantics — 2026-11-06
+
+The current official API reference documents synchronous `WebSocket.send()` and `readyState`/`binaryType`, but no documented send-buffer size, `bufferedAmount`, drain event, or awaitable send result. Keep the finite application-submitted payload bound described above and do not claim that it measures runtime-internal buffering. The VLESS smoke compatibility date (`2026-11-02`) is after the `2026-04-07` default activation of automatic close-frame replies. Because the handler uses default `server.accept()`, the runtime acknowledges peer Close frames before firing `close`; asynchronous TCP close and D1 lease release continue separately. Half-open mode is documented for proxy coordination but should not be enabled without a cancellable/bounded dial contract and tests proving that a stalled dial cannot indefinitely hold the close handshake. This is a lifecycle design note, not a diagnosis of smoke run #5. Issue #78 remains open and the disposable slow-reader probe remains unrun.
+
+Source: https://developers.cloudflare.com/workers/runtime-apis/websockets/ (last updated 2026-10-12).
+
+## TCP dial cancellation regression — 2026-11-06
+
+The handler now passes a per-candidate `AbortSignal` to the TCP connector adapter and aborts it when the session closes. The default Cloudflare adapter checks the signal after module import and before the synchronous `connect()` call, avoiding creation of a new TCP socket when the handshake has already timed out. If the socket was already returned, the existing tracked pending-socket cleanup still closes it before releasing the D1 admission lease. Cooperative connectors can cancel promptly; connectors that ignore the signal and an import that never settles remain conservative pending-cleanup risks. A deterministic handler test covers abort-before-socket-creation and confirms the lease is released only after the connector settles. This is local evidence, not Cloudflare runtime acceptance.
+
+Cloudflare TCP sockets API: https://developers.cloudflare.com/workers/runtime-apis/tcp-sockets/ (last updated 2026-10-13).

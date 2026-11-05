@@ -196,8 +196,15 @@ function concatBytes(left, right) {
   return joined;
 }
 
-async function cloudflareTcpConnect({ hostname, port }) {
+async function cloudflareTcpConnect({ hostname, port }, _env, signal) {
   const { connect } = await import("cloudflare:sockets");
+  if (signal?.aborted) {
+    const error = new Error("TCP connection was cancelled.");
+    error.name = "AbortError";
+    throw error;
+  }
+  // Workers connect() returns the Socket synchronously; only the module load
+  // above can be pending before a socket handle exists and can be closed.
   return connect({ hostname, port });
 }
 
@@ -379,6 +386,7 @@ export function createVlessWebSocketHandler({
         socket: null,
         pendingSocket: null,
         pendingConnectPromise: null,
+        pendingConnectAbortController: null,
         reader: null,
         writer: null,
         writeQueue: Promise.resolve(),
@@ -434,6 +442,10 @@ export function createVlessWebSocketHandler({
         // completion: if it resolves after closure, its continuation closes the
         // late socket before the promise settles. This keeps lease release behind
         // every in-flight dial cleanup, not only sockets already assigned below.
+        // Ask a cooperative connector to stop before it creates a socket.
+        // The default Workers adapter checks this after loading cloudflare:sockets
+        // and before calling the synchronous connect() API.
+        try { state.pendingConnectAbortController?.abort(); } catch {}
         const pendingConnect = state.pendingConnectPromise;
         if (pendingConnect) {
           try { await pendingConnect; } catch {}
@@ -727,8 +739,10 @@ export function createVlessWebSocketHandler({
                 // Race both connection creation and socket opening against session
                 // closure. The handshake deadline therefore also bounds a stalled
                 // connect/open operation, rather than only closing the WebSocket.
+                const connectAbortController = new AbortController();
+                state.pendingConnectAbortController = connectAbortController;
                 const connectPromise = Promise.resolve()
-                  .then(() => connectTcp({ hostname: candidate, port: parsed.port }, env))
+                  .then(() => connectTcp({ hostname: candidate, port: parsed.port }, env, connectAbortController.signal))
                   .then(async (createdSocket) => {
                     if (state.closed) {
                       try { await createdSocket?.close?.(); } catch {}
@@ -739,9 +753,15 @@ export function createVlessWebSocketHandler({
                   })
                   .then((result) => {
                     if (state.pendingConnectPromise === connectPromise) state.pendingConnectPromise = null;
+                    if (state.pendingConnectAbortController === connectAbortController) {
+                      state.pendingConnectAbortController = null;
+                    }
                     return result;
                   }, (error) => {
                     if (state.pendingConnectPromise === connectPromise) state.pendingConnectPromise = null;
+                    if (state.pendingConnectAbortController === connectAbortController) {
+                      state.pendingConnectAbortController = null;
+                    }
                     throw error;
                   });
                 state.pendingConnectPromise = connectPromise;
