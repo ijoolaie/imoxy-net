@@ -1540,3 +1540,24 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - Focused VLESS handler suite passed 61/61. Full `cmd.exe /c npm run verify` passed: 238 tests total, 237 passed, 0 failed, 1 skipped (opt-in local TCP integration). `git diff --check` passed.
 - Exact-head CI for code commit `742fb777e5b02035d59eed14cf2ea72e62cc57ff`: push run `42108590977` (CI 1135) and pull_request run `42108602384` (CI 1136) both completed successfully; each `test` job and `Run npm run verify` step succeeded.
 - No Cloudflare workflow dispatch/rerun, deployment, resource mutation, PR merge, or production/pre-existing staging change occurred. PR #175 remains untouched. Roadmap statuses remain unchanged: phases 0-11 In Progress, phase 12 Blocked, phase 13 Not started; no phase is Complete.
+
+
+## 2026-11-03 GÇö disposable Cloudflare smoke run 4: Worker creation authorization
+
+- Owner manually dispatched workflow run [41583822792](https://github.com/ijoolaie/imoxy-net/actions/runs/41583822792) on `main` commit `9e48326280753dbcde96faa6d7e10f5b53074edf`.
+- D1 creation and all migrations 0001GÇô0008 succeeded through the Cloudflare D1 API.
+- The run failed at the first Wrangler deploy, the run-specific internal TCP Echo Worker `imoxy-vless-smoke-echo-41583822792-1`. Wrangler 4.156.0 reported successful upload, then Cloudflare API path `/accounts/<account>/workers/workers/<worker-name>` returned code 10007, GÇ£This Worker does not exist on your account.GÇ¥
+- Failure occurred at `scripts/vless-service-binding-cloudflare-smoke.mjs:309`, before remote preview startup and before any VLESS client/relay activity. This run provides no handshake, byte-transfer, D1 settlement, or lease-release evidence.
+- The finally block completed cleanup and verified absence of run-owned Worker/D1 resources. Production and pre-existing staging were not targeted.
+- Likely cause: the run-specific Worker is a new Worker resource. Cloudflare's current [Workers roles and permissions](https://developers.cloudflare.com/workers/authorization/workers/) docs say new Worker creation requires product-level Admin; per-Worker roles cannot authorize creation of a not-yet-existing Worker. The previously reported CI token permissions (D1 Read/Edit and Workers Scripts Edit) do not establish that it has this Workers product role. The actual token policy is not readable here, so treat this as the strongest diagnosis, not a verified token-policy fact.
+- Detailed evidence and safe remediation options: [docs/vless-cloudflare-smoke-run-4-diagnosis.md](docs/vless-cloudflare-smoke-run-4-diagnosis.md). Do not paste token values into chat or grant broad Admin casually. Inspect the token's Workers product role/scope before another run.
+- No application code or Cloudflare resources were changed by this investigation. Do not rerun until the authorization model is deliberately corrected. Preserve the existing disposable limits and cleanup checks.
+- Phase 6 remains in progress; the Worker-bound D1/TCP acceptance gate remains blocked.
+
+## 2026-11-06 - PR #175 merge and PR #178 base-conflict resolution
+
+- PR #175 (`docs: record Cloudflare smoke run 4 authorization failure`) was squash-merged after confirming its exact head `65d1f899b6706b729dda44c6cc9709c9a3ec875e`, successful CI, and no review threads. Merge commit: `9e807c2459a3e0df2b02c539b7b2932c950bc83f`.
+- Updating the VLESS lifecycle branch against the new `main` produced one content conflict in `HANDOFF.md`. Resolved by retaining the lifecycle branch's newer verification history and adding the PR #175 smoke-run-4 diagnosis section from `main`; the added diagnosis document was retained. No source files conflicted.
+- Converted two trailing-space Markdown line breaks in the newly merged diagnosis document to backslash line breaks so `git diff --check` passes without changing rendered separation.
+- Local `cmd.exe /c npm run verify` passed on the resolved worktree: syntax checks passed; 238 tests total, 237 passed, 0 failed, 1 skipped (opt-in local TCP integration). `git diff --cached --check` passed.
+- PR #178 remains open and unmerged pending push of this base update, exact-head CI, and renewed mergeability check. Cloudflare runtime acceptance remains unresolved: smoke run #5 ended with `activeSessions=1`; no new Cloudflare run was dispatched. Production and existing staging remain untouched.
