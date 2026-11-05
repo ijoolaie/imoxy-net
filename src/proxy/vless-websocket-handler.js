@@ -674,7 +674,16 @@ export function createVlessWebSocketHandler({
               }))
               .then(async (result) => {
                 if (state.closed && result?.allowed) {
-                  try { await store.releaseProxySession({ sessionId, accountId: account.id }); } catch {}
+                  emitDiagnostic(onDiagnostic, "session.lease_release_late.start");
+                  try {
+                    const released = await store.releaseProxySession({ sessionId, accountId: account.id });
+                    emitDiagnostic(onDiagnostic, "session.lease_release_late.complete", { released: released === true });
+                  } catch (error) {
+                    emitDiagnostic(onDiagnostic, "session.lease_release_late.error", {
+                      errorName: typeof error?.name === "string" ? error.name : "Error"
+                    });
+                    // An uncertain late release remains counted until persisted expiry.
+                  }
                   return SESSION_CLOSED;
                 }
                 return result;
@@ -686,7 +695,16 @@ export function createVlessWebSocketHandler({
             if (admission === SESSION_CLOSED) return;
             if (state.closed) {
               if (admission?.allowed) {
-                try { await store.releaseProxySession({ sessionId, accountId: account.id }); } catch {}
+                emitDiagnostic(onDiagnostic, "session.lease_release_late.start");
+                try {
+                  const released = await store.releaseProxySession({ sessionId, accountId: account.id });
+                  emitDiagnostic(onDiagnostic, "session.lease_release_late.complete", { released: released === true });
+                } catch (error) {
+                  emitDiagnostic(onDiagnostic, "session.lease_release_late.error", {
+                    errorName: typeof error?.name === "string" ? error.name : "Error"
+                  });
+                  // An uncertain late release remains counted until persisted expiry.
+                }
               }
               return;
             }
