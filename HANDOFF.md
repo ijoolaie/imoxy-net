@@ -1473,3 +1473,12 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - Exact-head CI completed successfully: push run `41994185263` (CI 1109) and pull_request run `41994194972` (CI 1110), both with the `test` job and `Run npm run verify` step completed successfully.
 - PR #178 remains open, unmerged, mergeable, and points at exact head `c6005a16ba4fa7fba36f5b048a1ea60ebf7767b6`. Its description was updated with the spawn-error behavior, exact-head local/CI evidence, and unchanged runtime limitation. No issue comments, review threads, or submitted reviews are present at the latest check.
 - The handoff was updated in documentation-only commit `02a980f25c962d59fff330a449d5002946728d2b`; its exact-head push run `41994305771` (CI 1111) and pull_request run `41994314734` (CI 1112) both completed successfully, including `npm run verify`. No merge or Cloudflare run was performed.
+
+## 2026-11-05 - wait for in-flight TCP dial before releasing session lease
+
+- Continued from clean branch head `f31e256cd12c126244edb6822298ab548860dd7c` on `fix/vless-lifecycle-diagnostics`.
+- Code review found a cleanup race: when the handshake timeout closed a session while `connectTcp()` was unresolved, `closeSession()` could release the admission lease before the late dial returned and its socket was closed. The existing late-connect test checked eventual socket closure but did not assert lease ordering.
+- Updated `src/proxy/vless-websocket-handler.js` to track the in-flight connection promise, register a socket as pending as soon as it is created, and make `closeSession()` await the in-flight dial cleanup before closing any remaining pending/active socket and releasing the lease.
+- Strengthened the handshake-timeout regression test with a gated late socket close. It now asserts: lease remains held while dial creation is unresolved; remains held while the late socket close is pending; and is released exactly once only after socket close completes.
+- Focused VLESS handler suite passed: 60/60. Full local `npm run verify` passed: syntax checks passed; 237 tests total, 236 passed, 0 failed, 1 skipped (opt-in local TCP integration). `git diff --check` passed.
+- This closes a confirmed local ordering gap, but does not prove it caused Cloudflare smoke run #5's `activeSessions=1` result. No Cloudflare run/dispatch, deployment, resource mutation, PR merge, or production/pre-existing staging changes. Exact-head CI is pending after commit/push.

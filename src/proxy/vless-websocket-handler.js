@@ -378,6 +378,7 @@ export function createVlessWebSocketHandler({
         buffer: new Uint8Array(),
         socket: null,
         pendingSocket: null,
+        pendingConnectPromise: null,
         reader: null,
         writer: null,
         writeQueue: Promise.resolve(),
@@ -429,6 +430,14 @@ export function createVlessWebSocketHandler({
           idleTimer = null;
         }
         try { server.close(code, reason); } catch {}
+        // A connect attempt may still be creating a socket. Wait for its tracked
+        // completion: if it resolves after closure, its continuation closes the
+        // late socket before the promise settles. This keeps lease release behind
+        // every in-flight dial cleanup, not only sockets already assigned below.
+        const pendingConnect = state.pendingConnectPromise;
+        if (pendingConnect) {
+          try { await pendingConnect; } catch {}
+        }
         // Close the TCP socket(s) before releasing the admission lease. Socket.close()
         // forcibly closes both stream sides; do not let a separate reader.cancel()
         // or writer.abort() promise block socket closure or lease cleanup.
@@ -707,8 +716,17 @@ export function createVlessWebSocketHandler({
                       try { await createdSocket?.close?.(); } catch {}
                       return SESSION_CLOSED;
                     }
+                    state.pendingSocket = createdSocket;
                     return createdSocket;
+                  })
+                  .then((result) => {
+                    if (state.pendingConnectPromise === connectPromise) state.pendingConnectPromise = null;
+                    return result;
+                  }, (error) => {
+                    if (state.pendingConnectPromise === connectPromise) state.pendingConnectPromise = null;
+                    throw error;
                   });
+                state.pendingConnectPromise = connectPromise;
                 candidateSocket = await Promise.race([
                   connectPromise,
                   sessionClosed.then(() => SESSION_CLOSED)

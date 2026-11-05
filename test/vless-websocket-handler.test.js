@@ -1053,12 +1053,17 @@ test("handshake timeout closes a socket whose opened promise never settles", asy
 });
 
 
-test("handshake timeout closes a TCP socket that resolves after session closure", async () => {
+test("handshake timeout waits for a late TCP connection to close before releasing its lease", async () => {
   const timerCallbacks = [];
   let resolveConnect;
+  let resolveSocketClose;
   let closed = false;
+  const socketCloseGate = new Promise((resolve) => { resolveSocketClose = resolve; });
   const upstream = fakeSocket();
-  upstream.socket.close = async () => { closed = true; };
+  upstream.socket.close = async () => {
+    await socketCloseGate;
+    closed = true;
+  };
   const connectPending = new Promise((resolve) => { resolveConnect = resolve; });
   const h = harness({ timerCallbacks, connectTcp: async () => connectPending });
   await h.handler.fetch(request(), h.env);
@@ -1069,13 +1074,19 @@ test("handshake timeout closes a TCP socket that resolves after session closure"
   timerCallbacks[0]();
   await settle();
   assert.ok(h.server.closeCalls.some((item) => item.reason === "initial_request_timeout"));
+  assert.equal(h.sessionCalls.release.length, 0, "lease must remain held while TCP connection creation is unresolved");
+
   resolveConnect(upstream.socket);
   await settle();
+  assert.equal(closed, false, "cleanup must wait for the late TCP socket close operation");
+  assert.equal(h.sessionCalls.release.length, 0, "lease release must wait for late socket close completion");
+
+  resolveSocketClose();
+  await settle();
   assert.equal(closed, true, "late-created TCP socket must be closed");
+  assert.equal(h.sessionCalls.release.length, 1);
   assert.equal(h.quotaCalls.reserve.length, 0);
 });
-
-
 
 test("handshake timeout releases the message queue when DNS never settles", async () => {
   const timerCallbacks = [];
