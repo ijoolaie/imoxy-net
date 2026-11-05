@@ -135,3 +135,15 @@ This is a separate partial runtime observation, not completion of every probe re
 No D1 binding/database was attached, no real outbound TCP destination was contacted, and no Cloudflare internal send-buffer size/drain signal was measured. This does not prove bounded internal buffering, behavior under longer pauses, or aggregate concurrency. The generic dedicated slow-reader probe described above is not thereby fully accepted; Issue #78 remains open.
 
 A separate disposable D1 attempt was cleaned up after the safety layer blocked remote migration execution before any SQL was applied or queried. The real-D1 VLESS gate remains blocked. Do not bypass the safety layer.
+
+## Current Workers WebSocket API review — 2026-11-06
+
+The official Cloudflare Workers WebSockets API reference (last updated 2026-10-12) documents `send(string | ArrayBuffer | ArrayBufferView)` as a synchronous method and lists `readyState` and `binaryType` as WebSocket properties. It does not document `bufferedAmount`, a drain event, or an awaitable send/write result. This is a statement about the documented API surface, not proof that no undocumented runtime telemetry exists; the implementation must not depend on undocumented properties.
+
+The reference also documents `accept({ allowHalfOpen: true })` for proxying when the application needs to coordinate close behavior. The smoke configuration's compatibility date is `2026-11-02` (the general example is `2026-10-01`), both later than `2026-04-07`, when `web_socket_auto_reply_to_close` became enabled by default. The current handler calls `server.accept()` without `allowHalfOpen`, so the runtime auto-replies to peer Close frames and transitions to CLOSED before dispatching the close event. The handler then starts `closeSession()` from that event and independently closes the TCP socket and releases the D1 lease. Therefore WebSocket close-handshake completion is not evidence that upstream socket cleanup or lease release has completed.
+
+Do not switch to half-open mode as an isolated change: the current close path deliberately waits for a pending TCP connection promise before it can close a late-created socket. If that promise never settles, delaying the WebSocket close handshake until cleanup completes could leave the peer in CLOSING. A safe half-open design requires a cancellable/bounded dial contract plus deterministic tests for peer-close, TCP-close, lease-release ordering. This observation is not a confirmed cause of smoke run #5's `activeSessions=1` result.
+
+The current application-level output policy remains the safer independently enforced bound: one upstream read at a time, await quota settlement before the next read, reject a whole chunk beyond the per-session byte budget, and require a global D1 lease cap. This bounds bytes submitted by the application, not Cloudflare's internal framing, copies, send queue, or total Worker memory. The dedicated disposable runtime probe remains not run; issue #78 stays open. No Cloudflare workflow, deployment, or resource mutation was performed.
+
+Source: https://developers.cloudflare.com/workers/runtime-apis/websockets/ (API reference last updated 2026-10-12).

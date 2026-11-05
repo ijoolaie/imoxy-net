@@ -154,10 +154,10 @@ function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = 
         return true;
       }
     }),
-    connectTcp: async (destination) => {
+    connectTcp: async (destination, connectorEnv, signal) => {
       events.push("connect");
       connectCalls.push(destination);
-      if (connectTcp) return connectTcp(destination);
+      if (connectTcp) return connectTcp(destination, connectorEnv, signal);
       return fakeSocket().socket;
     },
     resolveDestination: resolveDestination ?? (async (host) => host === "example.test" ? "93.184.216.34" : host),
@@ -1053,6 +1053,40 @@ test("handshake timeout closes a socket whose opened promise never settles", asy
   assert.equal(h.quotaCalls.reserve.length, 0);
 });
 
+
+test("handshake timeout aborts a cooperative TCP connector before it creates a socket", async () => {
+  const timerCallbacks = [];
+  let dialSignal = null;
+  let abortObserved = false;
+  const h = harness({
+    timerCallbacks,
+    connectTcp: (_destination, _connectorEnv, signal) => new Promise((_resolve, reject) => {
+      dialSignal = signal;
+      signal.addEventListener("abort", () => {
+        abortObserved = true;
+        const error = new Error("injected dial cancellation");
+        error.name = "AbortError";
+        reject(error);
+      }, { once: true });
+    })
+  });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  assert.ok(dialSignal, "connector receives an AbortSignal");
+  assert.equal(dialSignal.aborted, false);
+  assert.equal(h.sessionCalls.acquire.length, 1);
+
+  timerCallbacks[0]();
+  await settle();
+
+  assert.equal(dialSignal.aborted, true);
+  assert.equal(abortObserved, true);
+  assert.equal(h.sessionCalls.release.length, 1, "the acquired lease is released after the cancelled dial settles");
+  assert.equal(h.quotaCalls.reserve.length, 0, "a cancelled pre-auth dial must not reserve traffic quota");
+  assert.equal(h.connectCalls.length, 1);
+});
 
 test("handshake timeout waits for a late TCP connection to close before releasing its lease", async () => {
   const timerCallbacks = [];
