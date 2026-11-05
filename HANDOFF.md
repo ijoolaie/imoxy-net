@@ -1580,3 +1580,10 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - Added regression coverage proving handshake timeout aborts a cooperative connector before socket creation, the acquired lease is released after the connector settles, and no traffic quota is reserved. Focused handler suite passed 62/62. Full `cmd.exe /c npm run verify` passed: 239 tests total, 238 passed, 0 failed, 1 skipped (opt-in local TCP integration); syntax checks passed; `git diff --check` passed.
 - Limitation: the signal cannot cancel the module import itself, and custom connectors that ignore the signal can still remain pending. Keep the lease conservatively held in those cases. This does not prove Cloudflare runtime acceptance or explain smoke run #5's `activeSessions=1`.
 - Current branch: `chore/post-merge-handoff-2026-11-06`, based on `241a3c1a51f0e9dfa41788673f3c500662f58d4a`. Next: inspect the complete diff, commit/push this feature branch, verify exact-head CI, and open a focused PR. No Cloudflare run is authorized by this continuation.
+
+## 2026-11-06 - abortable dial implementation commit
+
+- The cooperative TCP dial-cancellation change and its documentation/tests were committed on `fix/vless-abortable-dial-cancellation` as `afe0b6b` (`fix(vless): cancel pending TCP socket creation on close`). The commit is based directly on merged `main` at `241a3c1a51f0e9dfa41788673f3c500662f58d4a`.
+- Focused `test/vless-websocket-handler.test.js`: 62/62 passed. Full `cmd.exe /c npm run verify`: exit 0; syntax checks passed; 239 tests total, 238 passed, 0 failed, 1 skipped (opt-in local TCP integration). `git diff --check` passed.
+- This only cancels cooperative connection adapters before socket creation; the default Workers adapter checks the signal after module import and before synchronous `connect()`. Module import itself and non-cooperative adapters remain possible pending risks. Existing late-socket close ordering and conservative lease release are unchanged.
+- Next: push `fix/vless-abortable-dial-cancellation`, verify exact-head push/PR CI, then open a focused PR. No Cloudflare smoke run is authorized or performed.
