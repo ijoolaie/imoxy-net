@@ -1483,3 +1483,12 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - Focused VLESS handler suite passed: 60/60. Full local `npm run verify` passed: syntax checks passed; 237 tests total, 236 passed, 0 failed, 1 skipped (opt-in local TCP integration). `git diff --check` passed.
 - Exact-head CI completed successfully after commit/push: push run `41996043461` (CI 1115) and pull_request run `41996052337` (CI 1116); both `test` jobs and their `Run npm run verify` steps completed successfully.
 - This closes a confirmed local ordering gap, but does not prove it caused Cloudflare smoke run #5's `activeSessions=1` result. No Cloudflare run/dispatch, deployment, resource mutation, PR merge, or production/pre-existing staging changes.
+
+## 2026-11-05 - local verification after TCP dial cleanup
+
+- Resumed on `fix/vless-lifecycle-diagnostics` at `a691d54b8a276c94fcaf9eed50d00186dd27ed96`; Raya MCP is available, the worktree was clean, and the branch was synchronized with `origin` before this session's documentation update.
+- Re-ran `cmd.exe /c npm run verify` from the repository root. Exit code 0; `npm run check` syntax checks and the full `npm test` suite completed successfully (237 tests total, 236 passed, 0 failed, 1 skipped: opt-in local TCP integration).
+- This is local verification of the existing code head, not a new code change or new exact-head CI run. The previously recorded exact-head CI runs `41996043461` and `41996052337` passed on code commit `1043050b941a8595785fac547c084f5d99754685`; current HEAD `a691d54` is the subsequent handoff-only commit.
+- Runtime acceptance remains unresolved: Cloudflare disposable smoke run #5 ended with `activeSessions=1` after the polling window, despite successful concurrent data transfer and zero active quota reservations. The late-dial cleanup fix closes a confirmed ordering gap but is not proven to be the cause of that result.
+- No source files changed; no Cloudflare run/dispatch, deployment, resource mutation, PR merge, or production/pre-existing staging changes. PR #178 remains unmerged; PR #175 remains untouched.
+- Roadmap statuses remain unchanged: phases 0-11 In Progress, phase 12 Blocked, phase 13 Not started; no phase is Complete. Next step: continue static review of lifecycle cleanup and its test seams, or obtain separate explicit authorization before any new disposable Cloudflare runtime smoke run.
