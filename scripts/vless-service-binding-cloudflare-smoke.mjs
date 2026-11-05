@@ -175,7 +175,10 @@ async function startRemotePreview() {
   };
   previewProcess.stdout.on("data", capture);
   previewProcess.stderr.on("data", capture);
-  previewProcess.on("error", (error) => { previewLogs += "\n" + error.message; });
+  previewProcess.on("error", (error) => {
+    previewProcess.spawnErrorName = error?.name ?? "Error";
+    previewLogs += "\n" + error.message;
+  });
   vlessAttempted = true;
   try {
     await waitForHealth(previewProcess);

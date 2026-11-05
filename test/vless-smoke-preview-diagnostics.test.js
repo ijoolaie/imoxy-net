@@ -14,6 +14,12 @@ test("preview process summary distinguishes absent, running, and exited children
   assert.deepEqual(summarizePreviewProcess({ exitCode: 1, signalCode: null, killed: false }), {
     state: "exited", exitCode: 1, signalCode: null, killed: false
   });
+  assert.deepEqual(summarizePreviewProcess({
+    exitCode: null, signalCode: null, killed: false, spawnErrorName: "ENOENT"
+  }), {
+    state: "spawn_error", errorName: "ENOENT",
+    exitCode: null, signalCode: null, killed: false
+  });
 });
 
 test("preview output redacts known credentials and bearer tokens", () => {

@@ -1,5 +1,14 @@
 export function summarizePreviewProcess(child) {
   if (!child) return { state: "not_started" };
+  if (child.spawnErrorName) {
+    return {
+      state: "spawn_error",
+      errorName: child.spawnErrorName,
+      exitCode: child.exitCode,
+      signalCode: child.signalCode ?? null,
+      killed: Boolean(child.killed)
+    };
+  }
   return {
     state: child.exitCode === null ? "running" : "exited",
     exitCode: child.exitCode,
