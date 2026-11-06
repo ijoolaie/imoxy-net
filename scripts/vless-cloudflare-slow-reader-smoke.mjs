@@ -234,7 +234,11 @@ export async function runSlowReaderSession({
     const handleMessage = (opcode, payload) => {
       if (opcode === 0x8) {
         if (receivedBytes !== expected.length) {
-          fail(new Error(`server closed before exact echo completed (${receivedBytes}/${expected.length})`));
+          const closeCode = payload.length >= 2 ? payload.readUInt16BE(0) : null;
+          const closeReason = payload.length > 2 ? payload.subarray(2).toString("utf8") : "";
+          fail(new Error(
+            `server closed before exact echo completed (${receivedBytes}/${expected.length}; closeCode=${closeCode ?? "none"}; closeReason=${JSON.stringify(closeReason)})`
+          ));
         }
         return;
       }
