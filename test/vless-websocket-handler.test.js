@@ -95,7 +95,7 @@ async function settle() {
   for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = () => NOW, timerCallbacks = null, idleTimeoutMs = 120_000, quotaAllowed = true, quotaSettleFails = false, quotaSettleWait = null, quotaReserveFails = false, quotaReserveConflict = false, downstreamSendFails = false, sessionAdmissionAllowed = true, sessionAdmissionFails = false, sessionAdmissionWait = null, sessionReleaseFails = false, diagnostics = null } = {}) {
+function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = () => NOW, timerCallbacks = null, idleTimeoutMs = 120_000, quotaAllowed = true, quotaSettleFails = false, quotaSettleWait = null, quotaReserveFails = false, quotaReserveConflict = false, downstreamSendFails = false, sessionAdmissionAllowed = true, sessionAdmissionFails = false, sessionAdmissionWait = null, sessionReleaseFails = false, sessionReleaseWait = null, diagnostics = null } = {}) {
   const client = new FakeWebSocket();
   const server = new FakeWebSocket();
   const originalSend = server.send.bind(server);
@@ -126,6 +126,7 @@ function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = 
       async releaseProxySession(input) {
         sessionCalls.release.push(input);
         events.push("release");
+        if (sessionReleaseWait) await sessionReleaseWait;
         if (sessionReleaseFails) throw new Error("injected session release failure");
         return true;
       }
@@ -1538,9 +1539,56 @@ test("session lease release waits for TCP socket close and emits lifecycle diagn
   assert.ok(names.indexOf("tcp.socket_close.complete") < names.indexOf("session.lease_release.start"));
 });
 
-test("session release failure does not prevent socket cleanup and is not retried", async () => {
+test("session lease release duration is observable and cleanup waits for a delayed release", async () => {
+  let resolveRelease;
+  const releaseGate = new Promise((resolve) => { resolveRelease = resolve; });
+  const diagnostics = [];
   const upstream = fakeSocket();
-  const h = harness({ sessionReleaseFails: true, connectTcp: async () => upstream.socket });
+  const h = harness({
+    connectTcp: async () => upstream.socket,
+    sessionReleaseWait: releaseGate,
+    diagnostics: (event) => diagnostics.push(event)
+  });
+
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+  assert.equal(h.sessionCalls.acquire.length, 1);
+
+  // Simulate the peer's normal close only after the relay has completed setup.
+  const closeEvent = new Event("close");
+  Object.defineProperty(closeEvent, "code", { value: 1000 });
+  Object.defineProperty(closeEvent, "reason", { value: "runtime smoke complete" });
+  h.server.dispatchEvent(closeEvent);
+  await settle();
+
+  const names = diagnostics.map((event) => event.event);
+  assert.ok(names.includes("websocket.close_event"));
+  assert.ok(names.includes("session.lease_release.start"));
+  assert.equal(names.includes("session.lease_release.complete"), false,
+    "the release completion must not be reported while storage is still pending");
+  assert.equal(h.sessionCalls.release.length, 1);
+  assert.equal(upstream.closed, true, "the TCP socket is closed before lease release starts");
+
+  resolveRelease();
+  await settle();
+
+  const completed = diagnostics.find((event) => event.event === "session.lease_release.complete");
+  assert.equal(completed?.released, true);
+  assert.ok(Number.isFinite(completed?.durationMs));
+  assert.ok(completed.durationMs >= 0);
+  assert.ok(names.indexOf("websocket.close_event") < names.indexOf("session.lease_release.start"));
+  assert.equal(h.sessionCalls.release.length, 1);
+});
+
+test("session release failure does not prevent socket cleanup and reports bounded failure diagnostics", async () => {
+  const upstream = fakeSocket();
+  const diagnostics = [];
+  const h = harness({
+    sessionReleaseFails: true,
+    connectTcp: async () => upstream.socket,
+    diagnostics: (event) => diagnostics.push(event)
+  });
   await h.handler.fetch(request(), h.env);
   h.server.receive(vlessRequest({ payload: [] }));
   await settle();
@@ -1550,4 +1598,9 @@ test("session release failure does not prevent socket cleanup and is not retried
   await settle();
   assert.equal(upstream.closed, true);
   assert.equal(h.sessionCalls.release.length, 1);
+  const failure = diagnostics.find((event) => event.event === "session.lease_release.error");
+  assert.equal(failure?.errorName, "Error");
+  assert.ok(Number.isFinite(failure?.durationMs));
+  assert.ok(failure.durationMs >= 0);
+  assert.equal(JSON.stringify(diagnostics).includes("injected session release failure"), false);
 });
