@@ -1667,3 +1667,9 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - Reviewed PR #184: it adds elapsed-time diagnostics around acquired session-lease release, including error outcomes, plus deterministic delayed-release and failure-redaction tests. It does not identify the cause of smoke #5 activeSessions=1; the diagnostics fetch TypeError also remains unexplained. No further safe code change is justified from current evidence.
 - No Cloudflare workflow was dispatched; no Cloudflare resource, Production, or pre-existing staging was touched. A new Cloudflare smoke still requires separate explicit authorization. Runtime acceptance remains unproven; issue #78 remains open.
 - Roadmap statuses remain unchanged: phases 0-11 In progress, phase 12 Blocked, phase 13 Not started; none Complete.
+
+## 2026-11-06 - PR #186 merge checkpoint
+- PR #186 (documentation-only handoff verification) merged by squash as 0d77c471ef4b224465757095d8bc0aea3d7ec4a4 after exact-head CI run 42174098479 completed successfully. PR head was e6260f00ed59b474fc20a079018faee0e970218b; GitHub reported mergeable/clean, with no reviews or inline review threads.
+- Local main was fetched and fast-forwarded from b882033 to 0d77c471ef4b224465757095d8bc0aea3d7ec4a4. This entry records the merge; no runtime evidence changed.
+- No Cloudflare smoke was run, no Cloudflare resource was created or changed, and Production/pre-existing staging were not touched. Runtime acceptance remains unproven; issue #78 remains open. A new Cloudflare run still requires separate explicit authorization.
+- Roadmap statuses remain unchanged: phases 0-11 In progress, phase 12 Blocked, phase 13 Not started; none Complete.
