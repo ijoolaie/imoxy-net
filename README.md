@@ -32,6 +32,7 @@ An independently implemented proxy-management platform targeting evidence-based 
 - [Architecture](docs/architecture.md)
 - [Reference baseline](docs/reference-baseline.md)
 - [License review](docs/license-review.md)
+- [Phase 0 governance audit](docs/governance-audit.md)
 - [Decision log](docs/decision-log.md)
 - [Living hand-off](HANDOFF.md)
 - [Engineering rules](AGENTS.md)
