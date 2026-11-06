@@ -353,7 +353,8 @@ async function main() {
     env: {
       ...process.env,
       IMOXY_VLESS_WS_URL: "ws://127.0.0.1:8787/proxy/vless",
-      IMOXY_VLESS_CREDENTIAL: credential
+      IMOXY_VLESS_CREDENTIAL: credential,
+      IMOXY_SLOW_READER_UPLOAD_INTERVAL_MS: "25"
     },
     encoding: "utf8",
     timeout: 60_000,
