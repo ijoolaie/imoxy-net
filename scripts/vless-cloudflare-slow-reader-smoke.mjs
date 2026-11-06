@@ -125,6 +125,7 @@ export async function runSlowReaderSession({
   credential,
   payloadBytes = 4 * 1024 * 1024,
   pauseMs = 2500,
+  uploadIntervalMs = 0,
   timeoutMs = 45000
 }) {
   const target = new URL(url);
@@ -138,6 +139,9 @@ export async function runSlowReaderSession({
   }
   if (!Number.isSafeInteger(pauseMs) || pauseMs < 1000 || pauseMs > 10000) {
     throw new Error("pauseMs must be between 1000 and 10000");
+  }
+  if (!Number.isSafeInteger(uploadIntervalMs) || uploadIntervalMs < 0 || uploadIntervalMs > 1000) {
+    throw new Error("uploadIntervalMs must be between 0 and 1000");
   }
 
   const expected = makeExpectedPayload(payloadBytes);
@@ -191,6 +195,7 @@ export async function runSlowReaderSession({
         downloadBytes: receivedBytes,
         payloadBytes,
         pauseDelayMs: pauseMs,
+        uploadIntervalMs,
         pausedDurationMs: resumedAt - pausedAt,
         firstByteAfterResumeMs: firstByteAfterResumeAt === null ? null : firstByteAfterResumeAt - resumedAt,
         elapsedMs: Date.now() - startedAt,
@@ -220,6 +225,9 @@ export async function runSlowReaderSession({
             socket,
             encodeClientFrame(0x2, payload.subarray(offset, Math.min(offset + FRAME_BYTES, payload.length)))
           );
+          if (uploadIntervalMs > 0 && offset + FRAME_BYTES < payload.length) {
+            await new Promise((resolve) => setTimeout(resolve, uploadIntervalMs));
+          }
         }
         uploadFinished = true;
         pauseTimer = setTimeout(() => {
@@ -354,11 +362,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (!url || !credential) {
     throw new Error("IMOXY_VLESS_WS_URL and IMOXY_VLESS_CREDENTIAL are required.");
   }
-  const result = await runSlowReaderSession({ url, credential });
+  const uploadIntervalMs = Number(process.env.IMOXY_SLOW_READER_UPLOAD_INTERVAL_MS ?? "0");
+  const result = await runSlowReaderSession({ url, credential, uploadIntervalMs });
   console.log(JSON.stringify({
     ok: true,
     transport: "raw TCP WebSocket client with socket.pause()/resume()",
-    readerPause: "paused while 4 MiB upload is echoed; resumed after configured delay",
+    readerPause: "paused while upload is echoed; resumed after configured delay",
+    uploadPacing: uploadIntervalMs + "ms between frames",
     ...result
   }, null, 2));
 }

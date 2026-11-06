@@ -134,6 +134,7 @@ test("reports the server WebSocket close code and reason when slow-reader echo e
 
 test("raw TCP WebSocket client pauses reads while echo data accumulates, then resumes losslessly", async (t) => {
   const initial = Buffer.from([0x17, 0x28, 0x39, 0x4a, 0xfb, 0xfc]);
+  const uploadFrameTimes = [];
   const server = createServer((socket) => {
     let buffer = Buffer.alloc(0);
     let upgraded = false;
@@ -178,6 +179,7 @@ test("raw TCP WebSocket client pauses reads while echo data accumulates, then re
             encodeServerFrame(0x2, initial)
           ]));
         } else {
+          uploadFrameTimes.push(Date.now());
           socket.write(encodeServerFrame(0x2, frame.payload));
         }
       }
@@ -190,16 +192,20 @@ test("raw TCP WebSocket client pauses reads while echo data accumulates, then re
   const result = await runSlowReaderSession({
     url: `ws://127.0.0.1:${address.port}/proxy/vless`,
     credential: "00112233-4455-6677-8899-aabbccddeeff",
-    payloadBytes: 16 * 1024,
+    payloadBytes: 2 * 16 * 1024,
     pauseMs: 1000,
+    uploadIntervalMs: 10,
     timeoutMs: 10000
   });
 
-  assert.equal(result.uploadBytes, 6 + 16 * 1024);
-  assert.equal(result.downloadBytes, 6 + 16 * 1024);
+  assert.equal(result.uploadBytes, 6 + 2 * 16 * 1024);
+  assert.equal(result.downloadBytes, 6 + 2 * 16 * 1024);
   assert.ok(result.pauseDelayMs >= 1000);
   assert.ok(result.pausedDurationMs >= 1000);
-  assert.ok(result.framesReceived >= 1);
+  assert.ok(result.framesReceived >= 2);
   assert.ok(result.firstByteAfterResumeMs >= 0);
-  assert.equal(result.payloadBytes, 16 * 1024);
+  assert.equal(result.payloadBytes, 2 * 16 * 1024);
+  assert.equal(result.uploadIntervalMs, 10);
+  assert.equal(uploadFrameTimes.length, 2);
+  assert.ok(uploadFrameTimes[1] - uploadFrameTimes[0] >= 5);
 });
