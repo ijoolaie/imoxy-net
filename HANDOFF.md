@@ -1711,3 +1711,11 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - Ran `cmd.exe /c npm run verify`: exit 0; all three configured `node --check` syntax checks passed; 240 tests total, 239 passed, 0 failed, 1 skipped (opt-in local TCP echo integration).
 - `npm_lint` is not applicable because `package.json` defines no `lint` script. `git_diff_check` passed before this handoff-only edit.
 - No runtime code changed. No Cloudflare workflow/probe was run and no Cloudflare resources, Production, or pre-existing staging were modified. The separate slow-reader Cloudflare probe remains unapproved; runtime acceptance remains unproven and issue #78 remains open. Roadmap statuses unchanged; no phase marked Complete.
+
+
+## 2026-11-06 - probe target clarification checkpoint
+- Reconnected to Raya; confirmed workspace roots and configuration, then verified local `main` was clean and aligned with `origin/main` at `7b79218913c1ce2249786fa9af71504901727329`. `git diff --check` passed; recent history matched the latest merged PR #193.
+- Rechecked GitHub issue #78: it remains open and continues to require deterministic slow-reader coverage plus a disposable Worker runtime probe before runtime acceptance. GitHub search returned no open PRs.
+- The user supplied `imoxy-net-api-staging` as the proposed Worker name, but did not explicitly confirm it is a newly created, isolated disposable resource or authorize creating and deleting it. A Worker name alone does not establish isolation. No Cloudflare probe, Worker creation/deployment/deletion, route/DNS change, or D1 mutation was performed; Production and pre-existing staging remain untouched.
+- The proposed probe bounds (10 seconds, 8 MiB, 16 KiB frames, maximum two clients) remain the approved test limits, but the target isolation/cleanup authorization is still outstanding. Runtime acceptance remains unproven; issue #78 stays open.
+- No runtime code or roadmap/acceptance status changed. Roadmap phases remain as previously recorded; none marked Complete.
