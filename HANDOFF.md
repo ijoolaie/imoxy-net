@@ -1603,3 +1603,13 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - Local validation before merge: focused VLESS handler 62/62; full `cmd.exe /c npm run verify` exit 0 with 239 total, 238 passed, 0 failed, 1 skipped; `git diff --check` passed.
 - Cloudflare runtime acceptance remains unresolved: smoke run #5 ended with `activeSessions=1`. No new Cloudflare run, deployment, D1 mutation, route/DNS change, or resource mutation was performed. A new run still requires separate explicit authorization. Production and existing staging remain untouched.
 - Issue #78 remains open. Roadmap phase statuses remain unchanged (0–11 In progress, 12 Blocked, 13 Not started); no phase is Complete.
+
+## 2026-11-06 - follow-up local verification after PR #180
+
+- Reconnected to Raya and confirmed the workspace was clean before work. The local feature branch tracking ref was four commits behind current origin/main; fetched origin and fast-forwarded local main to PR #180 merge commit `b6fbe1ae3d2f7e71a3d08520bb5457e0e84ba116`. No force update or history rewrite was used.
+- Created branch `docs/handoff-local-verify-20261106` from that exact main commit for this hand-off-only update.
+- Re-ran `cmd.exe /c npm run verify` on the updated main tree: exit code 0; syntax checks passed; 239 tests total, 238 passed, 0 failed, 1 skipped (opt-in local TCP integration). The VLESS handler's cooperative dial-abort regression passed as test 213; late-socket cleanup and lease-release tests also passed.
+- `git diff --check` passed and the worktree remained clean before this hand-off edit.
+- GitHub reports no open PRs. Issue #78 remains open. Latest Cloudflare smoke run #5 still has the unresolved `activeSessions=1` acceptance failure; this local verification does not diagnose it or prove Worker/D1/TCP runtime acceptance or internal WebSocket buffer bounds.
+- No Cloudflare workflow was dispatched or rerun. No deployment, Cloudflare resource mutation, Production change, or pre-existing staging change occurred. A new Cloudflare run still requires separate explicit owner authorization.
+- Roadmap statuses are unchanged: phases 0-11 In progress, phase 12 Blocked, phase 13 Not started; no phase is Complete.
