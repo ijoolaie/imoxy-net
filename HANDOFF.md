@@ -1622,3 +1622,12 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - The code-derived application-submitted bound remains `PROXY_MAX_CONCURRENT_SESSIONS * (PROXY_MAX_DOWNLOAD_BYTES + 2)` bytes. It does not prove runtime-internal framing/copy/queue memory. Smoke run #5's `activeSessions=1` failure and diagnostics `TypeError` remain unexplained; they are separate from the slow-reader unit-test evidence.
 - No Cloudflare workflow was dispatched, no resource was created or mutated, and Production/pre-existing staging were not touched. No new runtime authorization was inferred from “continue”.
 - Validation: full `cmd.exe /c npm test` passed (239 tests total, 238 passed, 0 failed, 1 skipped); `git diff --check` passed. The focused VLESS test process was superseded by the full-suite run, which includes all VLESS handler tests. Submit this documentation-only evidence reconciliation through PR/CI. Issue #78 remains open; roadmap statuses unchanged (phases 0-11 In progress, 12 Blocked, 13 Not started; none Complete).
+
+## 2026-11-06 - PR #182 merge and runtime evidence boundary
+
+- PR #182 (`docs(vless): reconcile slow-reader evidence boundaries`) was squash-merged after exact-head CI run `42168305578` completed successfully; the `Run npm run verify` step passed. Merge commit: `0959a21111aa0d574a7d0775e5c2551b45ade026`.
+- The documentation now distinguishes deterministic fake-peer tests from actual Cloudflare send-queue behavior and clarifies that the current code bounds application-submitted bytes, not runtime-internal memory. No handler code was changed.
+- Local full test suite passed on the PR head: 239 tests total, 238 passed, 0 failed, 1 skipped. `git diff --check` passed.
+- After merge, fetched origin and fast-forwarded local `main` to `0959a21111aa0d574a7d0775e5c2551b45ade026`; created branch `docs/handoff-pr182-merge-20261106` for this handoff-only record. GitHub reports no open PRs. The connector's commit-run lookup filters to pull-request-triggered runs, so post-merge push CI for the merge commit is not verified here.
+- Issue #78 remains open. Smoke run #5's `activeSessions=1` acceptance failure remains unexplained; no Cloudflare workflow was dispatched or rerun. No Cloudflare resource, Production, or pre-existing staging was changed.
+- Roadmap statuses remain unchanged: phases 0-11 In progress, phase 12 Blocked, phase 13 Not started; none Complete. Runtime acceptance remains unproven.
