@@ -16,6 +16,7 @@ The recently merged `PROXY_MAX_DOWNLOAD_BYTES` and `PROXY_MAX_SESSION_DURATION_M
 - `max_connections = 0`: the current imoxy implementation fails closed and denies new sessions. The pinned Nova 5.0.0 interpretation has not been established; this is not a parity claim.
 - Positive `max_connections`: admit only while the number of unexpired sessions for that account is below the configured value.
 - `PROXY_MAX_CONCURRENT_SESSIONS`: mandatory positive installation-wide ceiling. This is separate from the account setting and is required to bound aggregate admitted sessions across all accounts.
+- Scope: this ceiling is shared by all Worker instances/environments that use the same D1 database for admission. Separate D1 databases have independent lease tables and therefore independent ceilings; do not describe the value as global across those databases.
 - A lowered account ceiling affects new admissions; it does not evict already admitted sessions.
 - Capacity denial and ambiguous admission outcomes fail closed before any upstream TCP connection is opened.
 
@@ -162,7 +163,7 @@ The real-runtime adapter gate is now complete. A dedicated temporary Worker impo
 The deployed wrapper admitted exactly 3 of 20 simultaneous attempts at account cap 3, and exactly 2 of 12 simultaneous attempts across two NULL-cap accounts at installation cap 2. It also passed duplicate idempotency, conflicting-ID denial, idempotent release, disabled/expired/zero-cap denial, bounded expired-lease cleanup, and restrictive-FK account deletion checks. D1 metadata showed primary-served operations in WEUR/AMS. Full evidence is in [d1-runtime-validation-2026-10-30.md](d1-runtime-validation-2026-10-30.md).
 
 Issue #106 is closed as completed for D1-backed per-account/installation admission and its disposable runtime validation. No production proxy limits were configured. This test does not exercise the complete VLESS handler route or prove lease behavior after isolate termination; Nova REF-032 remains unrun. Issue #78 remains open for slow-reader/backpressure and Cloudflare-internal WebSocket buffer evidence.
-## TCP connection-creation cancellation contract — 2026-11-06
+## TCP connection-creation cancellation contract ï¿½ 2026-11-06
 
 The VLESS handler now creates an `AbortController` for each candidate dial and passes its signal as the third argument to the injected `connectTcp(address, env, signal)` adapter. Session closure aborts the pending controller before awaiting the tracked connection promise. The default Cloudflare adapter checks `signal.aborted` after importing `cloudflare:sockets` and before calling `connect()`. Cloudflare documents `connect()` as synchronously returning a `Socket`; its `opened` promise separately reports connection establishment. Therefore, once `connect()` has returned, the existing pending-socket path can close the handle and keep lease release ordered after `socket.close()` completion.
 
