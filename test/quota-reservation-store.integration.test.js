@@ -224,7 +224,7 @@ test("concurrent D1 session admission never over-allocates the last account slot
   db.close();
 });
 
-test("concurrent D1 admission enforces the installation-wide cap across accounts", async () => {
+test("concurrent SQLite-backed admission enforces the shared-database cap across accounts", async () => {
   const { db, store } = fixture();
   for (let index = 0; index < 4; index += 1) createAccount(db, { id: `global-${index}`, maxConnections: null });
   const attempts = await Promise.all(Array.from({ length: 20 }, (_, index) => store.acquireProxySession({
