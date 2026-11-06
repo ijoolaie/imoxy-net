@@ -178,6 +178,31 @@ The VLESS relay's upstream pump performs exactly one `reader.read()`, then await
 
 For configured positive safe-integer values, the application-submitted downstream payload is bounded per admitted session by `PROXY_MAX_DOWNLOAD_BYTES` plus the two-byte VLESS response header. The mandatory global D1 lease ceiling bounds the aggregate application-submitted payload by at most `PROXY_MAX_CONCURRENT_SESSIONS * (PROXY_MAX_DOWNLOAD_BYTES + 2)` bytes, excluding WebSocket framing/runtime copies and implementation overhead. This is a bound on bytes submitted by the application, **not** a measurement or proof of Cloudflare's internal WebSocket buffer or total Worker memory. The D1 lease expiry is designed to outlive the active session by handshake/setup + maximum lifetime + grace, so it conservatively limits simultaneous admitted sessions.
 
+### Operational budget envelope â€” proposed, not configured
+
+The two settings must be selected as a pair because the installation-wide D1 lease ceiling multiplies the per-session cumulative download allowance. The enforceable application-submitted payload ceiling is:
+
+`aggregateSubmittedBytes <= globalConcurrentSessions * (perSessionDownloadBytes + 2)`
+
+The two bytes are the VLESS response header, once per admitted session. The whole-chunk check prevents a final TCP chunk from crossing the configured per-session payload ceiling. This arithmetic excludes WebSocket framing, runtime queueing, copies, JS/object overhead, TCP buffers, D1 state, and all other Worker memory; it is **not** a Worker-memory estimate or safety proof.
+
+| Example profile | Per-session download cap | Installation-wide active sessions | Maximum application-submitted payload |
+| --- | ---: | ---: | ---: |
+| Conservative first rollout candidate | 1 MiB | 2 | 2,097,156 bytes (2 MiB + 4) |
+| Existing larger Service Binding smoke fixture | 8 MiB | 2 | 16,777,220 bytes (16 MiB + 4) |
+| Unit-test fixture scale, not a deployment recommendation | 1 MiB | 100 | 104,857,800 bytes (100 MiB + 200) |
+
+**Recommended operational starting point for a separately approved, controlled rollout:** cap each session at 1 MiB and the installation globally at 2 concurrent sessions. Keep the existing 60-second lifetime ceiling as a separate time bound where that profile is used. This is a deliberately small application-work envelope, not a claim that 2 MiB is a safe runtime-memory ceiling. Do not copy the 100-session unit-test fixture into deployment configuration. The 8 MiB / 2-session profile is useful as a bounded test fixture but should be treated as a later expansion tier, not the initial operating setting.
+
+Before increasing either value:
+1. Calculate and record the resulting aggregate submitted-byte ceiling with the formula above; assess it against an explicitly allocated Worker resource budget with headroom for framing, copies, upload queues, TCP and runtime overhead. The repository currently has no measurement that can translate submitted bytes into total Worker memory.
+2. Require a deliberate non-reading-client test on an authorized disposable runtime, including send latency, errors/close behavior, exact byte counts, sequence continuity, D1 lease cleanup, and resource cleanup. A successful bounded run remains observational and does not reveal the internal queue size.
+3. Increase one dimension at a time. Raising concurrency multiplies the aggregate ceiling; raising the per-session cap increases both the possible queued work per slow client and the aggregate ceiling. Recalculate after every change.
+4. Keep the installation-wide D1 lease cap mandatory and independently verify its configured value; per-account `max_connections` is an additional restriction, not a substitute for the global cap. A session-duration limit bounds occupancy time but does not reduce the byte ceiling.
+5. Do not promote any proposed values into existing staging or production bindings without a separate explicit owner decision and deployment authorization.
+
+No deployment values are selected by this document, and no Cloudflare resource/configuration was changed by this review.
+
 Keep the disposable Worker slow-reader probe open to observe runtime send latency/errors/close behavior; do not infer internal buffer capacity from client-side backlog. Keep Nova parity separate and unverified.
 
 ## VLESS session-admission runtime status correction â€” 2026-10-31
@@ -337,13 +362,13 @@ The diagnostic implementation and handler regression test passed `npm run verify
 
 The console-only callback events were absent from Wrangler remote-preview logs in run 41477742794. The smoke Worker now exposes a test-only GET /_test/diagnostics endpoint, protected by a random per-run token passed in a temporary Wrangler config and required in a request header. It returns no-store JSON with at most 256 allowlisted payload-free events and a dropped-event count. The buffer is isolate-local; an empty response is inconclusive if the request reaches another isolate. The harness test covers token gating, field allowlisting/redaction, and bounded retention. Do not rerun Cloudflare until exact-head CI and diff review pass. Keep the 10-second, 8-MiB, 16-KiB, and two-client caps unchanged.
 
-## Current Workers WebSocket API and close semantics — 2026-11-06
+## Current Workers WebSocket API and close semantics ï¿½ 2026-11-06
 
 The current official API reference documents synchronous `WebSocket.send()` and `readyState`/`binaryType`, but no documented send-buffer size, `bufferedAmount`, drain event, or awaitable send result. Keep the finite application-submitted payload bound described above and do not claim that it measures runtime-internal buffering. The VLESS smoke compatibility date (`2026-11-02`) is after the `2026-04-07` default activation of automatic close-frame replies. Because the handler uses default `server.accept()`, the runtime acknowledges peer Close frames before firing `close`; asynchronous TCP close and D1 lease release continue separately. Half-open mode is documented for proxy coordination but should not be enabled without a cancellable/bounded dial contract and tests proving that a stalled dial cannot indefinitely hold the close handshake. This is a lifecycle design note, not a diagnosis of smoke run #5. Issue #78 remains open and the disposable slow-reader probe remains unrun.
 
 Source: https://developers.cloudflare.com/workers/runtime-apis/websockets/ (last updated 2026-10-12).
 
-## TCP dial cancellation regression — 2026-11-06
+## TCP dial cancellation regression ï¿½ 2026-11-06
 
 The handler now passes a per-candidate `AbortSignal` to the TCP connector adapter and aborts it when the session closes. The default Cloudflare adapter checks the signal after module import and before the synchronous `connect()` call, avoiding creation of a new TCP socket when the handshake has already timed out. If the socket was already returned, the existing tracked pending-socket cleanup still closes it before releasing the D1 admission lease. Cooperative connectors can cancel promptly; connectors that ignore the signal and an import that never settles remain conservative pending-cleanup risks. A deterministic handler test covers abort-before-socket-creation and confirms the lease is released only after the connector settles. This is local evidence, not Cloudflare runtime acceptance.
 
