@@ -8,9 +8,12 @@ import { setTimeout as delay } from "node:timers/promises";
 const ROOT = process.cwd();
 const ACCOUNT_ID = "0d548671f52ffc237fb80dcb2067ac1a";
 const API_BASE = "https://api.cloudflare.com/client/v4";
-const MAX_TEST_BYTES = 8 * 1024 * 1024;
+const MAX_TEST_BYTES = 16 * 1024 * 1024;
 const EXPECTED_SESSION_BYTES = 6 + 4 * 16 * 1024;
-const EXPECTED_TOTAL_BYTES = 2 * EXPECTED_SESSION_BYTES;
+const SLOW_READER_PAYLOAD_BYTES = 4 * 1024 * 1024;
+const SLOW_READER_SESSION_BYTES = 6 + SLOW_READER_PAYLOAD_BYTES;
+const EXPECTED_TOTAL_BYTES = 2 * EXPECTED_SESSION_BYTES + SLOW_READER_SESSION_BYTES;
+const EXPECTED_REQUEST_COUNT = 3;
 const RUN_ID = process.env.GITHUB_RUN_ID;
 const RUN_ATTEMPT = process.env.GITHUB_RUN_ATTEMPT;
 const TOKEN = process.env.CLOUDFLARE_API_TOKEN;
@@ -337,13 +340,36 @@ async function main() {
     maxBuffer: 2 * 1024 * 1024
   });
   if (smoke.error) throw smoke.error;
-  const diagnostics = await fetchSmokeDiagnostics(diagnosticsToken);
-  console.log("VLESS smoke stage diagnostics (payload-free):\\n" + JSON.stringify(diagnostics, null, 2));
+
+
   if (smoke.status !== 0) {
     throw new Error("The VLESS WebSocket/TCP smoke client failed (" + smoke.status + "):\n" +
       [smoke.stdout, smoke.stderr, "Wrangler remote preview output:\n" + previewLogs].filter(Boolean).join("\n").slice(-12000));
   }
   console.log("VLESS smoke client result:\n" + smoke.stdout.trim());
+
+  const slowReader = spawnSync(process.execPath, ["scripts/vless-cloudflare-slow-reader-smoke.mjs"], {
+    cwd: ROOT,
+    env: {
+      ...process.env,
+      IMOXY_VLESS_WS_URL: "ws://127.0.0.1:8787/proxy/vless",
+      IMOXY_VLESS_CREDENTIAL: credential
+    },
+    encoding: "utf8",
+    timeout: 60_000,
+    maxBuffer: 2 * 1024 * 1024
+  });
+  if (slowReader.error) throw slowReader.error;
+  if (slowReader.status !== 0) {
+    throw new Error("The VLESS slow-reader client failed (" + slowReader.status + "):\\n" +
+      [slowReader.stdout, slowReader.stderr, "Wrangler remote preview output:\\n" + previewLogs].filter(Boolean).join("\\n").slice(-12000));
+  }
+  console.log("VLESS slow-reader client result:\\n" + slowReader.stdout.trim());
+
+  const diagnostics = await fetchSmokeDiagnostics(diagnosticsToken);
+
+
+  console.log("VLESS smoke stage diagnostics (payload-free):\\n" + JSON.stringify(diagnostics, null, 2));
 
   const accountLiteral = literal(accountId);
   let usage = null;
@@ -378,7 +404,7 @@ async function main() {
 
   if (Number(usage?.upload_bytes) !== EXPECTED_TOTAL_BYTES ||
       Number(usage?.download_bytes) !== EXPECTED_TOTAL_BYTES ||
-      Number(usage?.request_count) !== 2 ||
+      Number(usage?.request_count) !== EXPECTED_REQUEST_COUNT ||
       activeSessions !== 0 || activeReservations !== 0 || releasedReservations !== 0 ||
       settledReservations < 1 || settledBytes !== EXPECTED_TOTAL_BYTES * 2) {
     throw new Error("Worker-bound D1 acceptance mismatch: " + JSON.stringify({
@@ -393,7 +419,9 @@ async function main() {
     ok: true,
     evidence: "Wrangler remote preview + Worker-bound D1 + Worker-to-Worker TCP Service Binding",
     accountScope: "fixed disposable-test Cloudflare account only",
-    clients: 2,
+    clients: 3,
+    slowReaderPayloadBytes: SLOW_READER_PAYLOAD_BYTES,
+    slowReaderPauseMs: 2500,
     frameBytes: 16 * 1024,
     sessionLimitMs: 30_000,
     uploadBytes: Number(usage.upload_bytes),
