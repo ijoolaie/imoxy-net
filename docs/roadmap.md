@@ -1,7 +1,7 @@
 # imoxy.net — Product Roadmap and Phase Gates
 
 **Status:** Active execution baseline; foundation merged, core design work started  
-**Last updated:** 2026-11-02
+**Last updated:** 2026-11-06
 **Reference target:** Nova Proxy 5.0.0, pinned in [reference-baseline.md](reference-baseline.md)  
 **Rule:** A phase is not complete because code exists; it is complete only when its exit criteria have reproducible evidence.
 
@@ -34,7 +34,7 @@ Behavioral compatibility with the pinned reference is the first product mileston
 ## Phases
 
 ### Phase 0 — Repository governance and delivery baseline
-**State:** In progress — baseline governance, CI, capability reporting, and phase tracking are in place. Final repository-wide audit and all exit checks are not yet certified.
+**State:** In progress — baseline governance and CI are present; the 2026-11-06 [governance audit](governance-audit.md) records passing local verification and the remaining licensing, branch-protection, security-reporting, ownership, workflow supply-chain, and Android-build gaps.
 
 Deliver:
 - CI and reproducible local verification.
