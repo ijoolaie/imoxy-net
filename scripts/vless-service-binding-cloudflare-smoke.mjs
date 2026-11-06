@@ -4,6 +4,7 @@ import { readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { checkPreviewHealth, redactPreviewOutput, summarizePreviewProcess } from "./vless-smoke-preview-diagnostics.mjs";
 import { setTimeout as delay } from "node:timers/promises";
+import { waitForSessionLeaseDrain } from "./vless-smoke-session-drain.mjs";
 
 const ROOT = process.cwd();
 const ACCOUNT_ID = "0d548671f52ffc237fb80dcb2067ac1a";
@@ -82,6 +83,14 @@ async function d1Query(sql) {
   const failed = items.find((item) => item?.success === false || item?.error);
   if (failed) throw new Error("D1 query failed: " + (failed.error ?? "unknown D1 error"));
   return items.flatMap((item) => Array.isArray(item?.results) ? item.results : []);
+}
+
+async function readActiveSessionCount(accountLiteral) {
+  const rows = await d1Query(
+    "SELECT COUNT(*) AS active_sessions FROM proxy_active_sessions WHERE account_id = " + accountLiteral
+  );
+  const count = Number(rows[0]?.active_sessions ?? -1);
+  return Number.isSafeInteger(count) && count >= 0 ? count : -1;
 }
 
 async function run(command, args, options = {}) {
@@ -328,6 +337,7 @@ async function main() {
   console.log("Deployed the internal-only disposable TCP Echo Worker through Wrangler.");
 
   await startRemotePreview();
+  const accountLiteral = literal(accountId);
   const smoke = spawnSync(process.execPath, ["scripts/vless-cloudflare-runtime-smoke.mjs"], {
     cwd: ROOT,
     env: {
@@ -348,6 +358,22 @@ async function main() {
   }
   console.log("VLESS smoke client result:\n" + smoke.stdout.trim());
 
+  const baselineDiagnostics = await fetchSmokeDiagnostics(diagnosticsToken);
+  console.log("Baseline lifecycle diagnostics (payload-free): " + JSON.stringify(baselineDiagnostics));
+
+  const baselineDrain = await waitForSessionLeaseDrain({
+    readActiveSessions: () => readActiveSessionCount(accountLiteral),
+    wait: delay,
+    attempts: 30,
+    intervalMs: 500
+  });
+  console.log("Baseline session-lease drain: " + JSON.stringify(baselineDrain));
+  if (!baselineDrain.drained) {
+    const diagnostics = await fetchSmokeDiagnostics(diagnosticsToken);
+    throw new Error("Baseline client session leases did not drain before slow-reader admission: " +
+      JSON.stringify({ baselineDrain, baselineDiagnostics, diagnostics }));
+  }
+
   const slowReader = spawnSync(process.execPath, ["scripts/vless-cloudflare-slow-reader-smoke.mjs"], {
     cwd: ROOT,
     env: {
@@ -360,10 +386,31 @@ async function main() {
     timeout: 60_000,
     maxBuffer: 2 * 1024 * 1024
   });
-  if (slowReader.error) throw slowReader.error;
-  if (slowReader.status !== 0) {
-    throw new Error("The VLESS slow-reader client failed (" + slowReader.status + "):\\n" +
-      [slowReader.stdout, slowReader.stderr, "Wrangler remote preview output:\\n" + previewLogs].filter(Boolean).join("\\n").slice(-12000));
+  if (slowReader.error || slowReader.status !== 0) {
+    const diagnostics = await fetchSmokeDiagnostics(diagnosticsToken);
+    let activeSessionsAtFailure = null;
+    let activeReservationsAtFailure = null;
+    try {
+      activeSessionsAtFailure = await readActiveSessionCount(accountLiteral);
+      const rows = await d1Query(
+        "SELECT SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_reservations FROM quota_reservations WHERE account_id = " + accountLiteral
+      );
+      activeReservationsAtFailure = Number(rows[0]?.active_reservations ?? 0);
+    } catch (error) {
+      activeReservationsAtFailure = { queryErrorName: error?.name ?? "Error" };
+    }
+    throw new Error("The VLESS slow-reader client failed (" + (slowReader.status ?? "spawn-error") + "):\\n" +
+      JSON.stringify({
+        stdout: slowReader.stdout,
+        stderr: slowReader.stderr,
+        spawnErrorName: slowReader.error?.name ?? null,
+        activeSessionsAtFailure,
+        activeReservationsAtFailure,
+        diagnostics,
+        previewOutputTail: redactPreviewOutput(previewLogs, [
+          TOKEN, diagnosticsToken, credential
+        ]).slice(-4000)
+      }, null, 2));
   }
   console.log("VLESS slow-reader client result:\\n" + slowReader.stdout.trim());
 
@@ -372,7 +419,7 @@ async function main() {
 
   console.log("VLESS smoke stage diagnostics (payload-free):\\n" + JSON.stringify(diagnostics, null, 2));
 
-  const accountLiteral = literal(accountId);
+
   let usage = null;
   let activeSessions = null;
   let activeReservations = null;
