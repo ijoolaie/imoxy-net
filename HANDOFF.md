@@ -1704,3 +1704,10 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - Acceptance boundary remains unchanged: tests model a fake non-consuming peer and Smoke #6 is not a deliberate slow-reader test. Cloudflare's documented Workers WebSocket API exposes synchronous `send()` but no documented drain/awaitable-send signal; runtime-internal queue/memory remains unmeasured. Issue #78 remains open; do not mark runtime acceptance complete or reintroduce undocumented `bufferedAmount`.
 - No new handler code change is justified by the current evidence. No Cloudflare workflow/probe was dispatched, no Cloudflare resource was created or changed, and Production/pre-existing staging were not touched. “ادامه بده” was not treated as approval for the separate slow-reader runtime probe; the candidate limits (10s, 8 MiB, 16 KiB frames, max 2 clients) remain unapproved.
 - Local `git_status` was clean before this handoff-only update. HANDOFF.md exceeds the 256 KiB read limit, so it was inspected through its bounded tail and updated by append on this feature branch. Runtime acceptance remains unproven; a separately authorized disposable runtime probe is still required. Roadmap statuses unchanged; no phase marked Complete.
+
+
+## 2026-11-06 - repeated local verification
+- Reconnected to the approved Raya workspace; confirmed local `main` had been clean and aligned with `origin/main` at `764634efac131dcb2afccf8f3ed81df63a1c9b7d`, then created documentation branch `docs/handoff-verify-20261106`.
+- Ran `cmd.exe /c npm run verify`: exit 0; all three configured `node --check` syntax checks passed; 240 tests total, 239 passed, 0 failed, 1 skipped (opt-in local TCP echo integration).
+- `npm_lint` is not applicable because `package.json` defines no `lint` script. `git_diff_check` passed before this handoff-only edit.
+- No runtime code changed. No Cloudflare workflow/probe was run and no Cloudflare resources, Production, or pre-existing staging were modified. The separate slow-reader Cloudflare probe remains unapproved; runtime acceptance remains unproven and issue #78 remains open. Roadmap statuses unchanged; no phase marked Complete.
