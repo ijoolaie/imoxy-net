@@ -134,6 +134,9 @@ This is a separate partial runtime observation, not completion of every probe re
 
 No D1 binding/database was attached, no real outbound TCP destination was contacted, and no Cloudflare internal send-buffer size/drain signal was measured. This does not prove bounded internal buffering, behavior under longer pauses, or aggregate concurrency. The generic dedicated slow-reader probe described above is not thereby fully accepted; Issue #78 remains open.
 
+
+
+
 A separate disposable D1 attempt was cleaned up after the safety layer blocked remote migration execution before any SQL was applied or queried. The real-D1 VLESS gate remains blocked. Do not bypass the safety layer.
 
 ## Current Workers WebSocket API review � 2026-11-06
@@ -160,4 +163,10 @@ Evidence boundary: these tests model a non-consuming peer with a fake WebSocket;
 
 Current decision: retain the existing fail-closed policy (one upstream read at a time; settle each submitted chunk before the next read; reject a whole chunk that exceeds the cumulative per-session download budget; require the global D1 admission ceiling). This yields a code-derived application-submitted bound of `PROXY_MAX_CONCURRENT_SESSIONS * (PROXY_MAX_DOWNLOAD_BYTES + 2)` bytes, including the two-byte VLESS response header per admitted session. It does not bound runtime-internal framing, copies, or memory independently of those configured values.
 
-The latest disposable Cloudflare smoke run #5 still failed its final acceptance assertion with `activeSessions=1` after the 15-second polling window; diagnostics retrieval returned `available:false` with `TypeError`, and the precise cause remains unknown. Its run-owned resources were cleaned up and absence verified. This failure is not explained by the local slow-reader tests and must not be conflated with the WebSocket internal-buffer question. No new Cloudflare run was authorized or dispatched in this review. Issue #78 remains open.
+Historical disposable Cloudflare smoke run #5 failed its final acceptance assertion with `activeSessions=1` after the 15-second polling window; diagnostics retrieval returned `available:false` with `TypeError`, and the precise cause remains unknown. Its run-owned resources were cleaned up and absence verified. This failure is not explained by the local slow-reader tests and must not be conflated with the WebSocket internal-buffer question. Later smoke #6 evidence is recorded in the dated update below.
+
+## 2026-11-06 - reconcile disposable VLESS smoke #6 with backpressure acceptance
+
+A later, explicitly authorized disposable Cloudflare smoke was run from `main` commit `ae01fcfa1c98ebdff9449c07d4fd56f86b111eb0`: workflow run `42176234232`, job `127755234489`. The `smoke` job completed successfully. Two concurrent clients traversed the Cloudflare Worker WebSocket -> VLESS handler -> TCP Service Binding echo path; each uploaded and downloaded exactly 65,542 bytes (131,084 bytes in each direction total). Final D1 assertions reported `activeSessionsAfterClose=0` and `activeReservationsAfterClose=0`, with 44 settled reservations, 0 released reservations, and 262,168 settled reservation bytes. Lifecycle records included `websocket.close_event`, `tcp.socket_close.complete`, and `session.lease_release.start`. The diagnostics retrieval request still returned `TypeError`; the final D1 assertions, rather than that diagnostics endpoint, are the evidence for zero active sessions/reservations in this run. The disposable Worker and D1 were deleted and absence verified.
+
+This improves the actual VLESS/TCP/D1 echo and post-close lease-cleanup evidence and shows that smoke #5's nonzero active-session result did not recur in this run. It does **not** establish why #5 failed, validate a deliberately non-reading downstream client, measure send-call latency/sequence gaps under a slow reader, or reveal Cloudflare's internal WebSocket queue/memory. The dedicated slow-reader runtime probe in this document therefore remains unrun and runtime-internal buffering remains **unproven**. Keep issue #78 open; retain the existing fail-closed application-level byte/session policy and do not reintroduce undocumented `bufferedAmount`. No additional Cloudflare run is authorized by this documentation update.
