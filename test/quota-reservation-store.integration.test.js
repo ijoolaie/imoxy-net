@@ -224,6 +224,22 @@ test("concurrent D1 session admission never over-allocates the last account slot
   db.close();
 });
 
+test("concurrent D1 admission enforces the installation-wide cap across accounts", async () => {
+  const { db, store } = fixture();
+  for (let index = 0; index < 4; index += 1) createAccount(db, { id: `global-${index}`, maxConnections: null });
+  const attempts = await Promise.all(Array.from({ length: 20 }, (_, index) => store.acquireProxySession({
+    sessionId: `global-racer-${index}`,
+    accountId: `global-${index % 4}`,
+    createdAt: timestamp,
+    expiresAt: "2026-10-27T13:00:00.000Z",
+    at: timestamp,
+    maxConcurrentSessions: 2
+  })));
+  assert.equal(attempts.filter((result) => result.allowed).length, 2);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM proxy_active_sessions WHERE expires_at > ?").get(timestamp).n, 2);
+  db.close();
+});
+
 test("active session leases prevent account deletion from freeing a live slot", async () => {
   const { db, store } = fixture();
   createAccount(db, { id: "acct-1", maxConnections: 1 });
