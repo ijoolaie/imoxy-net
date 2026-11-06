@@ -1690,3 +1690,10 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - Disposable Worker and D1 cleanup completed and absence was verified. The workflow was scoped to the fixed disposable-test Cloudflare account; Production and pre-existing staging were not touched.
 - This run passes the isolated Cloudflare smoke's client echo and post-close active-session/reservation assertions. It does not by itself establish full production/runtime acceptance under real user traffic. Do not mark roadmap phases complete or close issue #78 on this evidence alone. Runtime acceptance remains unproven; issue #78 remains open.
 - No code change is justified by this run. Roadmap statuses remain unchanged: phases 0-11 In progress, phase 12 Blocked, phase 13 Not started; none Complete.
+
+## 2026-11-06 - PR #189 merge and post-merge verification
+- PR #189 (`docs(handoff): record successful Cloudflare smoke 6`) passed exact-head CI run `42177681685` on `f6533bc75d65fd532b22397bc493cf6fc9d1c0a2`; review submissions and inline review threads were empty, and GitHub reported the PR mergeable/clean. It was squash-merged as `b983e2fe85c30f6f188fb1a7d049df4b34a0eef6`.
+- Verified PR #189 closed/merged and `main` points to the same merge commit. Post-merge main CI run `42177866384` completed `success` on that exact SHA.
+- Reconnected to the allowed Raya workspace and fast-forwarded local `main` to `origin/main`; worktree was clean. Re-ran `cmd.exe /c npm run verify`: exit code 0, syntax checks passed, 240 tests total, 239 passed, 0 failed, 1 skipped (opt-in local TCP integration).
+- No runtime code changed; no Cloudflare workflow was dispatched and no Cloudflare resources, Production, or pre-existing staging were modified. A new Cloudflare smoke still requires separate explicit authorization. Issue #78 remains open; full runtime acceptance and Cloudflare-internal WebSocket buffering remain unproven.
+- Roadmap statuses remain unchanged: phases 0-11 In progress, phase 12 Blocked, phase 13 Not started; none Complete.
