@@ -1542,10 +1542,10 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - No Cloudflare workflow dispatch/rerun, deployment, resource mutation, PR merge, or production/pre-existing staging change occurred. PR #175 remains untouched. Roadmap statuses remain unchanged: phases 0-11 In Progress, phase 12 Blocked, phase 13 Not started; no phase is Complete.
 
 
-## 2026-11-03 G«ˆ disposable Cloudflare smoke run 4: Worker creation authorization
+## 2026-11-03 GÔøΩÔøΩ disposable Cloudflare smoke run 4: Worker creation authorization
 
 - Owner manually dispatched workflow run [41583822792](https://github.com/ijoolaie/imoxy-net/actions/runs/41583822792) on `main` commit `9e48326280753dbcde96faa6d7e10f5b53074edf`.
-- D1 creation and all migrations 0001G«Ù0008 succeeded through the Cloudflare D1 API.
+- D1 creation and all migrations 0001GÔøΩÔøΩ0008 succeeded through the Cloudflare D1 API.
 - The run failed at the first Wrangler deploy, the run-specific internal TCP Echo Worker `imoxy-vless-smoke-echo-41583822792-1`. Wrangler 4.156.0 reported successful upload, then Cloudflare API path `/accounts/<account>/workers/workers/<worker-name>` returned code 10007, G«£This Worker does not exist on your account.G«•
 - Failure occurred at `scripts/vless-service-binding-cloudflare-smoke.mjs:309`, before remote preview startup and before any VLESS client/relay activity. This run provides no handshake, byte-transfer, D1 settlement, or lease-release evidence.
 - The finally block completed cleanup and verified absence of run-owned Worker/D1 resources. Production and pre-existing staging were not targeted.
@@ -1570,7 +1570,7 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - Current Cloudflare Workers WebSockets API reference (last updated 2026-10-12) documents synchronous `send()` and `readyState`/`binaryType`, but no `bufferedAmount`, drain event, or awaitable send result. It documents `accept({ allowHalfOpen: true })` for proxy close coordination. The VLESS smoke compatibility date `2026-11-02` is after the default auto-reply activation date `2026-04-07`; current `server.accept()` uses default auto-reply, so close-handshake completion is separate from asynchronous TCP cleanup and D1 lease release.
 - Half-open mode is not applied: without a cancellable/bounded `connectTcp()` contract, a never-settling dial could hold the close handshake in CLOSING while cleanup waits for the pending promise. This is a design risk to test, not a confirmed cause of smoke run #5's `activeSessions=1` failure.
 - Existing code bounds application-submitted output via sequential TCP reads, quota settlement before the next read, per-session byte cap, and global D1 lease cap; this does not prove internal runtime buffering or total Worker memory. Issue #78 remains open. No Cloudflare smoke run, deployment, route/DNS change, D1 mutation, or resource mutation was performed; a new run still requires separate explicit authorization.
-- Local `cmd.exe /c npm run verify` on merged code completed successfully earlier in this session: syntax checks passed; 238 tests total, 237 passed, 0 failed, 1 skipped (opt-in local TCP integration). This docs-only follow-up has not changed executable code. `docs/roadmap.md` phase statuses remain unchanged: phases 0ñ11 In progress, phase 12 Blocked, phase 13 Not started; no phase is Complete.
+- Local `cmd.exe /c npm run verify` on merged code completed successfully earlier in this session: syntax checks passed; 238 tests total, 237 passed, 0 failed, 1 skipped (opt-in local TCP integration). This docs-only follow-up has not changed executable code. `docs/roadmap.md` phase statuses remain unchanged: phases 0ÔøΩ11 In progress, phase 12 Blocked, phase 13 Not started; no phase is Complete.
 - Next: review the proposed cancellable TCP dial contract and add only deterministic tests/design evidence; do not claim runtime acceptance until a separately authorized disposable Worker/D1/TCP and slow-reader probe passes with cleanup verified.
 
 ## 2026-11-06 - cooperative TCP dial cancellation hardening
@@ -1602,7 +1602,7 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - The abortable dial change is cooperative: the default Cloudflare connector checks cancellation after module import and before synchronous `connect()`; an import that never settles or a custom connector that ignores the signal may remain pending. Existing sockets are still closed before D1 lease release; no speculative release was introduced.
 - Local validation before merge: focused VLESS handler 62/62; full `cmd.exe /c npm run verify` exit 0 with 239 total, 238 passed, 0 failed, 1 skipped; `git diff --check` passed.
 - Cloudflare runtime acceptance remains unresolved: smoke run #5 ended with `activeSessions=1`. No new Cloudflare run, deployment, D1 mutation, route/DNS change, or resource mutation was performed. A new run still requires separate explicit authorization. Production and existing staging remain untouched.
-- Issue #78 remains open. Roadmap phase statuses remain unchanged (0ñ11 In progress, 12 Blocked, 13 Not started); no phase is Complete.
+- Issue #78 remains open. Roadmap phase statuses remain unchanged (0ÔøΩ11 In progress, 12 Blocked, 13 Not started); no phase is Complete.
 
 ## 2026-11-06 - follow-up local verification after PR #180
 
@@ -1613,3 +1613,12 @@ Restart point: main currently includes PR #164 (merge commit `894901cf482c674913
 - GitHub reports no open PRs. Issue #78 remains open. Latest Cloudflare smoke run #5 still has the unresolved `activeSessions=1` acceptance failure; this local verification does not diagnose it or prove Worker/D1/TCP runtime acceptance or internal WebSocket buffer bounds.
 - No Cloudflare workflow was dispatched or rerun. No deployment, Cloudflare resource mutation, Production change, or pre-existing staging change occurred. A new Cloudflare run still requires separate explicit owner authorization.
 - Roadmap statuses are unchanged: phases 0-11 In progress, phase 12 Blocked, phase 13 Not started; no phase is Complete.
+
+## 2026-11-06 - Issue #78 slow-reader test/evidence review
+
+- Fetched `origin` after PR #181 merged and fast-forwarded local `main` from `b6fbe1a` to `02bf26d541608642c50803dd99dbea2a8f51240b`; created feature branch `test/vless-slow-reader-failure-semantics-20261106` from that exact main commit. Worktree was clean before review.
+- Reviewed the production VLESS relay and existing handler tests. The suite already covers a fake non-consuming downstream peer, a held quota-settlement gate that prevents a second upstream read, rejection of a whole over-budget chunk, downstream synchronous send failure with reservation retained, and quota-settlement failure stopping further reads/forwarding. No additional handler code change is justified by this review.
+- Clarified `docs/vless-runtime-backpressure-probe.md`: the document contains partial generic Worker/Wrangler observations, not a completed dedicated VLESS slow-reader/D1/TCP acceptance probe. Added a test/evidence matrix and explicitly distinguished application-submitted byte bounds from Cloudflare-internal queue/memory behavior. Also clarified that the upload-side client queue cap is not a downstream WebSocket queue cap and that synchronous send has no documented per-frame delivery acknowledgement.
+- The code-derived application-submitted bound remains `PROXY_MAX_CONCURRENT_SESSIONS * (PROXY_MAX_DOWNLOAD_BYTES + 2)` bytes. It does not prove runtime-internal framing/copy/queue memory. Smoke run #5's `activeSessions=1` failure and diagnostics `TypeError` remain unexplained; they are separate from the slow-reader unit-test evidence.
+- No Cloudflare workflow was dispatched, no resource was created or mutated, and Production/pre-existing staging were not touched. No new runtime authorization was inferred from ‚Äúcontinue‚Äù.
+- Validation: full `cmd.exe /c npm test` passed (239 tests total, 238 passed, 0 failed, 1 skipped); `git diff --check` passed. The focused VLESS test process was superseded by the full-suite run, which includes all VLESS handler tests. Submit this documentation-only evidence reconciliation through PR/CI. Issue #78 remains open; roadmap statuses unchanged (phases 0-11 In progress, 12 Blocked, 13 Not started; none Complete).

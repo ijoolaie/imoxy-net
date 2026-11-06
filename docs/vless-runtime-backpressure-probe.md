@@ -1,6 +1,6 @@
 # VLESS downstream WebSocket runtime probe
 
-**Status:** Plan only â€” not run. No Worker, route, D1 database, or Cloudflare resource was created or changed for this document.
+**Status:** Plan plus partial runtime observations; full acceptance remains blocked. The generic Worker and Wrangler remote-preview observations below are not a dedicated, fully accepted VLESS slow-reader/D1/TCP probe.
 
 ## Purpose
 
@@ -136,7 +136,7 @@ No D1 binding/database was attached, no real outbound TCP destination was contac
 
 A separate disposable D1 attempt was cleaned up after the safety layer blocked remote migration execution before any SQL was applied or queried. The real-D1 VLESS gate remains blocked. Do not bypass the safety layer.
 
-## Current Workers WebSocket API review — 2026-11-06
+## Current Workers WebSocket API review ï¿½ 2026-11-06
 
 The official Cloudflare Workers WebSockets API reference (last updated 2026-10-12) documents `send(string | ArrayBuffer | ArrayBufferView)` as a synchronous method and lists `readyState` and `binaryType` as WebSocket properties. It does not document `bufferedAmount`, a drain event, or an awaitable send/write result. This is a statement about the documented API surface, not proof that no undocumented runtime telemetry exists; the implementation must not depend on undocumented properties.
 
@@ -147,3 +147,17 @@ Do not switch to half-open mode as an isolated change: the current close path de
 The current application-level output policy remains the safer independently enforced bound: one upstream read at a time, await quota settlement before the next read, reject a whole chunk beyond the per-session byte budget, and require a global D1 lease cap. This bounds bytes submitted by the application, not Cloudflare's internal framing, copies, send queue, or total Worker memory. The dedicated disposable runtime probe remains not run; issue #78 stays open. No Cloudflare workflow, deployment, or resource mutation was performed.
 
 Source: https://developers.cloudflare.com/workers/runtime-apis/websockets/ (API reference last updated 2026-10-12).
+
+## 2026-11-06 - reconcile deterministic tests with runtime evidence
+
+The current main test suite already contains deterministic coverage for the application-level slow-reader policy; no additional handler code change is justified by the available evidence:
+
+- `serializes upstream reads behind downstream send settlement for a non-reading peer` holds quota settlement after a synchronous fake `WebSocket.send()` and verifies that the relay does not request another TCP chunk until settlement completes. It also verifies that a later whole chunk exceeding the remaining byte budget is rejected before another reservation/send.
+- `a non-reading downstream client is closed before cumulative download bytes exceed its session budget` uses a fake WebSocket that never consumes sent frames, submits a 3-byte chunk under a 4-byte cap, then rejects the following 2-byte chunk. It verifies settlement of the first chunk, no release of an ambiguous reservation, upstream close, and one session-lease release.
+- Separate regressions cover synchronous downstream `send()` failure (retain the reservation and close), quota-settlement failure (stop the TCP reader before a later chunk), and download-settlement failure (close before forwarding another queued chunk).
+
+Evidence boundary: these tests model a non-consuming peer with a fake WebSocket; they do not create Cloudflare's internal send queue, measure its capacity, or establish delivery to the remote peer. `WebSocket.send()` is synchronous in the documented Workers API, so the held-settlement test validates relay sequencing, not a send-drain/backpressure signal. Quota settlement records bytes accepted by the handler's send boundary; the runtime provides no documented per-frame delivery acknowledgement. The upload-side `MAX_QUEUED_CLIENT_BYTES` is a separate client-to-TCP queue cap and must not be described as a downstream WebSocket queue cap.
+
+Current decision: retain the existing fail-closed policy (one upstream read at a time; settle each submitted chunk before the next read; reject a whole chunk that exceeds the cumulative per-session download budget; require the global D1 admission ceiling). This yields a code-derived application-submitted bound of `PROXY_MAX_CONCURRENT_SESSIONS * (PROXY_MAX_DOWNLOAD_BYTES + 2)` bytes, including the two-byte VLESS response header per admitted session. It does not bound runtime-internal framing, copies, or memory independently of those configured values.
+
+The latest disposable Cloudflare smoke run #5 still failed its final acceptance assertion with `activeSessions=1` after the 15-second polling window; diagnostics retrieval returned `available:false` with `TypeError`, and the precise cause remains unknown. Its run-owned resources were cleaned up and absence verified. This failure is not explained by the local slow-reader tests and must not be conflated with the WebSocket internal-buffer question. No new Cloudflare run was authorized or dispatched in this review. Issue #78 remains open.
