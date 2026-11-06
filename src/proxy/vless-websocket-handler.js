@@ -406,12 +406,19 @@ export function createVlessWebSocketHandler({
       const releaseSessionLease = async () => {
         if (!state.sessionLeaseAcquired || state.sessionLeaseReleaseStarted) return;
         state.sessionLeaseReleaseStarted = true;
+        const releaseStartedAt = globalThis.performance?.now?.() ?? Date.now();
         emitDiagnostic(onDiagnostic, "session.lease_release.start");
         try {
           const released = await store.releaseProxySession({ sessionId: state.sessionId, accountId: state.accountId });
-          emitDiagnostic(onDiagnostic, "session.lease_release.complete", { released: released === true });
+          const releaseEndedAt = globalThis.performance?.now?.() ?? Date.now();
+          emitDiagnostic(onDiagnostic, "session.lease_release.complete", {
+            released: released === true,
+            durationMs: Math.max(0, releaseEndedAt - releaseStartedAt)
+          });
         } catch (error) {
+          const releaseEndedAt = globalThis.performance?.now?.() ?? Date.now();
           emitDiagnostic(onDiagnostic, "session.lease_release.error", {
+            durationMs: Math.max(0, releaseEndedAt - releaseStartedAt),
             errorName: typeof error?.name === "string" ? error.name : "Error"
           });
           // Keep an uncertain lease counted until its expiry; never free capacity
