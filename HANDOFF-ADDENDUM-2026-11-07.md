@@ -195,3 +195,15 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - PR review submissions and review threads were both empty before merge; PR was mergeable and clean. Merge was performed under the user's standing authorization for completed PRs satisfying exact-head CI, no unresolved review threads, and mergeability.
 - Issue #78 comment `6707857003` records the Run #13 diagnostics finding, PR #221 merge, and that no runtime probe was run. Issue #78 remains open.
 - The workspace was moved to a fresh documentation-only branch based on the merge commit to reconcile this handoff. No code changes or Cloudflare actions occurred after PR #221 merged.
+
+## PR #222 merge and post-merge verification — 2026-11-07
+
+- PR #222 (documentation-only handoff reconciliation after PR #221): https://github.com/ijoolaie/imoxy-net/pull/222.
+- PR head: `c870b5b5c1a711f4fa30db27ab132ffff81a7cab`; squash merge commit: `e7680b19b0fc44991713886f6f835366d9c1a95b`.
+- The PR initially had no check runs while open. Workflow review confirmed `.github/workflows/ci.yml` runs on `pull_request` to `main`; the docs-only path was not excluded by push path filters. A `test` check subsequently succeeded on the exact PR head, with no review submissions or unresolved review threads and a mergeable PR.
+- PR #222 was squash-merged. Post-merge main CI run `42381030369` completed with conclusion `success` on the exact merge commit `e7680b19b0fc44991713886f6f835366d9c1a95b`.
+- Local workspace fetched origin and switched to a new documentation-only branch `docs/issue78-pr222-handoff-2026-11-07`, based on the verified merge commit. The prior PR #222 branch is merged and was not reused.
+- No code, Cloudflare workflow, Worker, D1 resource, staging, or production resource was changed or run in this follow-up.
+- Issue #78 remains open. Run #13's baseline lease drain is still unresolved; empty isolate-local HTTP diagnostics are not proof that lifecycle events were absent. PR #221 ensures successful and unavailable diagnostics responses both include a bounded, redacted Wrangler preview output tail. Whether remote Worker lifecycle console records actually appear there remains unverified until a future separately authorized disposable runtime run.
+- Next engineering step: continue deterministic local analysis of the close/lease-drain path and harness evidence. Do not change production handler semantics or lease/accounting gates without a reproduced defect. If the next necessary evidence requires Cloudflare runtime, request fresh explicit user authorization first. Keep 1101/domain/VPN investigation at final priority.
+- Main `HANDOFF.md` remains unchanged because its 302,410-byte size exceeds the supported 256 KiB text-tool limit. This addendum is updated instead; no alternate write path was used.
