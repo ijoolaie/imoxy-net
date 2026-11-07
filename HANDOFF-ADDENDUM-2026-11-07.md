@@ -97,3 +97,14 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - These are local SQLite/mock-level properties only. They neither measure Cloudflare D1 latency nor prove Worker-internal WebSocket buffering is bounded. Run #12's D1 latency hypothesis remains unproven.
 - No code changes, Cloudflare workflow dispatches, Worker/D1 resource mutations, or runtime smoke runs were performed in this follow-up.
 - Next concrete step: decide whether to add an end-to-end D1-boundary counter to the VLESS handler integration harness (to tie actual relay chunks to the existing 3-boundary invariant), while preserving fail-closed and immutable identity semantics. Keep Issue #78 open; any Cloudflare runtime run needs fresh explicit user authorization.
+
+## PR #216 — handler-to-D1 request-boundary assertion — 2026-11-07
+
+- PR: https://github.com/ijoolaie/imoxy-net/pull/216
+- The initial PR head `e2f1764f79b5419675976db0c0360c5ad8c220e3` had successful GitHub Actions CI run `42355891856`, job `128353787778`; no reviews or inline review threads were present.
+- GitHub compare showed the PR branch was one commit behind current `main` and reported merge state `dirty`. Rebased the feature branch onto `origin/main` at `ea037c43cd1d6a434a898e43efa450d94a4f6a5a`, preserving only the intended integration-test change; handoff content from the old branch was not carried over.
+- The integration test change counts external D1 request boundaries (batch as one, standalone first/all/run as one) and asserts exactly three requests for the actual downstream relay chunk: two batches plus one direct forwarding-marker first().
+- After rebasing, `cmd.exe /c npm run verify` passed again: 258 total, 257 passed, 0 failed, 1 existing environment-gated skip. `git diff --check` passed.
+- The rebased change is being republished to PR #216; its new exact-head CI must pass before merge. The prior CI result is not transferable to the new commit.
+- Existing deterministic slow/non-reading-peer tests already assert serialized upstream reads behind downstream send/settlement and stop further reads after settlement failure. This does not establish runtime WebSocket internal-buffer bounds.
+- No Cloudflare workflow, Worker, or D1 resource was run or changed. Issue #78 remains open.

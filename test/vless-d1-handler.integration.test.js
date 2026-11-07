@@ -12,26 +12,50 @@ const NOW = "2026-10-27T12:00:00.000Z";
 const migration = (name) => readFileSync(new URL(`../migrations/${name}`, import.meta.url), "utf8");
 
 function sqliteD1(db) {
+  const metrics = { requests: 0, batches: 0, first: 0, all: 0, run: 0 };
+  const execute = (statement, method) => {
+    if (method === "first") return db.prepare(statement.sql).get(...statement.values) ?? null;
+    if (method === "all") return { results: db.prepare(statement.sql).all(...statement.values) };
+    const result = db.prepare(statement.sql).run(...statement.values);
+    return { meta: { changes: Number(result.changes) } };
+  };
+
   return {
+    metrics,
     prepare(sql) {
       let values = [];
-      return {
+      const statement = {
         sql,
+        get values() { return values; },
         bind(...args) { values = args; return this; },
-        async first() { return db.prepare(sql).get(...values) ?? null; },
-        async all() { return { results: db.prepare(sql).all(...values) }; },
+        async first() {
+          metrics.requests += 1;
+          metrics.first += 1;
+          return execute(this, "first");
+        },
+        async all() {
+          metrics.requests += 1;
+          metrics.all += 1;
+          return execute(this, "all");
+        },
         async run() {
-          const result = db.prepare(sql).run(...values);
-          return { meta: { changes: Number(result.changes) } };
+          metrics.requests += 1;
+          metrics.run += 1;
+          return execute(this, "run");
         }
       };
+      return statement;
     },
     async batch(statements) {
+      metrics.requests += 1;
+      metrics.batches += 1;
       db.exec("BEGIN IMMEDIATE");
       try {
         const results = [];
         for (const statement of statements) {
-          results.push(statement.sql.trimStart().startsWith("SELECT") ? await statement.all() : await statement.run());
+          results.push(statement.sql.trimStart().startsWith("SELECT")
+            ? execute(statement, "all")
+            : execute(statement, "run"));
         }
         db.exec("COMMIT");
         return results;
@@ -176,6 +200,7 @@ test("VLESS handler authenticates, admits, forwards and settles through the real
   // Exercise the opposite relay direction through the same D1-backed handler:
   // TCP download bytes must be sent to the WebSocket and settled as download usage.
   const downloadChunk = [0xaa, 0xbb, 0xcc];
+  const d1MetricsBeforeDownload = { ...db.metrics };
   upstream.enqueue(downloadChunk);
   await waitFor(
     () => server.sent.some((frame) => frame.length === downloadChunk.length &&
@@ -187,6 +212,17 @@ test("VLESS handler authenticates, admits, forwards and settles through the real
       .get()?.download_bytes === downloadChunk.length,
     "D1-backed download usage was not settled"
   );
+
+  const downloadD1Metrics = Object.fromEntries(Object.keys(db.metrics).map((key) => [
+    key, db.metrics[key] - d1MetricsBeforeDownload[key]
+  ]));
+  assert.deepEqual(downloadD1Metrics, {
+    requests: 3,
+    batches: 2,
+    first: 1,
+    all: 0,
+    run: 0
+  }, "the actual downstream relay chunk must cross exactly three D1 request boundaries");
 
   const bidirectionalUsage = database.prepare(`SELECT upload_bytes, download_bytes, request_count
     FROM usage_daily WHERE account_id = 'acct-vless'`).get();
