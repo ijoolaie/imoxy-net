@@ -548,6 +548,9 @@ export function createVlessWebSocketHandler({
             await closeSession(1011, "quota_reservation_forwarding_failed");
             return false;
           }
+          // The forwarding marker may have committed while the session was
+          // closing. Retain the reservation, but never send bytes after closure.
+          if (state.closed) return false;
           if (direction === "upload") {
             await measureDiagnostic(onDiagnostic, "tcp.write", { bytes: bytes.byteLength }, () => state.writer.write(bytes));
           } else {

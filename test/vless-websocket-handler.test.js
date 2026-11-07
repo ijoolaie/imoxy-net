@@ -95,7 +95,7 @@ async function settle() {
   for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = () => NOW, timerCallbacks = null, idleTimeoutMs = 120_000, quotaAllowed = true, quotaSettleFails = false, quotaSettleWait = null, quotaReserveFails = false, quotaReserveConflict = false, downstreamSendFails = false, sessionAdmissionAllowed = true, sessionAdmissionFails = false, sessionAdmissionWait = null, sessionReleaseFails = false, sessionReleaseWait = null, diagnostics = null } = {}) {
+function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = () => NOW, timerCallbacks = null, idleTimeoutMs = 120_000, quotaAllowed = true, quotaSettleFails = false, quotaSettleWait = null, quotaReserveFails = false, quotaReserveConflict = false, quotaReserveWait = null, markForwardingWait = null, downstreamSendFails = false, sessionAdmissionAllowed = true, sessionAdmissionFails = false, sessionAdmissionWait = null, sessionReleaseFails = false, sessionReleaseWait = null, diagnostics = null } = {}) {
   const client = new FakeWebSocket();
   const server = new FakeWebSocket();
   const originalSend = server.send.bind(server);
@@ -107,7 +107,7 @@ function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = 
   const storeCalls = [];
   const sessionCalls = { acquire: [], release: [] };
   const events = [];
-  const quotaCalls = { reserve: [], settle: [], release: [] };
+  const quotaCalls = { reserve: [], markForwarding: [], settle: [], release: [] };
   const handler = createVlessWebSocketHandler({
     storeFactory: () => ({
       async findAccountByCredentialHash(hash) {
@@ -140,10 +140,11 @@ function harness({ lookup, connectTcp, resolveDestination, config = {}, clock = 
           throw error;
         }
         if (quotaReserveFails) throw new Error("injected reserve failure");
+        if (quotaReserveWait) await quotaReserveWait;
         if (!quotaAllowed) return { allowed: false, reason: "quota_exceeded" };
         return { allowed: true, reservation: { ...input, usageDate: input.at.slice(0, 10), status: "active" } };
       },
-      async markForwarding() { return true; },
+      async markForwarding(input) { quotaCalls.markForwarding.push(input); if (markForwardingWait) await markForwardingWait; return true; },
       async settle(input) {
         quotaCalls.settle.push(input);
         if (quotaSettleFails) throw new Error("injected settlement failure");
@@ -942,6 +943,63 @@ test("a reservation with an ambiguous response is released only before any forwa
   assert.ok(h.server.closeCalls.some((item) => item.code === 1011 && item.reason === "quota_reservation_failed"));
 });
 
+
+test("session close while forwarding marker is pending never sends bytes after closure", async () => {
+  const upstream = fakeSocket();
+  let resolveMark;
+  const markWait = new Promise((resolve) => { resolveMark = resolve; });
+  const h = harness({ markForwardingWait: markWait, connectTcp: async () => upstream.socket });
+
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  upstream.push([0xa1, 0xa2]);
+  await settle();
+  assert.equal(h.quotaCalls.reserve.length, 1);
+  assert.equal(h.quotaCalls.markForwarding.length, 1);
+  assert.equal(h.quotaCalls.settle.length, 0);
+
+  h.server.close(1000, "test_client_close");
+  await settle();
+  resolveMark();
+  await settle();
+
+  assert.equal(h.server.sent.some((message) => message.length === 2 && message[0] === 0xa1 && message[1] === 0xa2), false,
+    "no downstream payload may be sent after the session has closed");
+  assert.equal(h.quotaCalls.settle.length, 0);
+  assert.equal(h.quotaCalls.release.length, 0,
+    "once the forwarding marker may have committed, retain the reservation conservatively");
+  assert.equal(upstream.closed, true);
+});
+
+test("session close while quota reserve is pending releases before forwarding and never marks the reservation", async () => {
+  const upstream = fakeSocket();
+  let resolveReserve;
+  const reserveWait = new Promise((resolve) => { resolveReserve = resolve; });
+  const h = harness({ quotaReserveWait: reserveWait, connectTcp: async () => upstream.socket });
+
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest());
+  await settle();
+
+  assert.equal(h.quotaCalls.reserve.length, 1);
+  assert.equal(h.quotaCalls.markForwarding.length, 0);
+  h.server.close(1000, "test_client_close");
+  await settle();
+
+  resolveReserve();
+  await settle();
+
+  assert.equal(h.quotaCalls.markForwarding.length, 0,
+    "a reservation returned after session closure must not cross the forwarding boundary");
+  assert.equal(h.quotaCalls.settle.length, 0);
+  assert.equal(h.quotaCalls.release.length, 1,
+    "a reservation that never crossed forwarding must be released");
+  assert.equal(h.quotaCalls.release[0].reservationId, h.quotaCalls.reserve[0].reservationId);
+  assert.deepEqual(upstream.writes, []);
+  assert.equal(upstream.closed, true);
+});
 
 test("a reservation ID conflict never releases a potentially pre-existing reservation", async () => {
   const upstream = fakeSocket();
