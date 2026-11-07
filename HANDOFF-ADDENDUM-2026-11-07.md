@@ -118,3 +118,11 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - Official API reference last updated 2026-10-12 continues to document synchronous `send()` and `readyState/binaryType`, with no documented `bufferedAmount`, drain event, or awaitable send result. This is a documented-surface finding only.
 - Recorded the existing application-level bounds and test coverage without claiming Cloudflare internal queue/memory boundedness. Issue #78 remains open pending an explicitly authorized disposable runtime probe.
 - Documentation-only; `git diff --check` passed. No Cloudflare workflow or Worker/D1 resource was run or changed.
+
+## PR candidate — late upstream read after WebSocket close — 2026-11-07
+
+- Branch: `test/issue78-downstream-queue-bounds-2026-11-07`, based on main at `69d11661e16443f0c3ab65b8eefe893722ae5119`.
+- Added a deterministic test in `test/vless-websocket-handler.test.js`: hold the upstream `reader.read()` promise, close the WebSocket, verify TCP socket close precedes admission lease release, then resolve the read late and assert no quota reservation, downstream send, or duplicate lease release.
+- The first proposed expectation (hold the lease until the read promise settles) was rejected after it conflicted with the existing test/invariant that stalled stream cleanup must not hold capacity once TCP socket close has completed. No production handler code change was made.
+- Targeted test passed. Full `cmd.exe /c npm run verify`: 259 total, 258 passed, 0 failed, 1 existing environment-gated skip. `git diff --check` passed.
+- This is local Node/mock lifecycle evidence only; it does not prove Cloudflare WebSocket internal queue boundedness. No Cloudflare workflow, Worker, or D1 resource was run or changed.

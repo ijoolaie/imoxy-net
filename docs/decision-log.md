@@ -277,3 +277,10 @@ Run 41477742794 did not include the expected console records, so console-only st
 - Local full verify: 258 total, 257 passed, 0 failed, 1 existing environment-gated skip. Existing non-reading-peer tests also prove sequential upstream reads behind settlement and stop reads on settlement failure.
 - Decision unchanged: retain finite per-session byte/lifetime limits, global D1 session-admission ceiling, one upstream read at a time, settlement before the next read, and fail-closed close/cleanup. These bound application-submitted work; they do not expose or prove Cloudflare's internal WebSocket send queue, memory copies, framing overhead, or delivery acknowledgement.
 - Issue #78 remains open. Next evidence gate is an explicitly authorized disposable runtime probe with fixed byte/time/frame/concurrency limits and verified cleanup. No Cloudflare Worker/D1 resource or runtime workflow was run for PR #216.
+
+## 2026-11-07 — late TCP read after WebSocket close
+
+- Added a deterministic VLESS handler test that leaves the upstream `reader.read()` promise pending, closes the WebSocket, verifies the TCP socket is closed before the session admission lease is released, and then resolves the read with late bytes.
+- The late bytes are not reserved, sent, or settled; repeated close/late completion does not release the lease twice.
+- Preserved the existing cleanup rule: do not await indefinitely for `reader.cancel()` or an in-flight read after the underlying TCP socket has been closed. An earlier experimental test expectation to retain the lease until read settlement conflicted with the established non-blocking cleanup invariant and was corrected; no production handler change was needed.
+- This proves only the local post-close guard and lease ordering. It does not characterize Cloudflare's internal WebSocket send queue or prove runtime backpressure.
