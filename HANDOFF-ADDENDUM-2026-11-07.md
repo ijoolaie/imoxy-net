@@ -217,6 +217,13 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - Existing deterministic tests cover delayed socket close, delayed D1 release, release failure, late admission, stalled stream cleanup, pending upload write, pending upstream read, and duplicate close/release. Static inspection did not reveal a new untested close-stage defect; do not change handler semantics without a reproduced failure.
 - Reconfirmed the diagnostics endpoint stores events in module-level arrays explicitly scoped to `current-worker-isolate`. The separate HTTP diagnostics request can be routed to a different isolate than the WebSocket clients; therefore `events=[]` / `droppedEvents=0` cannot prove lifecycle events were never emitted. This remains a plausible observability limitation, not a proven cause of `activeSessions=1`.
 - Ran `cmd.exe /c node --test test/vless-websocket-handler.test.js test/vless-smoke-session-drain.test.js test/vless-service-binding-tcp-smoke-worker.test.js`: 76 passed, 0 failed, 0 skipped (exit 0; 37.27s). This is local deterministic/mock coverage only.
-- No source code changes, Cloudflare dispatch, Worker/D1 mutation, staging/production action, commit, or push occurred. No new runtime authorization was used. Issue #78 remains open; bounded Worker-internal WebSocket buffering and the Run #13 lease-drain failure remain unproven/unattributed.
+- No source code changes, Cloudflare dispatch, Worker/D1 mutation, or staging/production action occurred. No new runtime authorization was used. The handoff-only update was committed as `d7d20e2af5806aa0379aedc832925f5821dfbf06` and pushed for PR #224. Issue #78 remains open; bounded Worker-internal WebSocket buffering and the Run #13 lease-drain failure remain unproven/unattributed.
 - Next step: use the now-merged PR #221 Wrangler preview-output capture in the next separately authorized disposable runtime run to inspect whether lifecycle console records are present; do not run it without fresh explicit user authorization. Keep 1101/domain/VPN at final priority.
 - `HANDOFF.md` remains untouched because it exceeds the supported 256 KiB text-tool limit; this addendum is the safe supplemental handoff.
+
+## PR #224 — baseline lease-drain analysis handoff — 2026-11-07
+
+- PR: https://github.com/ijoolaie/imoxy-net/pull/224
+- Initial documentation-only commit: `d7d20e2af5806aa0379aedc832925f5821dfbf06`, based on main `cac2102e435b80ea6d75873a111be0656be22d26`.
+- The PR records the successful PR #223 post-merge CI result, the local lifecycle-path review, the 76/76 targeted test result, and the isolate-local diagnostics limitation. It does not change application code or runtime configuration.
+- At creation, exact-head CI run `42382499509` was queued; no review submissions or inline review threads were present. Do not merge until exact-head CI succeeds, the diff is reviewed, and the PR is mergeable.
