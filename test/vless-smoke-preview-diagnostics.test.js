@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   checkPreviewHealth,
   redactPreviewOutput,
+  summarizePreviewContext,
   summarizePreviewProcess
 } from "../scripts/vless-smoke-preview-diagnostics.mjs";
 
@@ -44,4 +45,29 @@ test("preview health probe reports HTTP availability and fetch errors without th
   assert.deepEqual(await checkPreviewHealth(async () => { throw new TypeError("fetch failed"); }), {
     available: false, errorName: "TypeError"
   });
+});
+
+test("successful preview diagnostics include redacted remote preview output context", () => {
+  const context = summarizePreviewContext({
+    child: { exitCode: null, signalCode: null, killed: false },
+    output: "VLESS_SMOKE_LIFECYCLE session.close token=secret-preview-token",
+    secrets: ["secret-preview-token"],
+    health: { available: true, status: 200 }
+  });
+  assert.deepEqual(context, {
+    previewProcess: { state: "running", exitCode: null, signalCode: null, killed: false },
+    previewHealth: { available: true, status: 200 },
+    previewOutputTail: "VLESS_SMOKE_LIFECYCLE session.close token=[REDACTED]"
+  });
+});
+
+test("preview diagnostics output tail is bounded after redaction", () => {
+  const context = summarizePreviewContext({
+    child: null,
+    output: "x".repeat(5000),
+    secrets: [],
+    health: { available: false }
+  });
+  assert.equal(context.previewOutputTail.length, 4000);
+  assert.equal(context.previewOutputTail, "x".repeat(4000));
 });

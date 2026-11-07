@@ -27,6 +27,14 @@ export function redactPreviewOutput(output, secrets = []) {
   return result;
 }
 
+export function summarizePreviewContext({ child, output, secrets = [], health }) {
+  return {
+    previewProcess: summarizePreviewProcess(child),
+    previewHealth: health,
+    previewOutputTail: redactPreviewOutput(output, secrets).slice(-4000)
+  };
+}
+
 export async function checkPreviewHealth(fetchImpl = fetch) {
   try {
     const response = await fetchImpl("http://127.0.0.1:8787/health", {
