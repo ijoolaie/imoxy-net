@@ -240,6 +240,59 @@ test("credential rotation revokes old credentials, inserts a new hash and audits
 });
 
 
+test("quota reservation batches stale cleanup with the conditional claim", async () => {
+  const db = makeDb({ firstRow: {
+    reservation_id: "reserve-1", account_id: "acct-1", usage_date: "2026-10-27",
+    reserved_bytes: 12, actual_bytes: null, status: "active",
+    created_at: "2026-10-27T12:00:00.000Z", lease_expires_at: "2026-10-27T12:00:30.000Z",
+    updated_at: "2026-10-27T12:00:00.000Z"
+  }});
+  const result = await createD1Store(db).reserveQuota({
+    reservationId: "reserve-1", accountId: "acct-1", usageDate: "2026-10-27",
+    reservedBytes: 12, createdAt: "2026-10-27T12:00:00.000Z",
+    leaseExpiresAt: "2026-10-27T12:00:30.000Z"
+  });
+  assert.equal(result.allowed, true);
+  assert.deepEqual(db.calls.find((call) => call.batch), { batch: 2 });
+  assert.match(db.calls[0].sql, /forwarding_started_at IS NULL/);
+  assert.ok(db.calls[1].sql.includes("INSERT INTO quota_reservations"));
+  assert.ok(db.calls[1].sql.includes("ON CONFLICT(reservation_id) DO NOTHING"));
+});
+
+test("quota forwarding marker uses one conditional UPDATE RETURNING", async () => {
+  const db = makeDb({ firstRow: { forwarding_started_at: "2026-10-27T12:00:01.000Z" } });
+  const marked = await createD1Store(db).markQuotaReservationForwarding({
+    reservationId: "reserve-1", accountId: "acct-1", at: "2026-10-27T12:00:01.000Z"
+  });
+  assert.equal(marked, true);
+  assert.equal(db.calls.length, 1);
+  assert.ok(db.calls[0].sql.includes("UPDATE quota_reservations"));
+  assert.ok(db.calls[0].sql.includes("RETURNING forwarding_started_at"));
+});
+
+test("usage settlement batches event verification with the atomic claim and apply", async () => {
+  const row = {
+    producer_id: "worker-1", event_id: "event-1", reservation_id: "reserve-1",
+    account_id: "acct-1", usage_date: "2026-10-27", upload_bytes: 4,
+    download_bytes: 8, request_count: 1, payload_hash: "a".repeat(64), status: "applied"
+  };
+  const db = makeDb({ batchResults: [
+    { meta: { changes: 1 } }, { meta: { changes: 1 } }, { results: [row] }
+  ]});
+  const result = await createD1Store(db).settleUsageEvent({
+    producerId: "worker-1", eventId: "event-1", reservationId: "reserve-1",
+    accountId: "acct-1", usageDate: "2026-10-27", uploadBytes: 4,
+    downloadBytes: 8, requestCount: 1, payloadHash: "a".repeat(64),
+    at: "2026-10-27T12:00:01.000Z"
+  });
+  assert.equal(result.applied, true);
+  assert.equal(result.duplicate, false);
+  assert.deepEqual(db.calls.find((call) => call.batch), { batch: 3 });
+  assert.equal(db.calls.length, 4, "the result SELECT must be part of the D1 batch, not a fourth round trip");
+  assert.ok(db.calls[2].sql.includes("SELECT producer_id, event_id"));
+  assert.ok(db.calls[2].sql.includes("FROM usage_events"));
+});
+
 test("session admission uses one parameterized conditional INSERT and verifies the resulting lease", async () => {
   const db = makeDb({ firstRow: {
     session_id: "session-1", account_id: "acct-1",

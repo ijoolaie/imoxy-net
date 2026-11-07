@@ -16,6 +16,7 @@ function sqliteD1(db) {
     prepare(sql) {
       let values = [];
       return {
+        sql,
         bind(...args) { values = args; return this; },
         async first() { return db.prepare(sql).get(...values) ?? null; },
         async all() { return { results: db.prepare(sql).all(...values) }; },
@@ -29,7 +30,9 @@ function sqliteD1(db) {
       db.exec("BEGIN IMMEDIATE");
       try {
         const results = [];
-        for (const statement of statements) results.push(await statement.run());
+        for (const statement of statements) {
+          results.push(statement.sql.trimStart().startsWith("SELECT") ? await statement.all() : await statement.run());
+        }
         db.exec("COMMIT");
         return results;
       } catch (error) {

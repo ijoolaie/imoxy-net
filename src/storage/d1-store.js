@@ -485,31 +485,34 @@ export function createD1Store(db) {
         throw new TypeError("Quota reservation fields are invalid.");
       }
 
-      await db.prepare(`UPDATE quota_reservations SET status = 'released', actual_bytes = 0, updated_at = ?
-        WHERE reservation_id IN (SELECT reservation_id FROM quota_reservations
-          WHERE status = 'active' AND account_id = ? AND forwarding_started_at IS NULL AND lease_expires_at <= ?
-          ORDER BY lease_expires_at ASC LIMIT 100)`).bind(createdAt, accountId, createdAt).run();
-
-      await db.prepare(`INSERT INTO quota_reservations
-        (reservation_id, account_id, usage_date, reserved_bytes, actual_bytes, status, created_at, lease_expires_at, updated_at, forwarding_started_at)
-        SELECT ?, a.id, ?, ?, NULL, 'active', ?, ?, ?, NULL
-        FROM proxy_accounts a
-        WHERE a.id = ? AND a.status = 'active'
-          AND (a.expires_at IS NULL OR a.expires_at > ?)
-          AND (a.quota_bytes IS NULL OR
-            COALESCE((SELECT SUM(upload_bytes + download_bytes) FROM usage_daily
-              WHERE account_id = a.id), 0) +
-            COALESCE((SELECT SUM(reserved_bytes) FROM quota_reservations
-              WHERE account_id = a.id AND status = 'active'), 0) + ? <= a.quota_bytes)
-          AND (a.daily_quota_bytes IS NULL OR
-            COALESCE((SELECT upload_bytes + download_bytes FROM usage_daily
-              WHERE account_id = a.id AND usage_date = ?), 0) +
-            COALESCE((SELECT SUM(reserved_bytes) FROM quota_reservations
-              WHERE account_id = a.id AND usage_date = ? AND status = 'active'), 0) + ? <= a.daily_quota_bytes)
-        ON CONFLICT(reservation_id) DO NOTHING`).bind(
-        reservationId, usageDate, reservedBytes, createdAt, leaseExpiresAt, createdAt,
-        accountId, createdAt, reservedBytes, usageDate, usageDate, reservedBytes
-      ).run();
+      // Keep bounded stale-reservation cleanup and the conditional quota claim
+      // in one D1 batch so each forwarded chunk does not pay an extra round trip.
+      await db.batch([
+        db.prepare(`UPDATE quota_reservations SET status = 'released', actual_bytes = 0, updated_at = ?
+          WHERE reservation_id IN (SELECT reservation_id FROM quota_reservations
+            WHERE status = 'active' AND account_id = ? AND forwarding_started_at IS NULL AND lease_expires_at <= ?
+            ORDER BY lease_expires_at ASC LIMIT 100)`).bind(createdAt, accountId, createdAt),
+        db.prepare(`INSERT INTO quota_reservations
+          (reservation_id, account_id, usage_date, reserved_bytes, actual_bytes, status, created_at, lease_expires_at, updated_at, forwarding_started_at)
+          SELECT ?, a.id, ?, ?, NULL, 'active', ?, ?, ?, NULL
+          FROM proxy_accounts a
+          WHERE a.id = ? AND a.status = 'active'
+            AND (a.expires_at IS NULL OR a.expires_at > ?)
+            AND (a.quota_bytes IS NULL OR
+              COALESCE((SELECT SUM(upload_bytes + download_bytes) FROM usage_daily
+                WHERE account_id = a.id), 0) +
+              COALESCE((SELECT SUM(reserved_bytes) FROM quota_reservations
+                WHERE account_id = a.id AND status = 'active'), 0) + ? <= a.quota_bytes)
+            AND (a.daily_quota_bytes IS NULL OR
+              COALESCE((SELECT upload_bytes + download_bytes FROM usage_daily
+                WHERE account_id = a.id AND usage_date = ?), 0) +
+              COALESCE((SELECT SUM(reserved_bytes) FROM quota_reservations
+                WHERE account_id = a.id AND usage_date = ? AND status = 'active'), 0) + ? <= a.daily_quota_bytes)
+          ON CONFLICT(reservation_id) DO NOTHING`).bind(
+          reservationId, usageDate, reservedBytes, createdAt, leaseExpiresAt, createdAt,
+          accountId, createdAt, reservedBytes, usageDate, usageDate, reservedBytes
+        )
+      ]);
 
       const row = await db.prepare(`SELECT reservation_id, account_id, usage_date, reserved_bytes,
         actual_bytes, status, created_at, lease_expires_at, updated_at
@@ -539,11 +542,13 @@ export function createD1Store(db) {
           typeof at !== "string" || !Number.isFinite(Date.parse(at))) {
         throw new TypeError("Quota reservation forwarding fields are invalid.");
       }
-      await db.prepare(`UPDATE quota_reservations SET forwarding_started_at = COALESCE(forwarding_started_at, ?), updated_at = ? WHERE reservation_id = ? AND account_id = ? AND status = 'active'
-          AND (forwarding_started_at IS NOT NULL OR (created_at <= ? AND lease_expires_at > ?))`)
-        .bind(at, at, reservationId, accountId, at, at).run();
-      const row = await db.prepare(`SELECT forwarding_started_at FROM quota_reservations WHERE reservation_id = ? AND account_id = ? AND status = 'active' LIMIT 1`)
-        .bind(reservationId, accountId).first();
+      // RETURNING makes the active-row/forwarding-marker check part of the
+      // conditional write, avoiding a second D1 request per forwarded chunk.
+      const row = await db.prepare(`UPDATE quota_reservations
+        SET forwarding_started_at = COALESCE(forwarding_started_at, ?), updated_at = ?
+        WHERE reservation_id = ? AND account_id = ? AND status = 'active'
+          AND (forwarding_started_at IS NOT NULL OR (created_at <= ? AND lease_expires_at > ?))
+        RETURNING forwarding_started_at`).bind(at, at, reservationId, accountId, at, at).first();
       return Boolean(row?.forwarding_started_at);
     },
 
@@ -580,12 +585,15 @@ export function createD1Store(db) {
             AND upload_bytes = ? AND download_bytes = ? AND request_count = ? AND payload_hash = ?`).bind(
           producerId, eventId, reservationId, accountId, usageDate,
           uploadBytes, downloadBytes, requestCount, payloadHash
-        )
+        ),
+        db.prepare(`SELECT producer_id, event_id, reservation_id, account_id, usage_date,
+          upload_bytes, download_bytes, request_count, payload_hash, status
+          FROM usage_events WHERE producer_id = ? AND event_id = ? LIMIT 1`).bind(producerId, eventId)
       ]);
 
-      const row = await db.prepare(`SELECT producer_id, event_id, reservation_id, account_id, usage_date,
-        upload_bytes, download_bytes, request_count, payload_hash, status
-        FROM usage_events WHERE producer_id = ? AND event_id = ? LIMIT 1`).bind(producerId, eventId).first();
+      // Read the replay/conflict result in the same D1 batch as the atomic
+      // claim+apply statements; this preserves exact payload verification.
+      const row = batchResults?.[2]?.results?.[0] ?? null;
       if (!row) return { applied: false, duplicate: false, reason: "reservation_not_active_or_exceeded" };
       const samePayload = row.reservation_id === reservationId && row.account_id === accountId &&
         row.usage_date === usageDate && row.upload_bytes === uploadBytes &&
