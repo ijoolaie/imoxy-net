@@ -80,3 +80,20 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - `git diff --check`: passed (only Git LF/CRLF advisory warnings).
 - Runtime/Cloudflare behavior is not proven by these local tests. Issue #78 remains open; no Worker/D1 resource was touched and no Cloudflare smoke was run.
 - PR #212 is merged; exact-head and post-merge `main` CI both succeeded. No Cloudflare Worker/D1 resources or runtime workflows were run. Issue #78 remains open: next engineering work should continue with deterministic local tests/analysis of backpressure and lifecycle/accounting behavior. Any Cloudflare smoke/runtime run still requires fresh, explicit user authorization and must use the disposable workflow path.
+
+## PR #213 — handoff reconciliation after PR #212 (merged)
+
+- PR: https://github.com/ijoolaie/imoxy-net/pull/213
+- Feature head: `ed71259fdf03fa97fbad11975ee3385b55f83688`; squash merge commit: `ac56aa821d3ecbc9ef5a0fcdf2e32ed8a10d7497`.
+- Exact-head CI and post-merge `main` CI passed; post-merge run `42354094913` succeeded.
+
+## Issue #78 deterministic follow-up — 2026-11-07
+
+- Workspace branch: `work/issue78-d1-analysis`, based on `origin/main` at `ac56aa821d3ecbc9ef5a0fcdf2e32ed8a10d7497`; clean before this handoff-only update.
+- Re-read `AGENTS.md`, the quota reservation service/store, the SQLite D1 adapter tests, the VLESS D1 integration test, and WebSocket handler tests.
+- Ran: `node --experimental-sqlite --test test/quota-reservation-store.integration.test.js test/vless-d1-handler.integration.test.js test/vless-websocket-handler.test.js`.
+- Result: 78 tests passed, 0 failed, 0 skipped (exit 0; 36.25s).
+- Confirmed current local evidence: exactly 3 D1 request boundaries per successfully forwarded quota chunk (reserve batch, forwarding marker request, settlement batch); the handler also serializes subsequent upstream reads behind the prior downstream send/settlement path in a deterministic non-reading-peer test.
+- These are local SQLite/mock-level properties only. They neither measure Cloudflare D1 latency nor prove Worker-internal WebSocket buffering is bounded. Run #12's D1 latency hypothesis remains unproven.
+- No code changes, Cloudflare workflow dispatches, Worker/D1 resource mutations, or runtime smoke runs were performed in this follow-up.
+- Next concrete step: decide whether to add an end-to-end D1-boundary counter to the VLESS handler integration harness (to tie actual relay chunks to the existing 3-boundary invariant), while preserving fail-closed and immutable identity semantics. Keep Issue #78 open; any Cloudflare runtime run needs fresh explicit user authorization.
