@@ -97,3 +97,15 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - These are local SQLite/mock-level properties only. They neither measure Cloudflare D1 latency nor prove Worker-internal WebSocket buffering is bounded. Run #12's D1 latency hypothesis remains unproven.
 - No code changes, Cloudflare workflow dispatches, Worker/D1 resource mutations, or runtime smoke runs were performed in this follow-up.
 - Next concrete step: decide whether to add an end-to-end D1-boundary counter to the VLESS handler integration harness (to tie actual relay chunks to the existing 3-boundary invariant), while preserving fail-closed and immutable identity semantics. Keep Issue #78 open; any Cloudflare runtime run needs fresh explicit user authorization.
+
+## Issue #78 — handler-to-D1 request-boundary assertion — 2026-11-07
+
+- Working branch: `test/issue78-handler-d1-boundaries-2026-11-07`, based on the clean `work/issue78-d1-analysis` worktree.
+- Updated `test/vless-d1-handler.integration.test.js` with adapter-level request metrics. SQL statements executed inside `batch()` are intentionally not counted as separate external requests; standalone `first/all/run` calls and each `batch()` are counted once.
+- The actual downstream VLESS relay test now snapshots D1 metrics immediately before enqueueing a TCP download chunk, waits for that exact chunk to be sent to the WebSocket and its usage settlement to become visible, then asserts the delta: 3 requests = 2 batches + 1 direct `first()` forwarding-marker request; no standalone `all()` or `run()` calls.
+- Focused test: `node --experimental-sqlite --test test/vless-d1-handler.integration.test.js` — 1 passed, 0 failed, 0 skipped.
+- Full `cmd.exe /c npm run verify` — 258 total, 257 passed, 0 failed, 1 existing environment-gated skip; exit code 0.
+- This proves the local handler/SQLite adapter's real relay path matches the existing three-request-boundary invariant. It does not measure Cloudflare D1 latency, prove the Run #12 latency hypothesis, or establish bounded Worker-internal WebSocket buffering.
+- No Cloudflare workflows were dispatched and no Worker/D1 resources were created, mutated, or deleted. Issue #78 remains open.
+- Main `HANDOFF.md` remains unchanged because its 302,410-byte size exceeds the supported 262,144-byte file limit; this addendum is the safe supplemental handoff.
+- Next: inspect diff, run whitespace/status checks, then publish a PR for exact-head CI/review.
