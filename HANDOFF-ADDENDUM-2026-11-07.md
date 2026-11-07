@@ -69,7 +69,7 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 ## PR candidate — upload write / session-close race (2026-11-07)
 
 - Working branch: `fix/upload-write-close-race-2026-11-07`.
-- PR #212: https://github.com/ijoolaie/imoxy-net/pull/212 (open; exact-head CI run 42353532377 was in progress at the time of this note).
+- PR #212: https://github.com/ijoolaie/imoxy-net/pull/212 (merged 2026-11-07). Exact-head CI run `42353683946` succeeded on HEAD `92b802375c4cb1dc9ba3c34b85526b953ca99e6e`; squash merge commit `3c4ea87df7ae194b98af0707ecc6909f6f84f9e5`; post-merge `main` CI run `42353953894` succeeded.
 - PR #212 tracks the feature branch; latest commit also includes this handoff reconciliation. No Cloudflare workflow or resource was run or changed.
 - Deterministic regression first reproduced the defect: closing a session while `writer.write()` remained unresolved released the session admission lease prematurely.
 - Handler now tracks the in-flight upload write promise. Session close closes the TCP socket, requests writer abort, waits for the pending write to settle, and only then releases the session lease. If the write remains unresolved, the persisted lease is retained until expiry rather than released speculatively.
@@ -79,4 +79,4 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - Full `cmd.exe /c npm run verify`: 258 total, 257 passed, 0 failed, 1 existing environment-gated skip; syntax/check stage passed.
 - `git diff --check`: passed (only Git LF/CRLF advisory warnings).
 - Runtime/Cloudflare behavior is not proven by these local tests. Issue #78 remains open; no Worker/D1 resource was touched and no Cloudflare smoke was run.
-- Next steps: await exact-head CI and review; merge only after CI succeeds, reviews/threads are clear, and the PR is mergeable. Runtime validation remains separate and requires fresh explicit user authorization.
+- PR #212 is merged; exact-head and post-merge `main` CI both succeeded. No Cloudflare Worker/D1 resources or runtime workflows were run. Issue #78 remains open: next engineering work should continue with deterministic local tests/analysis of backpressure and lifecycle/accounting behavior. Any Cloudflare smoke/runtime run still requires fresh, explicit user authorization and must use the disposable workflow path.
