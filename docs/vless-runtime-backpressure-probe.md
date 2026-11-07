@@ -190,3 +190,9 @@ PR #216 merged as `6ebd5df62ecfee7992b14d2f728346b966033cbc`. Its local VLESS ha
 This adds evidence for D1 request shape and application-level sequencing only. Existing deterministic non-reading-peer tests hold settlement and verify no subsequent upstream read/send is started before settlement; failure tests verify the reader stops and the session closes. None of these tests creates the Cloudflare runtime's internal WebSocket queue or measures its capacity. The finite byte/lifetime/session-admission policy bounds application-submitted payload, not undocumented runtime memory copies/framing or actual remote delivery.
 
 No Cloudflare runtime probe was run for PR #216. Issue #78 remains open. Any next runtime probe must use the dedicated disposable workflow path, a fresh explicit authorization, approved hard byte/time/frame/concurrency ceilings, and verified cleanup; do not touch existing staging or production.
+
+## 2026-11-07 — late upstream read close regression
+
+A new local handler regression leaves an upstream `reader.read()` pending, closes the WebSocket, and verifies the TCP socket is closed before the session lease is released. It then resolves the pending read with bytes and asserts that the closed session neither reserves quota nor sends/settles those bytes, and does not release the lease twice.
+
+The cleanup design deliberately does not await an indefinitely stalled `reader.cancel()` or read after TCP socket closure; existing tests require stalled stream cleanup not to hold admission capacity after the socket itself is closed. This adds lifecycle evidence only and does not measure the Workers WebSocket internal queue.

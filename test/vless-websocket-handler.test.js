@@ -1396,6 +1396,55 @@ test("requires explicit finite download, duration, concurrency and lease-grace b
   }
 });
 
+test("late upstream read after socket close is ignored and lease is released after socket close", async () => {
+  let resolveRead;
+  let readStartedResolve;
+  const readStarted = new Promise((resolve) => { readStartedResolve = resolve; });
+  let readCalls = 0;
+  let readerCancelled = false;
+  let socketClosed = false;
+  const upstream = {
+    opened: Promise.resolve({ remoteAddress: "93.184.216.34", localAddress: null }),
+    readable: {
+      getReader() {
+        return {
+          read() {
+            readCalls += 1;
+            readStartedResolve();
+            return new Promise((resolve) => { resolveRead = resolve; });
+          },
+          async cancel() { readerCancelled = true; }
+        };
+      }
+    },
+    writable: new WritableStream(),
+    async close() { socketClosed = true; }
+  };
+  const h = harness({ connectTcp: async () => upstream });
+
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await readStarted;
+
+  h.server.close(1000, "peer_closed");
+  await settle();
+
+  assert.equal(readCalls, 1);
+  assert.equal(readerCancelled, true);
+  assert.equal(socketClosed, true);
+  assert.equal(h.sessionCalls.release.length, 1,
+    "the lease may be released once the underlying TCP socket has closed");
+
+  resolveRead({ value: Uint8Array.from([0xa1, 0xa2]), done: false });
+  await settle();
+
+  assert.equal(h.server.sent.some((message) => message[0] === 0xa1), false,
+    "a read completing after closure must never be forwarded");
+  assert.equal(h.quotaCalls.reserve.length, 0);
+  assert.equal(h.sessionCalls.release.length, 1,
+    "a late read completion must not release the lease twice");
+});
+
 test("serializes upstream reads behind downstream send settlement for a non-reading peer", async () => {
   let releaseSettlement;
   const settlementGate = new Promise((resolve) => { releaseSettlement = resolve; });

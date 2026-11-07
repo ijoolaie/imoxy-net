@@ -403,3 +403,11 @@ Validation: focused integration test passed; full `cmd.exe /c npm run verify` pa
 The current official Workers WebSockets reference (last updated 2026-10-12) documents synchronous `send()` and the `readyState`/`binaryType` properties, but no `bufferedAmount`, drain event, or awaitable send result. This confirms no documented send-drain mechanism to rely on; it does not prove the runtime has no undocumented internal telemetry. Keep the existing fail-closed application-level byte/session/concurrency bounds and sequential read/settlement policy. The tests do not measure internal Worker buffering or prove delivery to a non-reading client.
 
 **Acceptance status:** local request-boundary and non-reading-peer regression coverage is improved; Cloudflare-internal WebSocket queue boundedness remains **unproven**. No Cloudflare workflow or resource was run for PR #216. Issue #78 remains open pending a separately authorized, disposable runtime probe with approved hard limits and verified cleanup. Source: https://developers.cloudflare.com/workers/runtime-apis/websockets/.
+
+## 2026-11-07 — late upstream read after session close
+
+Added a deterministic handler regression test that holds `reader.read()` unresolved while the WebSocket closes. It verifies the underlying TCP socket is closed before the admission lease is released; when the read later resolves with bytes, no quota reservation, WebSocket send, or second lease release occurs.
+
+The test intentionally does **not** require waiting indefinitely for the read or `reader.cancel()` after socket closure. Existing cleanup tests require a stalled stream cleanup promise not to hold the lease once the underlying TCP socket is closed. No handler behavior change was required.
+
+Validation on the feature branch: `cmd.exe /c npm run verify` passed with 259 total, 258 passed, 0 failed, 1 existing environment-gated skip; `git diff --check` passed. This remains local Node/mock evidence, not proof of Cloudflare internal WebSocket buffering.
