@@ -12,8 +12,9 @@ const API_BASE = "https://api.cloudflare.com/client/v4";
 const MAX_TEST_BYTES = 16 * 1024 * 1024;
 const EXPECTED_SESSION_BYTES = 6 + 4 * 16 * 1024;
 const SLOW_READER_PAYLOAD_BYTES = 4 * 1024 * 1024;
-const SLOW_READER_SESSION_BYTES = 6 + SLOW_READER_PAYLOAD_BYTES;
-const EXPECTED_TOTAL_BYTES = 2 * EXPECTED_SESSION_BYTES + SLOW_READER_SESSION_BYTES;
+const EXPECTED_TOTAL_UPLOAD_BYTES = 2 * EXPECTED_SESSION_BYTES + 6;
+const EXPECTED_TOTAL_DOWNLOAD_BYTES = 2 * EXPECTED_SESSION_BYTES + SLOW_READER_PAYLOAD_BYTES;
+const EXPECTED_SETTLED_BYTES = EXPECTED_TOTAL_UPLOAD_BYTES + EXPECTED_TOTAL_DOWNLOAD_BYTES;
 const EXPECTED_REQUEST_COUNT = 3;
 const RUN_ID = process.env.GITHUB_RUN_ID;
 const RUN_ATTEMPT = process.env.GITHUB_RUN_ATTEMPT;
@@ -380,7 +381,6 @@ async function main() {
       ...process.env,
       IMOXY_VLESS_WS_URL: "ws://127.0.0.1:8787/proxy/vless",
       IMOXY_VLESS_CREDENTIAL: credential,
-      IMOXY_SLOW_READER_UPLOAD_INTERVAL_MS: "25"
     },
     encoding: "utf8",
     timeout: 60_000,
@@ -442,24 +442,25 @@ async function main() {
     settledReservations = Number(reservationRows[0]?.settled_reservations ?? 0);
     releasedReservations = Number(reservationRows[0]?.released_reservations ?? 0);
     settledBytes = Number(reservationRows[0]?.settled_bytes ?? 0);
-    if (Number(usage.upload_bytes) === EXPECTED_TOTAL_BYTES &&
-        Number(usage.download_bytes) === EXPECTED_TOTAL_BYTES &&
+    if (Number(usage.upload_bytes) === EXPECTED_TOTAL_UPLOAD_BYTES &&
+        Number(usage.download_bytes) === EXPECTED_TOTAL_DOWNLOAD_BYTES &&
         activeSessions === 0 && activeReservations === 0 &&
         releasedReservations === 0 && settledReservations > 0 &&
-        settledBytes === EXPECTED_TOTAL_BYTES * 2) break;
+        settledBytes === EXPECTED_SETTLED_BYTES) break;
     await delay(500);
   }
 
-  if (Number(usage?.upload_bytes) !== EXPECTED_TOTAL_BYTES ||
-      Number(usage?.download_bytes) !== EXPECTED_TOTAL_BYTES ||
+  if (Number(usage?.upload_bytes) !== EXPECTED_TOTAL_UPLOAD_BYTES ||
+      Number(usage?.download_bytes) !== EXPECTED_TOTAL_DOWNLOAD_BYTES ||
       Number(usage?.request_count) !== EXPECTED_REQUEST_COUNT ||
       activeSessions !== 0 || activeReservations !== 0 || releasedReservations !== 0 ||
-      settledReservations < 1 || settledBytes !== EXPECTED_TOTAL_BYTES * 2) {
+      settledReservations < 1 || settledBytes !== EXPECTED_SETTLED_BYTES) {
     throw new Error("Worker-bound D1 acceptance mismatch: " + JSON.stringify({
       usage, activeSessions, activeReservations, settledReservations,
       releasedReservations, settledBytes,
-      expectedUploadBytes: EXPECTED_TOTAL_BYTES,
-      expectedDownloadBytes: EXPECTED_TOTAL_BYTES
+      expectedUploadBytes: EXPECTED_TOTAL_UPLOAD_BYTES,
+      expectedDownloadBytes: EXPECTED_TOTAL_DOWNLOAD_BYTES,
+      expectedSettledBytes: EXPECTED_SETTLED_BYTES
     }));
   }
 
