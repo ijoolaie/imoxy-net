@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { checkPreviewHealth, redactPreviewOutput, summarizePreviewProcess } from "./vless-smoke-preview-diagnostics.mjs";
+import { checkPreviewHealth, redactPreviewOutput, summarizePreviewContext } from "./vless-smoke-preview-diagnostics.mjs";
 import { setTimeout as delay } from "node:timers/promises";
 import { waitForSessionLeaseDrain } from "./vless-smoke-session-drain.mjs";
 
@@ -261,13 +261,12 @@ async function fetchSmokeDiagnostics(token) {
   const unavailableContext = async (details) => ({
     available: false,
     ...details,
-    previewProcess: summarizePreviewProcess(previewProcess),
-    previewHealth: await checkPreviewHealth(),
-    previewOutputTail: redactPreviewOutput(previewLogs, [
-      TOKEN,
-      token,
-      process.env.IMOXY_VLESS_CREDENTIAL
-    ]).slice(-4000)
+    ...summarizePreviewContext({
+      child: previewProcess,
+      output: previewLogs,
+      secrets: [TOKEN, token, process.env.IMOXY_VLESS_CREDENTIAL],
+      health: await checkPreviewHealth()
+    })
   });
   try {
     const response = await fetch("http://127.0.0.1:8787/_test/diagnostics", {
@@ -275,7 +274,16 @@ async function fetchSmokeDiagnostics(token) {
       signal: AbortSignal.timeout(2000)
     });
     if (!response.ok) return unavailableContext({ status: response.status });
-    return { available: true, ...(await response.json()) };
+    return {
+      available: true,
+      ...(await response.json()),
+      ...summarizePreviewContext({
+        child: previewProcess,
+        output: previewLogs,
+        secrets: [TOKEN, token, process.env.IMOXY_VLESS_CREDENTIAL],
+        health: await checkPreviewHealth()
+      })
+    };
   } catch (error) {
     return unavailableContext({ errorName: error?.name ?? "Error" });
   }
