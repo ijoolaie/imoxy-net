@@ -9,6 +9,7 @@ const migration = (name) => readFileSync(new URL(`../migrations/${name}`, import
 const timestamp = "2026-10-27T12:00:00.000Z";
 
 function sqliteD1(db) {
+  let batchTail = Promise.resolve();
   return {
     prepare(sql) {
       let values = [];
@@ -24,17 +25,24 @@ function sqliteD1(db) {
       };
       return statement;
     },
-    async batch(statements) {
-      db.exec("BEGIN");
-      try {
-        const results = [];
-        for (const statement of statements) results.push(await statement.run());
-        db.exec("COMMIT");
-        return results;
-      } catch (error) {
-        db.exec("ROLLBACK");
-        throw error;
-      }
+    batch(statements) {
+      const execute = async () => {
+        db.exec("BEGIN");
+        try {
+          const results = [];
+          for (const statement of statements) {
+            results.push(statement.sql.trimStart().startsWith("SELECT") ? await statement.all() : await statement.run());
+          }
+          db.exec("COMMIT");
+          return results;
+        } catch (error) {
+          db.exec("ROLLBACK");
+          throw error;
+        }
+      };
+      const pending = batchTail.then(execute, execute);
+      batchTail = pending.catch(() => {});
+      return pending;
     }
   };
 }

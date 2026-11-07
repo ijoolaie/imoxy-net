@@ -21,10 +21,12 @@ function createFixture() {
   db.prepare(`INSERT INTO proxy_accounts
     (id, username, status, quota_bytes, daily_quota_bytes, created_at, updated_at)
     VALUES ('acct-recovery', 'recovery_user', 'active', 100, 200, ?, ?)`).run(BASE, BASE);
+  let batchTail = Promise.resolve();
   const d1 = {
     prepare(sql) {
       let values = [];
       return {
+        sql,
         bind(...args) { values = args; return this; },
         async first() { return db.prepare(sql).get(...values) ?? null; },
         async all() { return { results: db.prepare(sql).all(...values) }; },
@@ -34,17 +36,24 @@ function createFixture() {
         }
       };
     },
-    async batch(statements) {
-      db.exec("BEGIN IMMEDIATE");
-      try {
-        const results = [];
-        for (const statement of statements) results.push(await statement.run());
-        db.exec("COMMIT");
-        return results;
-      } catch (error) {
-        db.exec("ROLLBACK");
-        throw error;
-      }
+    batch(statements) {
+      const execute = async () => {
+        db.exec("BEGIN IMMEDIATE");
+        try {
+          const results = [];
+          for (const statement of statements) {
+            results.push(statement.sql.trimStart().startsWith("SELECT") ? await statement.all() : await statement.run());
+          }
+          db.exec("COMMIT");
+          return results;
+        } catch (error) {
+          db.exec("ROLLBACK");
+          throw error;
+        }
+      };
+      const pending = batchTail.then(execute, execute);
+      batchTail = pending.catch(() => {});
+      return pending;
     }
   };
   const store = createD1Store(d1);
