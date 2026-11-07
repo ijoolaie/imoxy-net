@@ -944,6 +944,87 @@ test("a reservation with an ambiguous response is released only before any forwa
 });
 
 
+test("session lease remains held until an in-flight upload write settles after close", async () => {
+  let resolveWrite;
+  let writeStarted = false;
+  let writerAbortCalled = false;
+  let socketClosed = false;
+  const writeGate = new Promise((resolve) => { resolveWrite = resolve; });
+  const upstream = {
+    opened: Promise.resolve({ remoteAddress: "93.184.216.34", localAddress: null }),
+    readable: new ReadableStream({ start() {} }),
+    writable: {
+      getWriter() {
+        return {
+          write() {
+            writeStarted = true;
+            return writeGate;
+          },
+          abort() { writerAbortCalled = true; }
+        };
+      }
+    },
+    async close() { socketClosed = true; }
+  };
+  const h = harness({ connectTcp: async () => upstream });
+
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+  h.server.receive(Uint8Array.from([0x31, 0x32]));
+  await settle();
+
+  assert.equal(writeStarted, true);
+  assert.equal(h.quotaCalls.markForwarding.length, 1);
+  assert.equal(h.quotaCalls.settle.length, 0);
+
+  h.server.close(1000, "test_client_close");
+  await settle();
+
+  assert.equal(socketClosed, true);
+  assert.equal(writerAbortCalled, true);
+  assert.equal(h.sessionCalls.release.length, 0,
+    "the admission lease must remain held while an upload write is unresolved");
+
+  resolveWrite();
+  await settle();
+
+  assert.equal(h.quotaCalls.settle.length, 1,
+    "a write that resolves successfully after close must still be accounted");
+  assert.equal(h.quotaCalls.settle[0].uploadBytes, 2);
+  assert.equal(h.sessionCalls.release.length, 1);
+});
+
+test("upload close while forwarding marker is pending never writes after closure", async () => {
+  const upstream = fakeSocket();
+  let resolveMark;
+  const markWait = new Promise((resolve) => { resolveMark = resolve; });
+  const h = harness({ markForwardingWait: markWait, connectTcp: async () => upstream.socket });
+
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+  h.server.receive(Uint8Array.from([0x41, 0x42]));
+  await settle();
+
+  assert.equal(h.quotaCalls.reserve.length, 1);
+  assert.equal(h.quotaCalls.markForwarding.length, 1);
+  assert.equal(h.quotaCalls.settle.length, 0);
+
+  h.server.close(1000, "test_client_close");
+  await settle();
+  resolveMark();
+  await settle();
+
+  assert.deepEqual(upstream.writes, [],
+    "no upload bytes may be written after the session has closed");
+  assert.equal(h.quotaCalls.settle.length, 0);
+  assert.equal(h.quotaCalls.release.length, 0,
+    "once the forwarding marker may have committed, retain the reservation conservatively");
+  assert.equal(upstream.closed, true);
+  assert.equal(h.sessionCalls.release.length, 1);
+});
+
 test("session close while forwarding marker is pending never sends bytes after closure", async () => {
   const upstream = fakeSocket();
   let resolveMark;

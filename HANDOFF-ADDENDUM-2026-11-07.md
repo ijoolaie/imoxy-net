@@ -65,3 +65,18 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - `HANDOFF.md` is 302,410 bytes, exceeding the Raya text read/write limit of 262,144 bytes.
 - Direct editing previously failed at the tool size limit. The main file was not rewritten, truncated, or modified through an alternate shell path.
 - Keep this dated addendum as the current supplemental handoff until the main file can be safely reorganized using supported tooling.
+
+## PR candidate — upload write / session-close race (2026-11-07)
+
+- Working branch: `fix/upload-write-close-race-2026-11-07`.
+- PR #212: https://github.com/ijoolaie/imoxy-net/pull/212 (open; exact-head CI run 42353532377 was in progress at the time of this note).
+- PR #212 tracks the feature branch; latest commit also includes this handoff reconciliation. No Cloudflare workflow or resource was run or changed.
+- Deterministic regression first reproduced the defect: closing a session while `writer.write()` remained unresolved released the session admission lease prematurely.
+- Handler now tracks the in-flight upload write promise. Session close closes the TCP socket, requests writer abort, waits for the pending write to settle, and only then releases the session lease. If the write remains unresolved, the persisted lease is retained until expiry rather than released speculatively.
+- A successful write that resolves after WebSocket closure still proceeds to quota settlement, preserving accounting for potentially forwarded bytes.
+- Added upload-side pending-forwarding-marker close test: it verifies no TCP write occurs after closure and that the potentially committed forwarding reservation is retained conservatively.
+- Focused `test/vless-websocket-handler.test.js`: 67 passed, 0 failed.
+- Full `cmd.exe /c npm run verify`: 258 total, 257 passed, 0 failed, 1 existing environment-gated skip; syntax/check stage passed.
+- `git diff --check`: passed (only Git LF/CRLF advisory warnings).
+- Runtime/Cloudflare behavior is not proven by these local tests. Issue #78 remains open; no Worker/D1 resource was touched and no Cloudflare smoke was run.
+- Next steps: await exact-head CI and review; merge only after CI succeeds, reviews/threads are clear, and the PR is mergeable. Runtime validation remains separate and requires fresh explicit user authorization.

@@ -390,6 +390,7 @@ export function createVlessWebSocketHandler({
         reader: null,
         writer: null,
         writeQueue: Promise.resolve(),
+        pendingWritePromise: null,
         queuedClientBytes: 0,
         downloadBytesForwarded: 0,
         accountId: null,
@@ -475,6 +476,14 @@ export function createVlessWebSocketHandler({
         await Promise.all(socketClosures);
         try { Promise.resolve(state.reader?.cancel()).catch(() => {}); } catch {}
         try { Promise.resolve(state.writer?.abort()).catch(() => {}); } catch {}
+        // Socket.close() may complete before a pending writer.write() promise
+        // settles. Keep the admission lease until that in-flight transport
+        // operation has a definitive outcome; an unresolved write leaves the
+        // lease to its persisted expiry rather than releasing it speculatively.
+        const pendingWrite = state.pendingWritePromise;
+        if (pendingWrite) {
+          try { await pendingWrite; } catch {}
+        }
         await releaseSessionLease();
       };
 
@@ -552,7 +561,13 @@ export function createVlessWebSocketHandler({
           // closing. Retain the reservation, but never send bytes after closure.
           if (state.closed) return false;
           if (direction === "upload") {
-            await measureDiagnostic(onDiagnostic, "tcp.write", { bytes: bytes.byteLength }, () => state.writer.write(bytes));
+            const writePromise = measureDiagnostic(onDiagnostic, "tcp.write", { bytes: bytes.byteLength }, () => state.writer.write(bytes));
+            state.pendingWritePromise = writePromise;
+            try {
+              await writePromise;
+            } finally {
+              if (state.pendingWritePromise === writePromise) state.pendingWritePromise = null;
+            }
           } else {
             await measureDiagnostic(onDiagnostic, "websocket.send", { bytes: bytes.byteLength }, () => server.send(bytes));
           }
