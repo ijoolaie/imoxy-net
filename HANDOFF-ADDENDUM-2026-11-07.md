@@ -70,7 +70,7 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 
 - Working branch: `fix/upload-write-close-race-2026-11-07`.
 - PR #212: https://github.com/ijoolaie/imoxy-net/pull/212 (open; exact-head CI run 42353532377 was in progress at the time of this note).
-- Feature commit: `b1a2f37ff4d6f3f29bde6b4591096c40f7c3bf97`; no Cloudflare workflow or resource was run or changed.
+- Current feature-branch head: `1a10d1b88768f9cae9d4eaeb0c6f018dc040fae1`; no Cloudflare workflow or resource was run or changed.
 - Deterministic regression first reproduced the defect: closing a session while `writer.write()` remained unresolved released the session admission lease prematurely.
 - Handler now tracks the in-flight upload write promise. Session close closes the TCP socket, requests writer abort, waits for the pending write to settle, and only then releases the session lease. If the write remains unresolved, the persisted lease is retained until expiry rather than released speculatively.
 - A successful write that resolves after WebSocket closure still proceeds to quota settlement, preserving accounting for potentially forwarded bytes.
