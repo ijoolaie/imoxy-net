@@ -5,9 +5,9 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 ## Current worktree
 
 - Workspace: `C:\Users\Ali\imoxy-net-review-worktree`
-- Current feature branch: `test/forwarding-close-race-2026-11-07`
-- Base: `main` at `e192687988d4ee036c58470c9bfeb8686f604121`
-- Current change: deterministic close-vs-forwarding-marker race test and post-marker closed-state guard; PR creation/CI pending.
+- Current branch: `docs/handoff-post-pr210-2026-11-07`
+- Base: `main` at `fadb7247bd2452eb01a33135f0aaff83fc66fcdc`
+- This branch reconciles the supplemental handoff after PR #210. Documentation PR CI is pending.
 
 ## PR #207 — D1 reservation verification batching (merged)
 
@@ -33,32 +33,31 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - PR: https://github.com/ijoolaie/imoxy-net/pull/209
 - Feature head: `058ef175c478f9fabe84f8b2542ef9f83f9fdeec`
 - Squash merge commit: `e192687988d4ee036c58470c9bfeb8686f604121`
-- Updated this supplemental handoff with PR #207/#208 outcomes, exact CI evidence, D1 request shape, and Issue #78 limitations.
 - Exact-head CI passed (run `42352171383`); post-merge main CI passed (run `42352193572`).
+
+## PR #210 — close-vs-forwarding-marker race (merged)
+
+- PR: https://github.com/ijoolaie/imoxy-net/pull/210
+- Feature head: `23e87a4e49620adf20e6b4e42d2c6f0f7c2991b0`
+- Squash merge commit: `fadb7247bd2452eb01a33135f0aaff83fc66fcdc`
+- A deterministic test delayed `markForwarding`, closed the WebSocket while that D1 request was pending, then resolved it. Before the fix the test failed because the handler still called `server.send()` after session closure.
+- Handler now re-checks `state.closed` after successful marker completion and before transport I/O. If closed, it sends nothing and does not settle. The reservation is not released because the marker may have committed; conservative retention is preserved.
+- Complementary race test closes during pending reserve; after reserve returns, the unmarked reservation is released and forwarding is never marked.
+- Targeted regression passed; full `test/vless-websocket-handler.test.js`: 65 passed. Full local `cmd.exe /c npm run verify`: 256 total, 255 passed, 0 failed, 1 existing environment-gated skip.
+- Both exact-head CI checks passed (runs `42352762136` and `42352770587`); post-merge main CI passed (run `42352797976`).
 
 ## Current D1 request shape and limitations
 
-- After PR #207, each successful quota chunk has three D1 request boundaries: one reserve batch, one conditional forwarding-marker request, and one settlement batch.
+- Each successful quota chunk has three D1 request boundaries: one reserve batch, one conditional forwarding-marker request, and one settlement batch.
 - PR #208 guards this request count deterministically in the local SQLite adapter. It does not measure Cloudflare D1 latency or establish the cause of Run #12's 30-second cutoff.
 - Further batching must preserve the forwarding boundary, immutable reservation/event identity checks, fail-closed behavior, and conservative retention of ambiguous forwarding-marked reservations.
-
-## Current close-vs-forwarding-marker race finding
-
-- A new deterministic test delayed `markForwarding`, closed the WebSocket while the D1 marker call was pending, then resolved the marker operation.
-- Before the fix, the test failed: after closure, the handler still called `server.send()` and emitted the downstream payload.
-- Fix: after a successful marker result, the handler now re-checks `state.closed` before transport I/O. If already closed, it returns without sending or settling.
-- The reservation is deliberately **not released** in this case: the forwarding marker may have committed, so conservative retention remains required.
-- Complementary test covers closure while `reserve` is pending: after reserve returns, the handler releases the still-unmarked reservation and never calls `markForwarding`.
-- Targeted race test passed after the fix; full handler test file: 65 passed, 0 failed.
-- Full `cmd.exe /c npm run verify`: 256 total, 255 passed, 0 failed, 1 existing environment-gated skip; exit code 0.
-- `git diff --check`: passed before commit.
 
 ## Issue #78 / runtime backpressure
 
 - Issue: https://github.com/ijoolaie/imoxy-net/issues/78 (remains open).
 - Run #12 failed in slow-reader acceptance after 151,552 / 4,194,304 downstream bytes, with close 1001 `session_duration_exceeded`; disposable Worker and D1 cleanup were verified.
 - D1 latency remains a plausible contributor, not a proven root cause.
-- The new close-race fix is local deterministic lifecycle evidence; it does not establish bounded Worker-internal downstream buffering or prove Run #12's root cause.
+- PR #210 fixes a deterministic lifecycle race but does not establish bounded Worker-internal downstream buffering or prove Run #12's runtime latency root cause.
 - Do not raise session/resource caps to force acceptance success. Any new Cloudflare smoke run requires fresh, explicit user authorization and must use the disposable workflow path.
 
 ## Main HANDOFF.md limitation
