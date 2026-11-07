@@ -241,22 +241,27 @@ test("credential rotation revokes old credentials, inserts a new hash and audits
 
 
 test("quota reservation batches stale cleanup with the conditional claim", async () => {
-  const db = makeDb({ firstRow: {
+  const reservationRow = {
     reservation_id: "reserve-1", account_id: "acct-1", usage_date: "2026-10-27",
     reserved_bytes: 12, actual_bytes: null, status: "active",
     created_at: "2026-10-27T12:00:00.000Z", lease_expires_at: "2026-10-27T12:00:30.000Z",
     updated_at: "2026-10-27T12:00:00.000Z"
-  }});
+  };
+  const db = makeDb({ batchResults: [
+    { meta: { changes: 0 } }, { meta: { changes: 1 } }, { results: [reservationRow] }
+  ]});
   const result = await createD1Store(db).reserveQuota({
     reservationId: "reserve-1", accountId: "acct-1", usageDate: "2026-10-27",
     reservedBytes: 12, createdAt: "2026-10-27T12:00:00.000Z",
     leaseExpiresAt: "2026-10-27T12:00:30.000Z"
   });
   assert.equal(result.allowed, true);
-  assert.deepEqual(db.calls.find((call) => call.batch), { batch: 2 });
+  assert.deepEqual(db.calls.find((call) => call.batch), { batch: 3 });
   assert.match(db.calls[0].sql, /forwarding_started_at IS NULL/);
   assert.ok(db.calls[1].sql.includes("INSERT INTO quota_reservations"));
   assert.ok(db.calls[1].sql.includes("ON CONFLICT(reservation_id) DO NOTHING"));
+  assert.ok(db.calls[2].sql.includes("SELECT reservation_id"));
+  assert.equal(db.calls.length, 4, "reservation verification SELECT must be part of the batch");
 });
 
 test("quota forwarding marker uses one conditional UPDATE RETURNING", async () => {
