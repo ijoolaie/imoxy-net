@@ -288,8 +288,18 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 ## PR #232 merge — 2026-11-07
 
 - PR #232 (`docs: record Issue #78 PR #231 merge`) was squash-merged under the standing merge authorization after exact-head CI succeeded. PR head `32f6db436e88ffd2c5a5081f092e70364b8243ae`; CI workflow run `42389340723`, job `128453404806` (`test`), conclusion `success`; the `Run npm run verify` step also succeeded.
+
 - Immediately before merge, PR #232 was open and mergeable with no submitted reviews and no unresolved inline review threads. Expected-head SHA was supplied to the merge operation. Squash merge commit: `23e3defa04ac6c8608b21e23833909047300ff9d`.
 - Local workspace fetched `origin` and created a fresh documentation branch `docs/issue78-pr232-merge-handoff-2026-11-07` from that exact `origin/main` merge commit. Worktree was clean at branch creation.
 - Documentation-only change. No application code, Cloudflare workflow, Worker/D1 resource, staging, or production resource was changed or run. No Cloudflare runtime probe was dispatched; any such run still requires fresh explicit user authorization.
 - Issue #78 remains open. Run #13 baseline lease-drain cause remains unattributed and Worker-internal downstream buffering remains unproven. Keep deterministic local investigation as the next step and 1101/domain/VPN investigation at final priority.
+- `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB text-tool limit; this addendum remains the supplemental handoff.
+
+## PR #233 merge — 2026-11-07
+
+- PR #233 (`docs: record Issue #78 PR #232 merge`) was squash-merged under the standing merge authorization after exact-head CI succeeded. PR head `7be8ae1f97cd7f1fc5f808571f5fdbb43a416eb0`; CI workflow run `42389481791`, job `128453829619` (`test`), conclusion `success`; the `Run npm run verify` step also succeeded.
+- Immediately before merge, PR #233 was open and mergeable with no submitted reviews and no unresolved inline review threads. Squash merge commit: `c4b28466ef3139a16a5dbec6d2e0feafa79b8434`.
+- Local workspace successfully fetched `origin` and confirmed `origin/main` at that exact merge commit. The fresh branch `docs/issue78-pr233-merge-handoff-2026-11-07` is based on that commit; worktree was clean before this addendum update.
+- Documentation-only handoff reconciliation. No application code, Cloudflare workflow, Worker/D1 resource, staging, or production resource was changed or run. No Cloudflare runtime probe was dispatched; any such run still requires fresh explicit user authorization.
+- Issue #78 remains open. Run #13 baseline lease-drain cause remains unattributed and Worker-internal downstream buffering remains unproven. Continue deterministic local investigation; keep 1101/domain/VPN investigation at final priority.
 - `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB text-tool limit; this addendum remains the supplemental handoff.
