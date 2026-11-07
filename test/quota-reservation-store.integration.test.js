@@ -10,15 +10,28 @@ const timestamp = "2026-10-27T12:00:00.000Z";
 
 function sqliteD1(db) {
   let batchTail = Promise.resolve();
+  const metrics = { requests: 0, batches: 0, first: 0, all: 0, run: 0 };
   return {
+    metrics,
     prepare(sql) {
       let values = [];
       const statement = {
         sql,
+        get values() { return values; },
         bind(...args) { values = args; return this; },
-        async first() { return db.prepare(sql).get(...values) ?? null; },
-        async all() { return { results: db.prepare(sql).all(...values) }; },
+        async first() {
+          metrics.requests += 1;
+          metrics.first += 1;
+          return db.prepare(sql).get(...values) ?? null;
+        },
+        async all() {
+          metrics.requests += 1;
+          metrics.all += 1;
+          return { results: db.prepare(sql).all(...values) };
+        },
         async run() {
+          metrics.requests += 1;
+          metrics.run += 1;
           const result = db.prepare(sql).run(...values);
           return { meta: { changes: Number(result.changes) } };
         }
@@ -26,12 +39,19 @@ function sqliteD1(db) {
       return statement;
     },
     batch(statements) {
+      metrics.requests += 1;
+      metrics.batches += 1;
       const execute = async () => {
         db.exec("BEGIN");
         try {
           const results = [];
           for (const statement of statements) {
-            results.push(statement.sql.trimStart().startsWith("SELECT") ? await statement.all() : await statement.run());
+            if (statement.sql.trimStart().startsWith("SELECT")) {
+              results.push({ results: db.prepare(statement.sql).all(...statement.values) });
+            } else {
+              const result = db.prepare(statement.sql).run(...statement.values);
+              results.push({ meta: { changes: Number(result.changes) } });
+            }
           }
           db.exec("COMMIT");
           return results;
@@ -104,6 +124,42 @@ test("D1 adapter SQL reserves quota atomically, settles once, and rejects replay
   const afterRelease = await service.reserve({ reservationId: "reserve-4", accountId: "acct-1", reservedBytes: 20 });
   assert.equal(afterRelease.allowed, true);
   db.close();
+});
+
+test("each forwarded quota chunk uses exactly three D1 request boundaries", async (t) => {
+  const { db, d1, service } = fixture();
+  t.after(() => db.close());
+  createAccount(db, { quotaBytes: 1000, dailyQuotaBytes: 1000 });
+
+  for (let index = 0; index < 3; index += 1) {
+    const reservationId = `chunk-reservation-${index}`;
+    const reserved = await service.reserve({
+      reservationId, accountId: "acct-1", reservedBytes: 4
+    });
+    assert.equal(reserved.allowed, true);
+
+    assert.equal(await service.markForwarding({ reservationId, accountId: "acct-1" }), true);
+    const settled = await service.settle({
+      producerId: "worker-1",
+      eventId: `chunk-event-${index}`,
+      reservationId,
+      accountId: "acct-1",
+      usageDate: reserved.reservation.usageDate,
+      uploadBytes: 0,
+      downloadBytes: 4,
+      requestCount: index === 0 ? 1 : 0,
+      at: timestamp
+    });
+    assert.equal(settled.applied, true);
+  }
+
+  assert.deepEqual(d1.metrics, {
+    requests: 9,
+    batches: 6,
+    first: 3,
+    all: 0,
+    run: 0
+  });
 });
 
 test("concurrent reservations cannot jointly exceed a daily quota", async () => {
