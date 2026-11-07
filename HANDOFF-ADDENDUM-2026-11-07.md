@@ -303,3 +303,12 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - Documentation-only handoff reconciliation. No application code, Cloudflare workflow, Worker/D1 resource, staging, or production resource was changed or run. No Cloudflare runtime probe was dispatched; any such run still requires fresh explicit user authorization.
 - Issue #78 remains open. Run #13 baseline lease-drain cause remains unattributed and Worker-internal downstream buffering remains unproven. Continue deterministic local investigation; keep 1101/domain/VPN investigation at final priority.
 - `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB text-tool limit; this addendum remains the supplemental handoff.
+
+## PR #234 merge — 2026-11-07
+
+- PR #234 (`docs: record Issue #78 PR #233 merge`) was squash-merged under the standing merge authorization after exact-head CI succeeded. PR head `d8a46c171c5c0ce2edef92fb40922189aff8c53e`; CI workflow run `42391381088`, job `128459497654` (`test`), conclusion `success`; the `Run npm run verify` step succeeded.
+- Immediately before merge, PR #234 was open and mergeable/clean with no submitted reviews and no unresolved inline review threads. Expected-head SHA `d8a46c171c5c0ce2edef92fb40922189aff8c53e` was supplied to the merge operation. Squash merge commit: `7a2c7f063591a249547c61f979f53e316fbdfb74`.
+- Local workspace fetched `origin` and created fresh branch `docs/issue78-pr234-merge-handoff-2026-11-07` from that exact `origin/main` merge commit. Worktree was clean at branch creation.
+- Documentation-only handoff update. No application code, Cloudflare workflow, Worker/D1 resource, staging, or production resource changed or ran. No Cloudflare runtime probe was dispatched; any such run still requires fresh explicit user authorization.
+- Issue #78 remains open. Run #13 baseline lease-drain cause remains unattributed and Worker-internal downstream buffering remains unproven. Continue deterministic local investigation; keep 1101/domain/VPN investigation at final priority.
+- `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB text-tool limit; this addendum remains the supplemental handoff.
