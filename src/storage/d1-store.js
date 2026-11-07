@@ -485,9 +485,8 @@ export function createD1Store(db) {
         throw new TypeError("Quota reservation fields are invalid.");
       }
 
-      // Keep bounded stale-reservation cleanup and the conditional quota claim
-      // in one D1 batch so each forwarded chunk does not pay an extra round trip.
-      await db.batch([
+      // Keep cleanup, quota claim, and reservation read in one D1 batch.
+      const batchResults = await db.batch([
         db.prepare(`UPDATE quota_reservations SET status = 'released', actual_bytes = 0, updated_at = ?
           WHERE reservation_id IN (SELECT reservation_id FROM quota_reservations
             WHERE status = 'active' AND account_id = ? AND forwarding_started_at IS NULL AND lease_expires_at <= ?
@@ -511,12 +510,13 @@ export function createD1Store(db) {
           ON CONFLICT(reservation_id) DO NOTHING`).bind(
           reservationId, usageDate, reservedBytes, createdAt, leaseExpiresAt, createdAt,
           accountId, createdAt, reservedBytes, usageDate, usageDate, reservedBytes
-        )
+        ),
+        db.prepare(`SELECT reservation_id, account_id, usage_date, reserved_bytes,
+          actual_bytes, status, created_at, lease_expires_at, updated_at
+          FROM quota_reservations WHERE reservation_id = ? LIMIT 1`).bind(reservationId)
       ]);
 
-      const row = await db.prepare(`SELECT reservation_id, account_id, usage_date, reserved_bytes,
-        actual_bytes, status, created_at, lease_expires_at, updated_at
-        FROM quota_reservations WHERE reservation_id = ? LIMIT 1`).bind(reservationId).first();
+      const row = batchResults?.[2]?.results?.[0] ?? null;
       if (row) {
         if (row.account_id !== accountId || row.usage_date !== usageDate || row.reserved_bytes !== reservedBytes ||
             row.created_at !== createdAt || row.lease_expires_at !== leaseExpiresAt) {
