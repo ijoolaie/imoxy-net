@@ -240,3 +240,9 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - `git diff --check` passed before this handoff update. No application code, Worker/D1 resource, Cloudflare workflow, staging, or production resource was changed or run. No new Cloudflare runtime authorization was used.
 - Issue #78 remains open: Run #13 baseline lease drain remains unattributed and Worker-internal WebSocket buffering remains unproven. Next evidence step is a fresh, explicitly authorized disposable runtime run to inspect whether lifecycle console records appear in the captured Wrangler preview output. Do not dispatch without that fresh authorization. Keep 1101/domain/VPN investigation at final priority.
 - Main `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum remains the supplemental handoff.
+## PR #226 merge - 2026-11-07
+
+- PR #226 (`docs: record post-PR225 Issue #78 verification`) was squash-merged under the standing merge authorization after exact-head CI succeeded. PR head `e4b1373db31a20eeca380d1b46b19664f147c785`; exact-head CI run `42383254932`, job `128435158873`, conclusion `success`.
+- Rechecked immediately before merge: PR mergeable, no submitted reviews, no unresolved review threads. Merge commit `6ee4294e14573bd4621d9779bd8bc0ce354bd930`.
+- Documentation-only change (12 lines in `HANDOFF-ADDENDUM-2026-11-07.md`). No application code, Cloudflare workflow, Worker/D1 resource, staging, or production resource changed or run.
+- Issue #78 remains open. Run #13 baseline lease-drain cause remains unattributed and Worker-internal downstream buffering remains unproven. A new disposable Cloudflare runtime probe still requires fresh explicit user authorization. Keep 1101/domain/VPN investigation at final priority.
