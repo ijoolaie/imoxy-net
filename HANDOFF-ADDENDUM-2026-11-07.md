@@ -253,3 +253,10 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - Rechecked immediately before merge: PR mergeable, no submitted reviews, no unresolved review threads. Merge commit `b60729aa0dba983a9a411548c9753d9e1bc40d73`.
 - Documentation-only change. No application code, Cloudflare workflow, Worker/D1 resource, staging, or production resource changed or run.
 - Issue #78 remains open. Run #13 baseline lease-drain cause remains unattributed and Worker-internal downstream buffering remains unproven. A new disposable Cloudflare runtime probe still requires fresh explicit user authorization. Keep 1101/domain/VPN investigation at final priority.
+
+## PR #228 merge - 2026-11-07
+
+- PR #228 (`docs: record Issue #78 PR #227 merge`) was squash-merged under the standing merge authorization after exact-head CI succeeded. PR head `12daacd9f6da420de831ed9a1acbc0702c99ad45`; CI workflow run `42383469692`, conclusion `success`.
+- Rechecked immediately before merge: PR mergeable, no submitted reviews, no unresolved review threads. Merge commit `d8eee429f4831878e425e3e90000ab93c8d0a596`.
+- Documentation-only handoff update. No application code, Cloudflare workflow, Worker/D1 resource, staging, or production resource changed or run.
+- Issue #78 remains open. Run #13 baseline lease-drain cause remains unattributed and Worker-internal downstream buffering remains unproven. Any new disposable Cloudflare runtime probe requires fresh explicit user authorization. Keep 1101/domain/VPN investigation at final priority.
