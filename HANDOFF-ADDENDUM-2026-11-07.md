@@ -275,3 +275,12 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - Local `cmd.exe /c npm run verify` on this docs branch passed syntax checks and tests: 261 discovered, 260 passed, 0 failed, 1 environment-gated skip.
 - Documentation-only handoff update. No application code, Cloudflare workflow, Worker/D1 resource, staging, or production resource changed or run.
 - Issue #78 remains open. Run #13 baseline lease-drain cause remains unattributed and Worker-internal downstream buffering remains unproven. Any new disposable Cloudflare runtime probe requires fresh explicit user authorization. Keep 1101/domain/VPN investigation at final priority.
+
+## PR #231 merge — 2026-11-07
+
+- PR #231 (`docs: record Issue #78 PR #230 merge`) was squash-merged under the standing merge authorization after exact-head CI succeeded. PR head `1dc8c81f8c69cfed5b7bcb5a9504b4f364ac1ecd`; CI workflow run `42384503765`, job `128438932809` (`test`), conclusion `success`; the `Run npm run verify` step also succeeded.
+- Immediately before merge, PR #231 was open and mergeable with no submitted reviews and no unresolved inline review threads. Expected-head SHA was supplied to the merge operation. Squash merge commit: `b03746e8fafc2b6f0e617a4e1d4ee4526f05a7e4`.
+- Local workspace fetched `origin` and created a fresh documentation branch `docs/issue78-pr231-merge-handoff-2026-11-07` from that exact `origin/main` merge commit. Worktree was clean at branch creation.
+- Documentation-only change. No application code, Cloudflare workflow, Worker/D1 resource, staging, or production resource was changed or run. No Cloudflare runtime probe was dispatched; any such run still requires fresh explicit user authorization.
+- Issue #78 remains open. Run #13 baseline lease-drain cause remains unattributed and Worker-internal downstream buffering remains unproven. Keep deterministic local investigation as the next step and 1101/domain/VPN investigation at final priority.
+- `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB text-tool limit; this addendum remains the supplemental handoff.
