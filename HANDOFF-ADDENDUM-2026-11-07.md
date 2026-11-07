@@ -185,3 +185,13 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 
 - Local validation for the preview-context change: focused test `node --experimental-sqlite --test test/vless-smoke-preview-diagnostics.test.js` passed 5/5. Full `cmd.exe /c npm run verify` passed: syntax check succeeded; 261 tests discovered, 260 passed, 1 pre-existing environment-gated skip, 0 failed. `git diff --check` passed (only Git LF/CRLF advisory warnings).
 - Current working branch is `fix/issue78-preview-console-diagnostics-2026-11-07`; based on exact current origin/main SHA above. Modified files: this addendum, `scripts/vless-service-binding-cloudflare-smoke.mjs`, `scripts/vless-smoke-preview-diagnostics.mjs`, and `test/vless-smoke-preview-diagnostics.test.js`. No commit/push/PR yet at this checkpoint.
+
+## PR #221 merge and post-merge verification — 2026-11-07
+
+- PR #221 (`test: expose remote preview lifecycle logs on smoke failure`) merged successfully: https://github.com/ijoolaie/imoxy-net/pull/221
+- Feature head: `ef9483e5d91c4b83ddbdf2820950835910016b9b`; merge commit: `c389b6db2063c87a310a8ddf752fc28812b05f26`.
+- Exact feature-head CI: both PR-triggered and push-triggered test jobs succeeded (runs `42379324393` and `42379316290`).
+- Post-merge main CI on the merge commit succeeded (run `42379356346`, job `128423509433`).
+- PR review submissions and review threads were both empty before merge; PR was mergeable and clean. Merge was performed under the user's standing authorization for completed PRs satisfying exact-head CI, no unresolved review threads, and mergeability.
+- Issue #78 comment `6707857003` records the Run #13 diagnostics finding, PR #221 merge, and that no runtime probe was run. Issue #78 remains open.
+- The workspace was moved to a fresh documentation-only branch based on the merge commit to reconcile this handoff. No code changes or Cloudflare actions occurred after PR #221 merged.
