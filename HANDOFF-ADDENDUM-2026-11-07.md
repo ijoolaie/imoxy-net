@@ -110,3 +110,11 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - Post-merge main CI run `42357035248`, job `128357265777`, succeeded on that exact merge commit (including `npm run verify`).
 - Existing deterministic slow/non-reading-peer tests assert serialized upstream reads behind downstream send/settlement and stop further reads after settlement failure. This does not establish runtime WebSocket internal-buffer bounds.
 - Issue #78 was updated with comment `6704683196`. No Cloudflare workflow, Worker, or D1 resource was run or changed. Issue #78 remains open.
+
+## PR #218 candidate — Issue #78 documentation evidence reconciliation — 2026-11-07
+
+- Current branch: `docs/issue78-pr216-merge-handoff-2026-11-07`, based on main after PR #217 merge commit `7796547a701019ed7c57ffa69da70e0e9b69dee5`.
+- Updated `docs/decision-log.md`, `docs/acceptance-test-plan.md`, and `docs/vless-runtime-backpressure-probe.md` with PR #216 merge/CI evidence, the exact three external D1 request boundaries per successful downstream relay chunk, and the current official Cloudflare Workers WebSocket API review.
+- Official API reference last updated 2026-10-12 continues to document synchronous `send()` and `readyState/binaryType`, with no documented `bufferedAmount`, drain event, or awaitable send result. This is a documented-surface finding only.
+- Recorded the existing application-level bounds and test coverage without claiming Cloudflare internal queue/memory boundedness. Issue #78 remains open pending an explicitly authorized disposable runtime probe.
+- Documentation-only; `git diff --check` passed. No Cloudflare workflow or Worker/D1 resource was run or changed.

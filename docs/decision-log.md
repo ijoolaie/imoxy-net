@@ -254,7 +254,7 @@ Verification note: the first CI run on the intermediate instrumentation commit f
 
 Run 41477742794 did not include the expected console records, so console-only stage instrumentation did not localize the relay stall. The disposable smoke Worker now retains at most 256 allowlisted event records and exposes them through GET /_test/diagnostics. Access requires a random per-run token in a dedicated header; the response is no-store. Fields are limited to event, direction, bytes, durationMs, and errorName. The buffer is isolate-local, so an empty result is inconclusive if the request is routed to another isolate. Tests cover token gating, bounded retention, and redaction. This does not change production behavior or traffic caps and is not runtime acceptance evidence.
 
-## 2026-11-06 — current Workers WebSocket send and close semantics
+## 2026-11-06 ï¿½ current Workers WebSocket send and close semantics
 
 - Rechecked the official Workers WebSockets API reference (last updated 2026-10-12). It documents synchronous `send(string | ArrayBuffer | ArrayBufferView)` and properties `readyState`/`binaryType`; it does not document `bufferedAmount`, a drain event, or an awaitable send result. Do not reintroduce undocumented buffer telemetry. This is a documented-surface finding, not proof that no undocumented runtime behavior exists.
 - The reference documents `accept({ allowHalfOpen: true })` for proxy close coordination. The checked-in VLESS smoke compatibility date is `2026-11-02`, after the `2026-04-07` default activation of `web_socket_auto_reply_to_close`. The handler currently calls `server.accept()` without the half-open option, so the runtime automatically acknowledges peer Close frames before the close event. `closeSession()` then performs asynchronous TCP socket cleanup and D1 lease release; WebSocket close completion must not be used as a proxy for either operation.
@@ -263,9 +263,17 @@ Run 41477742794 did not include the expected console records, so console-only st
 - No code or Cloudflare resources changed in this review. Production and existing staging remain untouched.
 - Source: https://developers.cloudflare.com/workers/runtime-apis/websockets/ (last updated 2026-10-12).
 
-## 2026-11-06 — cooperative cancellation before TCP socket creation
+## 2026-11-06 ï¿½ cooperative cancellation before TCP socket creation
 
 - Decision: pass a per-candidate `AbortSignal` through the `connectTcp(address, env, signal)` adapter contract and abort it when session cleanup starts. The default Cloudflare adapter checks the signal after loading `cloudflare:sockets` and before calling `connect()`.
 - Evidence: Cloudflare documents `connect()` as synchronously returning a `Socket`, with a separate `opened` promise for connection establishment and an async `socket.close()` for cleanup. A local regression test proves a cooperative connector observes handshake-timeout cancellation before socket creation; it also asserts the acquired admission lease is released after the cancelled connector settles. Existing late-created-socket cleanup coverage remains.
 - Limitation: this does not cancel dynamic module import, and alternate connectors that ignore the signal may remain pending. In those cases, preserve the conservative lease and do not force-release. No Cloudflare runtime test was run; smoke run #5's `activeSessions=1` remains unexplained.
 - Source: https://developers.cloudflare.com/workers/runtime-apis/tcp-sockets/ (last updated 2026-10-13).
+
+## 2026-11-07 â€” VLESS handler-to-D1 boundary evidence and WebSocket API recheck
+
+- Rechecked the current official Workers WebSockets reference (last updated 2026-10-12): it documents synchronous `send(string | ArrayBuffer | ArrayBufferView)`, methods `accept/close/addEventListener`, and properties `readyState/binaryType`; it still documents no `bufferedAmount`, send-drain event, or awaitable send/write result. Treat this as the documented API surface, not proof about undocumented internals. Do not add browser-only properties to the Workers handler.
+- PR #216 was squash-merged as `6ebd5df62ecfee7992b14d2f728346b966033cbc`. Its VLESS handler/SQLite integration test snapshots D1 adapter counters around an actual downstream relay chunk, waits for WebSocket send and usage settlement, and asserts exactly three external D1 request boundaries: reserve batch, direct forwarding-marker request, settlement batch. Exact PR-head CI run `42357001355` and post-merge main CI run `42357035248` both passed `npm run verify`.
+- Local full verify: 258 total, 257 passed, 0 failed, 1 existing environment-gated skip. Existing non-reading-peer tests also prove sequential upstream reads behind settlement and stop reads on settlement failure.
+- Decision unchanged: retain finite per-session byte/lifetime limits, global D1 session-admission ceiling, one upstream read at a time, settlement before the next read, and fail-closed close/cleanup. These bound application-submitted work; they do not expose or prove Cloudflare's internal WebSocket send queue, memory copies, framing overhead, or delivery acknowledgement.
+- Issue #78 remains open. Next evidence gate is an explicitly authorized disposable runtime probe with fixed byte/time/frame/concurrency limits and verified cleanup. No Cloudflare Worker/D1 resource or runtime workflow was run for PR #216.
