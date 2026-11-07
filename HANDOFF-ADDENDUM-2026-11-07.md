@@ -105,6 +105,8 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - GitHub compare showed the PR branch was one commit behind current `main` and reported merge state `dirty`. Rebased the feature branch onto `origin/main` at `ea037c43cd1d6a434a898e43efa450d94a4f6a5a`, preserving only the intended integration-test change; handoff content from the old branch was not carried over.
 - The integration test change counts external D1 request boundaries (batch as one, standalone first/all/run as one) and asserts exactly three requests for the actual downstream relay chunk: two batches plus one direct forwarding-marker first().
 - After rebasing, `cmd.exe /c npm run verify` passed again: 258 total, 257 passed, 0 failed, 1 existing environment-gated skip. `git diff --check` passed.
-- The rebased change is being republished to PR #216; its new exact-head CI must pass before merge. The prior CI result is not transferable to the new commit.
-- Existing deterministic slow/non-reading-peer tests already assert serialized upstream reads behind downstream send/settlement and stop further reads after settlement failure. This does not establish runtime WebSocket internal-buffer bounds.
-- No Cloudflare workflow, Worker, or D1 resource was run or changed. Issue #78 remains open.
+- The rebased clean-base head was `d46a3ecdfcc3c250984a8f27bc57d051fac49509`. Exact-head PR CI run `42357001355`, job `128357162358`, succeeded (including `npm run verify`); no reviews or inline review threads were present; GitHub reported mergeable/clean.
+- PR #216 was squash-merged as `6ebd5df62ecfee7992b14d2f728346b966033cbc` on 2026-11-07.
+- Post-merge main CI run `42357035248`, job `128357265777`, succeeded on that exact merge commit (including `npm run verify`).
+- Existing deterministic slow/non-reading-peer tests assert serialized upstream reads behind downstream send/settlement and stop further reads after settlement failure. This does not establish runtime WebSocket internal-buffer bounds.
+- Issue #78 was updated with comment `6704683196`. No Cloudflare workflow, Worker, or D1 resource was run or changed. Issue #78 remains open.
