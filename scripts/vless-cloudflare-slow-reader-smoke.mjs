@@ -3,7 +3,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { pathToFileURL } from "node:url";
 
 const FRAME_BYTES = 16 * 1024;
-const INITIAL_PAYLOAD = Buffer.from([0x17, 0x28, 0x39, 0x4a, 0xfb, 0xfc]);
+// Unique trigger asks the disposable TCP echo Worker to generate downstream-only data.
+const INITIAL_PAYLOAD = Buffer.from([0x53, 0x4c, 0x4f, 0x57, 0x52, 0x44]);
 const WEBSOCKET_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
 export function encodeClientFrame(opcode, payload) {
@@ -68,7 +69,7 @@ function makeExpectedPayload(payloadBytes) {
     const byteIndex = offset % FRAME_BYTES;
     payload[offset] = (byteIndex * 31 + frameIndex * 17 + 7) & 0xff;
   }
-  return Buffer.concat([INITIAL_PAYLOAD, payload]);
+  return payload;
 }
 
 function makeVlessRequest(credential) {
@@ -125,7 +126,6 @@ export async function runSlowReaderSession({
   credential,
   payloadBytes = 4 * 1024 * 1024,
   pauseMs = 2500,
-  uploadIntervalMs = 0,
   timeoutMs = 45000
 }) {
   const target = new URL(url);
@@ -139,9 +139,6 @@ export async function runSlowReaderSession({
   }
   if (!Number.isSafeInteger(pauseMs) || pauseMs < 1000 || pauseMs > 10000) {
     throw new Error("pauseMs must be between 1000 and 10000");
-  }
-  if (!Number.isSafeInteger(uploadIntervalMs) || uploadIntervalMs < 0 || uploadIntervalMs > 1000) {
-    throw new Error("uploadIntervalMs must be between 0 and 1000");
   }
 
   const expected = makeExpectedPayload(payloadBytes);
@@ -191,15 +188,14 @@ export async function runSlowReaderSession({
       finished = true;
       cleanup();
       resolve({
-        uploadBytes: expected.length,
+        uploadBytes: INITIAL_PAYLOAD.length,
         downloadBytes: receivedBytes,
         payloadBytes,
         pauseDelayMs: pauseMs,
-        uploadIntervalMs,
         pausedDurationMs: resumedAt - pausedAt,
         firstByteAfterResumeMs: firstByteAfterResumeAt === null ? null : firstByteAfterResumeAt - resumedAt,
         elapsedMs: Date.now() - startedAt,
-        framesSent: Math.ceil(payloadBytes / FRAME_BYTES) + 1,
+        framesSent: 1,
         framesReceived
       });
       socket.end(encodeClientFrame(0x8, Buffer.from([0x03, 0xe8])));
@@ -216,27 +212,17 @@ export async function runSlowReaderSession({
     const sendUpload = async () => {
       if (uploadStarted) return;
       uploadStarted = true;
+      // The VLESS initial payload is the only client upload. The disposable
+      // TCP echo Worker generates the large response independently so this
+      // probe measures downstream reader pressure, not the inbound write queue.
       socket.pause();
       pausedAt = Date.now();
-      try {
-        const payload = expected.subarray(INITIAL_PAYLOAD.length);
-        for (let offset = 0; offset < payload.length; offset += FRAME_BYTES) {
-          await writeWithBackpressure(
-            socket,
-            encodeClientFrame(0x2, payload.subarray(offset, Math.min(offset + FRAME_BYTES, payload.length)))
-          );
-          if (uploadIntervalMs > 0 && offset + FRAME_BYTES < payload.length) {
-            await new Promise((resolve) => setTimeout(resolve, uploadIntervalMs));
-          }
-        }
-        uploadFinished = true;
-        pauseTimer = setTimeout(() => {
-          resumedAt = Date.now();
-          socket.resume();
-        }, pauseMs);
-      } catch (error) {
-        fail(error);
-      }
+      uploadFinished = true;
+      pauseTimer = setTimeout(() => {
+        resumedAt = Date.now();
+        socket.resume();
+        parseFrames();
+      }, pauseMs);
     };
 
     const handleMessage = (opcode, payload) => {
@@ -245,7 +231,7 @@ export async function runSlowReaderSession({
           const closeCode = payload.length >= 2 ? payload.readUInt16BE(0) : null;
           const closeReason = payload.length > 2 ? payload.subarray(2).toString("utf8") : "";
           fail(new Error(
-            `server closed before exact echo completed (${receivedBytes}/${expected.length}; closeCode=${closeCode ?? "none"}; closeReason=${JSON.stringify(closeReason)})`
+            `server closed before exact downstream payload completed (${receivedBytes}/${expected.length}; closeCode=${closeCode ?? "none"}; closeReason=${JSON.stringify(closeReason)})`
           ));
         }
         return;
@@ -274,7 +260,7 @@ export async function runSlowReaderSession({
       framesReceived += 1;
       for (let index = 0; index < payload.length; index += 1) {
         if (receivedBytes >= expected.length || payload[index] !== expected[receivedBytes]) {
-          fail(new Error(`slow-reader echo mismatch at byte ${receivedBytes + index}`));
+          fail(new Error(`slow-reader downstream payload mismatch at byte ${receivedBytes + index}`));
           return;
         }
         receivedBytes += 1;
@@ -310,7 +296,7 @@ export async function runSlowReaderSession({
         } else {
           handleMessage(frame.opcode, frame.payload);
         }
-        if (finished) return;
+        if (finished || socket.isPaused()) return;
       }
     };
 
@@ -362,13 +348,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (!url || !credential) {
     throw new Error("IMOXY_VLESS_WS_URL and IMOXY_VLESS_CREDENTIAL are required.");
   }
-  const uploadIntervalMs = Number(process.env.IMOXY_SLOW_READER_UPLOAD_INTERVAL_MS ?? "0");
-  const result = await runSlowReaderSession({ url, credential, uploadIntervalMs });
+  const result = await runSlowReaderSession({ url, credential });
   console.log(JSON.stringify({
     ok: true,
     transport: "raw TCP WebSocket client with socket.pause()/resume()",
-    readerPause: "paused while upload is echoed; resumed after configured delay",
-    uploadPacing: uploadIntervalMs + "ms between frames",
+    readerPause: "paused after the small trigger; resumed after the configured delay",
     ...result
   }, null, 2));
 }
