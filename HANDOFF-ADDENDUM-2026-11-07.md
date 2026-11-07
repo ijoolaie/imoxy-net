@@ -70,7 +70,7 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 
 - Working branch: `fix/upload-write-close-race-2026-11-07`.
 - PR #212: https://github.com/ijoolaie/imoxy-net/pull/212 (open; exact-head CI run 42353532377 was in progress at the time of this note).
-- Current feature-branch head: `1a10d1b88768f9cae9d4eaeb0c6f018dc040fae1`; no Cloudflare workflow or resource was run or changed.
+- PR #212 tracks the feature branch; latest commit also includes this handoff reconciliation. No Cloudflare workflow or resource was run or changed.
 - Deterministic regression first reproduced the defect: closing a session while `writer.write()` remained unresolved released the session admission lease prematurely.
 - Handler now tracks the in-flight upload write promise. Session close closes the TCP socket, requests writer abort, waits for the pending write to settle, and only then releases the session lease. If the write remains unresolved, the persisted lease is retained until expiry rather than released speculatively.
 - A successful write that resolves after WebSocket closure still proceeds to quota settlement, preserving accounting for potentially forwarded bytes.
@@ -79,4 +79,4 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - Full `cmd.exe /c npm run verify`: 258 total, 257 passed, 0 failed, 1 existing environment-gated skip; syntax/check stage passed.
 - `git diff --check`: passed (only Git LF/CRLF advisory warnings).
 - Runtime/Cloudflare behavior is not proven by these local tests. Issue #78 remains open; no Worker/D1 resource was touched and no Cloudflare smoke was run.
-- Next steps: review final diff, commit/push the feature branch, open a PR, and require exact-head CI before any merge.
+- Next steps: await exact-head CI and review; merge only after CI succeeds, reviews/threads are clear, and the PR is mergeable. Runtime validation remains separate and requires fresh explicit user authorization.
