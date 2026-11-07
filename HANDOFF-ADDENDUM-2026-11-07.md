@@ -226,4 +226,5 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - PR: https://github.com/ijoolaie/imoxy-net/pull/224
 - Initial documentation-only commit: `d7d20e2af5806aa0379aedc832925f5821dfbf06`, based on main `cac2102e435b80ea6d75873a111be0656be22d26`.
 - The PR records the successful PR #223 post-merge CI result, the local lifecycle-path review, the 76/76 targeted test result, and the isolate-local diagnostics limitation. It does not change application code or runtime configuration.
-- At creation, exact-head CI run `42382499509` was queued; no review submissions or inline review threads were present. Do not merge until exact-head CI succeeds, the diff is reviewed, and the PR is mergeable.
+- Exact-head CI run `42382624318` completed successfully on PR HEAD `89f325da8b8ca7a7004a75a28c4d4481406ba2bb` (job `test`, `128433270881`). PR reviews and inline review threads were empty; the diff was reviewed and the PR was mergeable.
+- PR #224 was squash-merged under the standing authorization. Merge commit: `0b316988940a40bba2e2cfffd4fc6a7a93ea6949`. `origin/main` now points to that exact commit. No post-merge workflow run was returned for the docs-only merge; PR exact-head CI is green.
