@@ -314,7 +314,7 @@ export function createVlessWebSocketHandler({
   onDiagnostic = null
 } = {}) {
   return {
-    async fetch(request, env = {}) {
+    async fetch(request, env = {}, executionContext = null) {
       const url = new URL(request.url);
       const path = pathFor(env);
       if (!path) {
@@ -487,6 +487,27 @@ export function createVlessWebSocketHandler({
         await releaseSessionLease();
       };
 
+      // A WebSocket close/error callback cannot return a Promise that the
+      // Workers runtime will await. Register the cleanup with the request
+      // execution context so socket closure and the D1 lease release survive
+      // the close event dispatch. The request remains active while the client
+      // WebSocket is connected; waitUntil then provides the post-disconnect
+      // completion window documented by Workers.
+      const trackCloseSession = (code, reason) => {
+        // Repeated close/error notifications must not register redundant work.
+        if (state.closed) return closeSession(code, reason);
+        const cleanup = closeSession(code, reason);
+        if (typeof executionContext?.waitUntil === "function") {
+          try {
+            executionContext.waitUntil(cleanup);
+          } catch {
+            cleanup.catch(() => {});
+          }
+        } else {
+          cleanup.catch(() => {});
+        }
+        return cleanup;
+      };
       const resetIdleTimeout = () => {
         if (!state.authenticated || state.closed) return;
         idleTimerGeneration += 1;
@@ -496,7 +517,7 @@ export function createVlessWebSocketHandler({
         }
         idleTimer = setTimeoutImpl(() => {
           if (generation === idleTimerGeneration && state.authenticated && !state.closed) {
-            void closeSession(1001, "idle_timeout");
+            void trackCloseSession(1001, "idle_timeout");
           }
         }, idleTimeoutMs);
         // Node-only timer handles should not keep test processes alive; Workers handles are numeric.
@@ -527,12 +548,12 @@ export function createVlessWebSocketHandler({
             at: reservedAt
           }));
           if (!result?.allowed) {
-            await closeSession(1008, "quota_exceeded");
+            await trackCloseSession(1008, "quota_exceeded");
             return false;
           }
           if (!result.reservation?.usageDate) {
             await releaseBeforeForward(reservationId);
-            await closeSession(1011, "quota_reservation_invalid");
+            await trackCloseSession(1011, "quota_reservation_invalid");
             return false;
           }
           reservation = result.reservation;
@@ -541,7 +562,7 @@ export function createVlessWebSocketHandler({
           // reservation, so never release it. For other ambiguous reserve
           // outcomes, no bytes have been forwarded by this call yet.
           if (error?.code !== "reservation_conflict") await releaseBeforeForward(reservationId);
-          await closeSession(1011, "quota_reservation_failed");
+          await trackCloseSession(1011, "quota_reservation_failed");
           return false;
         }
         if (state.closed) {
@@ -554,7 +575,7 @@ export function createVlessWebSocketHandler({
             reservationId, accountId: state.accountId, at: new Date(now()).toISOString()
           }));
           if (!marked) {
-            await closeSession(1011, "quota_reservation_forwarding_failed");
+            await trackCloseSession(1011, "quota_reservation_forwarding_failed");
             return false;
           }
           // The forwarding marker may have committed while the session was
@@ -574,7 +595,7 @@ export function createVlessWebSocketHandler({
         } catch {
           // The transport may have accepted a partial chunk before throwing.
           // Keep its reservation; releasing it could permit over-quota traffic.
-          await closeSession(1011, direction === "upload" ? "upstream_write_failed" : "downstream_write_failed");
+          await trackCloseSession(1011, direction === "upload" ? "upstream_write_failed" : "downstream_write_failed");
           return false;
         }
 
@@ -596,7 +617,7 @@ export function createVlessWebSocketHandler({
         } catch {
           // Bytes may already have crossed the forwarding boundary. Retain the
           // reservation and stop this session rather than silently undercount.
-          await closeSession(1011, "usage_settlement_failed");
+          await trackCloseSession(1011, "usage_settlement_failed");
           return false;
         }
       };
@@ -611,7 +632,7 @@ export function createVlessWebSocketHandler({
             if (value?.byteLength && !state.closed) {
               resetIdleTimeout();
               if (value.byteLength > maxDownloadBytes - state.downloadBytesForwarded) {
-                await closeSession(1008, "download_limit_exceeded");
+                await trackCloseSession(1008, "download_limit_exceeded");
                 return;
               }
               const forwarded = await reserveAndSettle(value, "download");
@@ -619,9 +640,9 @@ export function createVlessWebSocketHandler({
               state.downloadBytesForwarded += value.byteLength;
             }
           }
-          await closeSession(1000, "upstream_closed");
+          await trackCloseSession(1000, "upstream_closed");
         } catch {
-          await closeSession(1011, "upstream_error");
+          await trackCloseSession(1011, "upstream_error");
         }
       };
 
@@ -631,14 +652,14 @@ export function createVlessWebSocketHandler({
         try {
           bytes = await toBytes(data);
         } catch {
-          await closeSession(1003, "binary_messages_required");
+          await trackCloseSession(1003, "binary_messages_required");
           return;
         }
 
         if (!state.authenticated) {
           state.buffer = concatBytes(state.buffer, bytes);
           if (state.buffer.byteLength > MAX_INITIAL_BUFFER_BYTES) {
-            await closeSession(1009, "initial_request_too_large");
+            await trackCloseSession(1009, "initial_request_too_large");
             return;
           }
 
@@ -647,7 +668,7 @@ export function createVlessWebSocketHandler({
             parsed = parseVlessRequest(state.buffer);
           } catch (error) {
             if (error instanceof VlessProtocolError && error.code === "incomplete_request") return;
-            await closeSession(1002, "invalid_vless_request");
+            await trackCloseSession(1002, "invalid_vless_request");
             return;
           }
 
@@ -664,11 +685,11 @@ export function createVlessWebSocketHandler({
             if (match === SESSION_CLOSED || state.closed) return;
             const account = match?.account;
             if (!accountIsUsable(account, now())) {
-              await closeSession(1008, "invalid_credential");
+              await trackCloseSession(1008, "invalid_credential");
               return;
             }
             if (!destinationAllowed(parsed.host, parsed.port, env)) {
-              await closeSession(1008, "destination_not_allowed");
+              await trackCloseSession(1008, "destination_not_allowed");
               return;
             }
 
@@ -684,14 +705,14 @@ export function createVlessWebSocketHandler({
               resolvedAddresses = Array.isArray(resolved) ? resolved : [resolved];
             } catch {
               if (state.closed) return;
-              await closeSession(1008, "destination_not_allowed");
+              await trackCloseSession(1008, "destination_not_allowed");
               return;
             }
             const candidates = [...new Set(resolvedAddresses
               .map((address) => normalizeNumericAddress(address))
               .filter((address) => address && !isClearlyPrivateDestination(address)))];
             if (candidates.length === 0) {
-              await closeSession(1008, "destination_not_allowed");
+              await trackCloseSession(1008, "destination_not_allowed");
               return;
             }
 
@@ -746,7 +767,7 @@ export function createVlessWebSocketHandler({
               return;
             }
             if (!admission?.allowed) {
-              await closeSession(1008, admission?.conflict ? "session_admission_conflict" : "session_limit_reached");
+              await trackCloseSession(1008, admission?.conflict ? "session_admission_conflict" : "session_limit_reached");
               return;
             }
             state.sessionLeaseAcquired = true;
@@ -798,7 +819,7 @@ export function createVlessWebSocketHandler({
                 if (!candidateSocket?.readable || !candidateSocket?.writable ||
                     typeof candidateSocket.close !== "function") {
                   try { await candidateSocket?.close?.(); } catch {}
-                  await closeSession(1011, "upstream_unavailable");
+                  await trackCloseSession(1011, "upstream_unavailable");
                   return;
                 }
                 state.pendingSocket = candidateSocket;
@@ -817,7 +838,7 @@ export function createVlessWebSocketHandler({
                     !sameNumericAddress(candidate, info.remoteAddress)) {
                   try { await candidateSocket.close(); } catch {}
                   if (state.pendingSocket === candidateSocket) state.pendingSocket = null;
-                  await closeSession(1008, "destination_not_allowed");
+                  await trackCloseSession(1008, "destination_not_allowed");
                   return;
                 }
                 if (state.pendingSocket === candidateSocket) state.pendingSocket = null;
@@ -833,7 +854,7 @@ export function createVlessWebSocketHandler({
               }
             }
             if (!socket || !destinationAddress || !socketInfo) {
-              await closeSession(1011, "upstream_unavailable");
+              await trackCloseSession(1011, "upstream_unavailable");
               return;
             }
             state.socket = socket;
@@ -850,7 +871,7 @@ export function createVlessWebSocketHandler({
             state.authenticated = true;
             resetIdleTimeout();
             sessionTimer = setTimeoutImpl(() => {
-              void closeSession(1001, "session_duration_exceeded");
+              void trackCloseSession(1001, "session_duration_exceeded");
             }, maxSessionDurationMs);
             // Avoid keeping Node test processes alive; Workers timer handles are numeric.
             sessionTimer?.unref?.();
@@ -859,7 +880,7 @@ export function createVlessWebSocketHandler({
             state.reader = socket.readable.getReader();
             void pumpUpstream();
           } catch {
-            await closeSession(1011, "proxy_session_failed");
+            await trackCloseSession(1011, "proxy_session_failed");
           }
           return;
         }
@@ -871,12 +892,12 @@ export function createVlessWebSocketHandler({
       server.addEventListener("message", (event) => {
         const messageBytes = messageByteLength(event.data);
         if (messageBytes === null) {
-          void closeSession(1003, "binary_messages_required");
+          void trackCloseSession(1003, "binary_messages_required");
           return;
         }
         if (messageBytes > MAX_QUEUED_CLIENT_BYTES ||
             state.queuedClientBytes + messageBytes > MAX_QUEUED_CLIENT_BYTES) {
-          void closeSession(1009, "client_write_queue_full");
+          void trackCloseSession(1009, "client_write_queue_full");
           return;
         }
         state.queuedClientBytes += messageBytes;
@@ -886,26 +907,26 @@ export function createVlessWebSocketHandler({
           } finally {
             state.queuedClientBytes = Math.max(0, state.queuedClientBytes - messageBytes);
           }
-        }).catch(() => closeSession(1011, "proxy_session_failed"));
+        }).catch(() => trackCloseSession(1011, "proxy_session_failed"));
       });
       server.addEventListener("close", () => {
         emitDiagnostic(onDiagnostic, "websocket.close_event");
-        void closeSession(1000, "client_closed");
+        void trackCloseSession(1000, "client_closed");
       });
-      server.addEventListener("error", () => { void closeSession(1011, "websocket_error"); });
+      server.addEventListener("error", () => { void trackCloseSession(1011, "websocket_error"); });
 
       if (!Number.isSafeInteger(initialHandshakeTimeoutMs) || initialHandshakeTimeoutMs < 1 ||
           !Number.isSafeInteger(idleTimeoutMs) || idleTimeoutMs < 1 ||
           typeof setTimeoutImpl !== "function" || typeof clearTimeoutImpl !== "function") {
-        await closeSession(1011, "proxy_timeout_config_invalid");
+        await trackCloseSession(1011, "proxy_timeout_config_invalid");
         return jsonError("proxy_timeout_config_invalid", "The proxy timeout configuration is invalid.", 503);
       }
-      handshakeTimer = setTimeoutImpl(() => { void closeSession(1008, "initial_request_timeout"); }, initialHandshakeTimeoutMs);
+      handshakeTimer = setTimeoutImpl(() => { void trackCloseSession(1008, "initial_request_timeout"); }, initialHandshakeTimeoutMs);
 
       try {
         return upgradeResponseFactory(client);
       } catch {
-        await closeSession(1011, "upgrade_failed");
+        await trackCloseSession(1011, "upgrade_failed");
         return jsonError("websocket_runtime_unavailable", "The WebSocket runtime is unavailable.", 503);
       }
     }
