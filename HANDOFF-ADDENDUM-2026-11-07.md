@@ -635,4 +635,11 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - No Cloudflare account API, runtime, Worker, D1, staging, or production resource was queried or changed. Any future disposable Cloudflare runtime probe requires fresh explicit user authorization. Preserve final-priority 1101/domain/VPN treatment.
 - Workspace fetched `origin/main` at `28bb20821e9dc5913db4a3995185666738c21f97` and created clean branch `docs/handoff-pr271-merge-2026-11-08` for this handoff update.
 
+## PR #272 merge — PR #271 handoff reconciliation — 2026-11-08
+
+- PR #272 (`docs: record PR 271 merge handoff`) was squash-merged under standing merge authorization after exact-head CI run `42484158925`, job `128742276287`, completed successfully on HEAD `2722a6388d2133d025717cd9b344f88d791c66ee`; `npm run verify` passed. No submitted reviews or unresolved review threads; GitHub reported mergeable/clean. Expected head SHA was supplied. Squash merge commit: `0002aaf9abd6f03e2e2d4b69f260325055971fc6`.
+- This documentation-only PR records PR #271's merge. Issue #78 remains open; no new runtime evidence or bounded-buffer proof was added.
+- No Cloudflare account API, runtime, Worker, D1, staging, or production resource was queried or changed. Any future disposable Cloudflare runtime probe requires fresh explicit user authorization. Preserve final-priority 1101/domain/VPN treatment.
+- Workspace fetched `origin/main` at `0002aaf9abd6f03e2e2d4b69f260325055971fc6` and created clean branch `docs/handoff-pr272-merge-2026-11-08` for this handoff update.
+
 - `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB tool limit; this addendum remains the supplemental handoff.
