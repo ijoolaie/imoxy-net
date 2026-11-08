@@ -427,3 +427,9 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - Issue #78 updated with comment https://github.com/ijoolaie/imoxy-net/issues/78#issuecomment-6718928198. Issue remains open; Worker-internal downstream buffering remains unproven.
 - Do not relax the lease-drain gate, add speculative release retries, alter lease/session/resource caps, or claim a definitive D1 root cause. Next work should inspect the exact release promise/logging and D1 operation outcome path locally before proposing a narrowly scoped harness or code change. Any further Cloudflare execution requires fresh explicit user authorization.
 - Raya MCP availability/config and workspace roots were checked; the workspace was reachable and the worktree was clean on branch `docs/issue78-pr245-merge-handoff-2026-11-08`. `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB text-tool limit; this addendum remains the supplemental handoff.
+
+
+## PR #248 merge handoff — 2026-11-08
+
+- PR #248 (`docs: record Issue #78 Run #14 and PR #246 merge`) was squash-merged under standing merge authorization after exact-head CI run `42460437041`, job `128668366477` (`test`), completed successfully, including `Run npm run verify`. PR head `b6219493e5a14deebc04bfb6ac91de82f6ada4cd`; no submitted reviews or unresolved inline review threads; GitHub reported mergeable. Expected-head SHA supplied. Squash merge commit: `d7c9bb87c1cd8a0b784ae0982ce80a7ed7b52e2a`.
+- The merged documentation-only PR records PR #246's merge and disposable Cloudflare Run #14 evidence. No application code changed; Issue #78 remains open.
