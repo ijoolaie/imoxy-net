@@ -706,3 +706,15 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - PR #276 (`docs: record PR 275 merge handoff`) was squash-merged under standing merge authorization at `43dabb2231afb7b6386bdae6bb12fe2f8f6b5ae3`. Exact PR HEAD `29b99efc201621987d7abc735cb60103ac9677f1` passed CI run `42489604254`, job `128758877881`; `npm run verify` succeeded. GitHub reported mergeable; no submitted reviews or unresolved review threads. Expected head SHA was supplied to the merge operation.
 - This documentation-only PR records PR #275's merge and the approved disposable-envelope evidence boundary. Issue #78 remains open; no new runtime or bounded-buffer evidence was added.
 - No Cloudflare workflow dispatch, runtime, Worker, D1, staging, or production resource was touched. Any Cloudflare runtime execution still requires fresh explicit authorization. `HANDOFF.md` remains untouched because it exceeds the supported 256 KiB tool limit; this addendum is the supplemental handoff.
+
+## Disposable Service Binding smoke Run #17 — 2026-11-08
+
+- User supplied the job URL: https://github.com/ijoolaie/imoxy-net/actions/runs/42490340691/job/128761113306. The workflow provisioned disposable D1 and Workers resources and applied migrations 0001–0008.
+- Baseline VLESS WebSocket → handler → Service Binding TCP echo passed with two concurrent clients; baseline session-lease drain passed on the first poll.
+- The 1 MiB slow-reader case failed its completion/throughput acceptance: the client received 593,920 of 1,048,576 bytes (~56.6%) before timeout while the WebSocket remained open. This is a runtime slow-reader failure, not a successful bounded-buffer test.
+- Preview diagnostics showed per-chunk D1 `quota.reserve` and `quota.mark_forwarding` calls commonly around 115–195 ms; `websocket.send` calls reported near 0 ms. These are application call durations only; they do not measure native WebSocket queue drain, bytes flushed, or peer consumption. D1 latency is a plausible throughput contributor, not a proven root cause.
+- After socket close, `tcp.socket_close.complete` and `session.lease_release.complete` were observed. At failure, `activeSessions=0` and `activeReservations=0`.
+- Workflow cleanup completed and absence of the disposable Worker and D1 was verified. No staging/production resource was involved; this was not Error 1101.
+- Issue #78 was updated in comment `6722835455`: https://github.com/ijoolaie/imoxy-net/issues/78#issuecomment-6722835455. Issue #78 remains open because this run does not establish a bound on Worker-internal WebSocket buffering or prove peer consumption.
+- No further Cloudflare runtime execution is authorized by this run; any subsequent execution requires fresh explicit user authorization. Do not raise session/resource caps based on this failure. Preserve final-priority 1101/domain/VPN treatment.
+- This handoff update is documentation-only. `HANDOFF.md` remains untouched because it exceeds the supported 256 KiB tool limit; this addendum remains the supplemental handoff.
