@@ -819,3 +819,11 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - Decision: no migration and no source change. Keep the cleanup index as the first candidate for a disposable D1 evaluation because it improves a per-reservation cleanup query with lower apparent read/write trade-off in its isolated test. Keep the active-SUM index optional for history-heavy accounts; evaluate it only if account reservation-history cardinality warrants its write/storage cost. Test each separately before combining.
 - No Cloudflare runtime, Worker, D1, staging, or production resource was touched. Any future Cloudflare runtime execution requires fresh explicit user authorization. Issue #78 remains open; bounded Worker-internal buffering is still unproven. Preserve final-priority 1101/domain/VPN treatment.
 - `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
+
+## PR #286 merge handoff — 2026-11-08
+
+- PR #286 (`docs: record local D1 index benchmark results`) was squash-merged at `bbbd9a954c363b123c75648413e4bf6017834855`. Exact PR HEAD `c1519666f7fd37b0aa4670cb511c16d62acf0e68` passed CI run `42497806056`, job `128783821010` (`npm run verify`); no submitted reviews or inline review threads were present, and GitHub reported mergeable/clean. Merge used the expected head SHA.
+- PR #286 changed only `HANDOFF-ADDENDUM-2026-11-07.md`; it records local SQLite index-plan/benchmark evidence and explicitly makes no D1/runtime claim or migration recommendation. Local `cmd.exe /c npm run verify` passed 274 tests, 1 skipped, 0 failed (275 total); `git diff --check` passed.
+- Local workspace fetched `origin/main` at merge commit `bbbd9a954c363b123c75648413e4bf6017834855` and created clean follow-up branch `docs/issue78-pr286-merge-handoff-2026-11-08` for this handoff update.
+- Issue #78 remains open; no Worker, D1, staging, production, or Cloudflare runtime resource was touched. Any subsequent runtime execution still requires fresh explicit authorization. Preserve final-priority 1101/domain/VPN treatment.
+- `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
