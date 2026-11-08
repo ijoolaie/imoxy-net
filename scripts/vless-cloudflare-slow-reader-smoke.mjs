@@ -348,7 +348,16 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (!url || !credential) {
     throw new Error("IMOXY_VLESS_WS_URL and IMOXY_VLESS_CREDENTIAL are required.");
   }
-  const result = await runSlowReaderSession({ url, credential });
+  const configuredPayload = process.env.IMOXY_VLESS_SLOW_READER_PAYLOAD_BYTES;
+  const payloadBytes = configuredPayload === undefined ? undefined : Number(configuredPayload);
+  const configuredTimeout = process.env.IMOXY_VLESS_SLOW_READER_TIMEOUT_MS;
+  const timeoutMs = configuredTimeout === undefined ? undefined : Number(configuredTimeout);
+  const result = await runSlowReaderSession({
+    url,
+    credential,
+    ...(payloadBytes === undefined ? {} : { payloadBytes }),
+    ...(timeoutMs === undefined ? {} : { timeoutMs })
+  });
   console.log(JSON.stringify({
     ok: true,
     transport: "raw TCP WebSocket client with socket.pause()/resume()",
