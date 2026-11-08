@@ -642,4 +642,19 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - No Cloudflare account API, runtime, Worker, D1, staging, or production resource was queried or changed. Any future disposable Cloudflare runtime probe requires fresh explicit user authorization. Preserve final-priority 1101/domain/VPN treatment.
 - Workspace fetched `origin/main` at `0002aaf9abd6f03e2e2d4b69f260325055971fc6` and created clean branch `docs/handoff-pr272-merge-2026-11-08` for this handoff update.
 
+## PR #273 merge — PR #272 handoff reconciliation — 2026-11-08
+
+- PR #273 (`docs: record PR 272 merge handoff`) was squash-merged under standing merge authorization after exact-head check `test` completed successfully on HEAD `bac5e00425ac4d5e83ed4a713075b334cce9ffeb` (workflow run `42484325898`, job `128742788693`). No submitted reviews or unresolved review threads; GitHub reported mergeable/clean. Expected head SHA was supplied. Squash merge commit: `9897a6c1edc4b84618c2682fe8a06843fc517cfa`.
+- This documentation-only PR records PR #272's merge. Issue #78 remains open; no new runtime evidence or bounded-buffer proof was added.
+- No Cloudflare account API, runtime, Worker, D1, staging, or production resource was queried or changed. Any future disposable Cloudflare runtime probe requires fresh explicit user authorization. Preserve final-priority 1101/domain/VPN treatment.
+- Workspace fetched `origin/main` at `9897a6c1edc4b84618c2682fe8a06843fc517cfa` and created clean branch `docs/handoff-pr273-merge-2026-11-08` for this handoff update.
+
+## Cloudflare Support inquiry preparation — Issue #78 — 2026-11-08
+
+- Official Cloudflare Support guidance (last updated 2026-10-29) confirms technical support cases are available for paid plans (Pro, Business, Enterprise); Free plans cannot open technical support cases and should use Community/Discord. Cases are opened from Dashboard → Support → Technical Support; support interactions are in English. Source: https://developers.cloudflare.com/support/contacting-cloudflare-support/
+- Added Issue #78 comment https://github.com/ijoolaie/imoxy-net/issues/78#issuecomment-6722023370 recording the support route and four precise platform questions: managed runtime/workerd build provenance for a Worker deployment/time window; supported per-WebSocket queued bytes/messages/depth; native write/drain completion or peer-consumed byte telemetry; and any documented queue/backpressure guarantees or recommended controlled measurement method.
+- The inquiry is prepared but was not submitted. Account plan and dashboard access are not available in this session; no credentials, tokens, or secrets were requested or used. This is a platform observability/provenance question, not a request for Cloudflare to debug customer application code.
+- Issue #78 remains open. No runtime probe, Worker, D1, staging, or production resource was queried or changed. Any Cloudflare runtime probe still requires fresh explicit user authorization. Preserve final-priority 1101/domain/VPN treatment.
+- Workspace remains on the clean branch `docs/handoff-pr273-merge-2026-11-08` at commit `7a7c6f8`; the next source-controlled handoff update should be made on a fresh feature branch from the current main, with PR/CI before merge.
+
 - `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB tool limit; this addendum remains the supplemental handoff.
