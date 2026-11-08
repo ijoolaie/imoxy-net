@@ -433,3 +433,9 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 
 - PR #248 (`docs: record Issue #78 Run #14 and PR #246 merge`) was squash-merged under standing merge authorization after exact-head CI run `42460437041`, job `128668366477` (`test`), completed successfully, including `Run npm run verify`. PR head `b6219493e5a14deebc04bfb6ac91de82f6ada4cd`; no submitted reviews or unresolved inline review threads; GitHub reported mergeable. Expected-head SHA supplied. Squash merge commit: `d7c9bb87c1cd8a0b784ae0982ce80a7ed7b52e2a`.
 - The merged documentation-only PR records PR #246's merge and disposable Cloudflare Run #14 evidence. No application code changed; Issue #78 remains open.
+
+
+## PR #249 merge handoff — 2026-11-08
+
+- PR #249 (`docs: record Issue #78 PR #248 merge`) was squash-merged under standing merge authorization after exact-head CI run `42460500331`, job `128668559719` (`test`), completed successfully, including `Run npm run verify`. PR head `b5a9799683ff83908a33ac7a0fb684f1bf64e41c`; no submitted reviews or unresolved inline review threads; GitHub reported mergeable. Expected-head SHA supplied. Squash merge commit: `9cf4f9e5be8f11a8678a178956dcabd339d83971`.
+- This was a documentation-only handoff update. No application code or Cloudflare resources changed; Issue #78 remains open.
