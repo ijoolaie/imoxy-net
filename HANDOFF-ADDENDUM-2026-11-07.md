@@ -700,3 +700,9 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - The merge includes the shared budget/config builder, 1 MiB slow-reader payload and 55-second client timeout, 60-second session duration, 2-session concurrency, 30-second lease grace, template alignment, expected D1 byte accounting, and deterministic consistency tests. Local verification was 273 passed, 1 skipped, 0 failed (274 total); targeted tests 8/8 passed; `git diff --check` passed.
 - Issue #78 was updated in comment `6722653115` with the merge and validation result. Issue #78 remains open because this work does not establish a bound on Worker-internal WebSocket buffering or peer consumption.
 - No Cloudflare workflow dispatch, runtime, Worker, D1, staging, or production resource was touched. Any Cloudflare runtime execution still requires fresh explicit authorization. `HANDOFF.md` remains untouched because it exceeds the supported 256 KiB tool limit; this addendum is the supplemental handoff.
+
+## PR #276 merge — PR #275 handoff reconciliation — 2026-11-08
+
+- PR #276 (`docs: record PR 275 merge handoff`) was squash-merged under standing merge authorization at `43dabb2231afb7b6386bdae6bb12fe2f8f6b5ae3`. Exact PR HEAD `29b99efc201621987d7abc735cb60103ac9677f1` passed CI run `42489604254`, job `128758877881`; `npm run verify` succeeded. GitHub reported mergeable; no submitted reviews or unresolved review threads. Expected head SHA was supplied to the merge operation.
+- This documentation-only PR records PR #275's merge and the approved disposable-envelope evidence boundary. Issue #78 remains open; no new runtime or bounded-buffer evidence was added.
+- No Cloudflare workflow dispatch, runtime, Worker, D1, staging, or production resource was touched. Any Cloudflare runtime execution still requires fresh explicit authorization. `HANDOFF.md` remains untouched because it exceeds the supported 256 KiB tool limit; this addendum is the supplemental handoff.
