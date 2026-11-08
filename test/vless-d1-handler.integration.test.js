@@ -11,7 +11,7 @@ const UUID = "123e4567-e89b-12d3-a456-426614174000";
 const NOW = "2026-10-27T12:00:00.000Z";
 const migration = (name) => readFileSync(new URL(`../migrations/${name}`, import.meta.url), "utf8");
 
-function sqliteD1(db) {
+function sqliteD1(db, { beforeRun } = {}) {
   const metrics = { requests: 0, batches: 0, first: 0, all: 0, run: 0 };
   const execute = (statement, method) => {
     if (method === "first") return db.prepare(statement.sql).get(...statement.values) ?? null;
@@ -41,6 +41,7 @@ function sqliteD1(db) {
         async run() {
           metrics.requests += 1;
           metrics.run += 1;
+          await beforeRun?.(this.sql, this.values);
           return execute(this, "run");
         }
       };
@@ -130,7 +131,18 @@ test("VLESS handler authenticates, admits, forwards and settles through the real
     "0006_atomic_quota_reservations.sql", "0007_proxy_active_sessions.sql", "0008_quota_reservation_recovery.sql"
   ]) database.exec(migration(file));
 
-  const db = sqliteD1(database);
+  let resolveLeaseDelete;
+  let markLeaseDeleteStarted;
+  const leaseDeleteStarted = new Promise((resolve) => { markLeaseDeleteStarted = resolve; });
+  const leaseDeleteGate = new Promise((resolve) => { resolveLeaseDelete = resolve; });
+  const db = sqliteD1(database, {
+    beforeRun: async (sql) => {
+      if (/DELETE FROM proxy_active_sessions\s+WHERE session_id = \? AND account_id = \?/.test(sql)) {
+        markLeaseDeleteStarted();
+        await leaseDeleteGate;
+      }
+    }
+  });
   const store = createD1Store(db);
   const credentialHash = await hashProxyCredential(UUID);
   database.prepare(`INSERT INTO proxy_accounts
@@ -178,7 +190,9 @@ test("VLESS handler authenticates, admits, forwards and settles through the real
     }
   });
 
-  const response = await handler.fetch(request, env);
+  const waitUntilPromises = [];
+  const executionContext = { waitUntil(promise) { waitUntilPromises.push(promise); } };
+  const response = await handler.fetch(request, env, executionContext);
   assert.equal(response.status, 200);
   assert.equal(server.accepted, true);
   server.receive(vlessRequest());
@@ -237,9 +251,22 @@ test("VLESS handler authenticates, admits, forwards and settles through the real
   ]);
 
   server.close(1000, "test_complete");
-  await waitFor(
-    () => database.prepare("SELECT COUNT(*) AS count FROM proxy_active_sessions WHERE account_id = 'acct-vless'").get().count === 0,
-    "D1-backed session lease was not released after close"
-  );
-  assert.equal(upstream.closed, true);
+  await leaseDeleteStarted;
+  assert.equal(waitUntilPromises.length, 1,
+    "the actual VLESS close callback must register its cleanup with the request ExecutionContext");
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM proxy_active_sessions WHERE account_id = 'acct-vless'").get().count, 1,
+    "the real D1 lease must remain present while its DELETE request is deliberately pending");
+  assert.equal(upstream.closed, true, "the TCP socket must close before the D1 lease DELETE begins");
+
+  let cleanupSettled = false;
+  waitUntilPromises[0].then(() => { cleanupSettled = true; });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(cleanupSettled, false,
+    "the ExecutionContext task must remain pending while the real D1 adapter is gated");
+
+  resolveLeaseDelete();
+  await Promise.all(waitUntilPromises);
+  assert.equal(cleanupSettled, true);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM proxy_active_sessions WHERE account_id = 'acct-vless'").get().count, 0,
+    "the actual VLESS close cleanup must release the persisted D1 session lease");
 });
