@@ -5,16 +5,25 @@ import path from "node:path";
 import { checkPreviewHealth, redactPreviewOutput, summarizePreviewContext } from "./vless-smoke-preview-diagnostics.mjs";
 import { setTimeout as delay } from "node:timers/promises";
 import { waitForSessionLeaseDrain } from "./vless-smoke-session-drain.mjs";
+import {
+  buildVlessSmokeConfig,
+  VLESS_SMOKE_EXPECTED_SETTLED_BYTES,
+  VLESS_SMOKE_EXPECTED_TOTAL_DOWNLOAD_BYTES,
+  VLESS_SMOKE_EXPECTED_TOTAL_UPLOAD_BYTES,
+  VLESS_SMOKE_LIMITS,
+  VLESS_SMOKE_MAX_APP_SUBMITTED_DOWNSTREAM_BYTES,
+  VLESS_SMOKE_SLOW_READER_PAYLOAD_BYTES
+} from "./vless-service-binding-smoke-budget.mjs";
 
 const ROOT = process.cwd();
 const ACCOUNT_ID = "0d548671f52ffc237fb80dcb2067ac1a";
 const API_BASE = "https://api.cloudflare.com/client/v4";
 const MAX_TEST_BYTES = 16 * 1024 * 1024;
-const EXPECTED_SESSION_BYTES = 6 + 4 * 16 * 1024;
-const SLOW_READER_PAYLOAD_BYTES = 4 * 1024 * 1024;
-const EXPECTED_TOTAL_UPLOAD_BYTES = 2 * EXPECTED_SESSION_BYTES + 6;
-const EXPECTED_TOTAL_DOWNLOAD_BYTES = 2 * EXPECTED_SESSION_BYTES + SLOW_READER_PAYLOAD_BYTES;
-const EXPECTED_SETTLED_BYTES = EXPECTED_TOTAL_UPLOAD_BYTES + EXPECTED_TOTAL_DOWNLOAD_BYTES;
+
+const SLOW_READER_PAYLOAD_BYTES = VLESS_SMOKE_SLOW_READER_PAYLOAD_BYTES;
+const EXPECTED_TOTAL_UPLOAD_BYTES = VLESS_SMOKE_EXPECTED_TOTAL_UPLOAD_BYTES;
+const EXPECTED_TOTAL_DOWNLOAD_BYTES = VLESS_SMOKE_EXPECTED_TOTAL_DOWNLOAD_BYTES;
+const EXPECTED_SETTLED_BYTES = VLESS_SMOKE_EXPECTED_SETTLED_BYTES;
 const EXPECTED_REQUEST_COUNT = 3;
 const RUN_ID = process.env.GITHUB_RUN_ID;
 const RUN_ATTEMPT = process.env.GITHUB_RUN_ATTEMPT;
@@ -127,36 +136,15 @@ function configForEcho() {
 }
 
 function configForVless(databaseUuid, diagnosticsToken) {
-  return [
-    "name = " + tomlString(vlessName),
-    'main = "./test/vless-service-binding-tcp-smoke-worker.js"',
-    'compatibility_date = "2026-11-02"',
-    "account_id = " + tomlString(ACCOUNT_ID),
-    "workers_dev = false",
-    "preview_urls = false",
-    "",
-    "[vars]",
-    'PROXY_WS_PATH = "/proxy/vless"',
-    'PROXY_ALLOWED_HOSTS = "probe.imoxy.invalid"',
-    'PROXY_ALLOWED_PORTS = "5000"',
-    'PROXY_USAGE_PRODUCER_ID = ' + tomlString("imoxy-vless-smoke-" + suffix),
-    'PROXY_MAX_DOWNLOAD_BYTES = "8388608"',
-    'PROXY_MAX_SESSION_DURATION_MS = "30000"',
-    'PROXY_MAX_CONCURRENT_SESSIONS = "2"',
-    'PROXY_SESSION_LEASE_GRACE_MS = "30000"',
-    "SMOKE_DIAGNOSTICS_TOKEN = " + tomlString(diagnosticsToken),
-    "",
-    "[[d1_databases]]",
-    'binding = "DB"',
-    "database_name = " + tomlString(databaseName),
-    "database_id = " + tomlString(databaseUuid),
-    "remote = true",
-    "",
-    "[[services]]",
-    'binding = "PROXY_TCP_ECHO"',
-    "service = " + tomlString(echoName),
-    ""
-  ].join("\n");
+  return buildVlessSmokeConfig({
+    workerName: vlessName,
+    accountId: ACCOUNT_ID,
+    databaseName,
+    databaseId: databaseUuid,
+    echoName,
+    diagnosticsToken,
+    usageProducerId: "imoxy-vless-smoke-" + suffix
+  });
 }
 
 async function waitForHealth(child) {
@@ -389,9 +377,11 @@ async function main() {
       ...process.env,
       IMOXY_VLESS_WS_URL: "ws://127.0.0.1:8787/proxy/vless",
       IMOXY_VLESS_CREDENTIAL: credential,
+      IMOXY_VLESS_SLOW_READER_PAYLOAD_BYTES: String(SLOW_READER_PAYLOAD_BYTES),
+      IMOXY_VLESS_SLOW_READER_TIMEOUT_MS: "55000"
     },
     encoding: "utf8",
-    timeout: 60_000,
+    timeout: 65_000,
     maxBuffer: 2 * 1024 * 1024
   });
   if (slowReader.error || slowReader.status !== 0) {
@@ -478,9 +468,10 @@ async function main() {
     accountScope: "fixed disposable-test Cloudflare account only",
     clients: 3,
     slowReaderPayloadBytes: SLOW_READER_PAYLOAD_BYTES,
+    maxApplicationSubmittedDownstreamBytes: VLESS_SMOKE_MAX_APP_SUBMITTED_DOWNSTREAM_BYTES,
     slowReaderPauseMs: 2500,
     frameBytes: 16 * 1024,
-    sessionLimitMs: 30_000,
+    sessionLimitMs: VLESS_SMOKE_LIMITS.maxSessionDurationMs,
     uploadBytes: Number(usage.upload_bytes),
     downloadBytes: Number(usage.download_bytes),
     requestCount: Number(usage.request_count),
