@@ -845,3 +845,11 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - Local workspace fetched `origin/main` at merge commit `53129ead016fc7a72c5e54f1ef541c5e0650fc7a` and created clean follow-up branch `docs/issue78-pr288-merge-handoff-2026-11-08` for this handoff update.
 - Issue #78 remains open. No Worker, D1, staging, production, or Cloudflare runtime resource was touched; any future runtime attempt requires fresh explicit authorization. Keep 1101/domain/VPN at final priority.
 - `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
+
+## PR #289 merge handoff — 2026-11-08
+
+- PR #289 (`docs: record PR 288 merge handoff`) was squash-merged at `fe49526612c5d6b94e75762bebd50a83a5c856b1`. Exact PR HEAD `601f5e3d91aa82ad1680d08a70e75e73663aca51` passed CI run `42500474937`, job `128791912528`; the `npm run verify` step succeeded. Fresh review/thread checks returned no submitted reviews or inline threads; GitHub reported mergeable/clean. Merge used the expected head SHA.
+- PR #289 changed only this supplemental handoff. `git diff --check` passed.
+- Local workspace fetched `origin/main` at merge commit `fe49526612c5d6b94e75762bebd50a83a5c856b1` and created clean follow-up branch `docs/issue78-pr289-merge-handoff-2026-11-08` for this handoff update.
+- Issue #78 remains open. No Worker, D1, staging, production, or Cloudflare runtime resource was touched; any future runtime attempt requires fresh explicit authorization. Keep 1101/domain/VPN at final priority.
+- `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
