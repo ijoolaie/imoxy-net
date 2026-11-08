@@ -68,17 +68,23 @@ function diagnosticsResponse(request, env) {
   });
 }
 
-export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
-    if (url.pathname === "/_test/diagnostics" && request.method === "GET") {
-      return diagnosticsResponse(request, env);
+export function createSmokeWorker({
+  proxyFetch = (request, env, executionContext) => vlessProxy.fetch(request, env, executionContext)
+} = {}) {
+  return {
+    async fetch(request, env, executionContext) {
+      const url = new URL(request.url);
+      if (url.pathname === "/_test/diagnostics" && request.method === "GET") {
+        return diagnosticsResponse(request, env);
+      }
+      const response = await proxyFetch(request, env, executionContext);
+      if (response) return response;
+      if (url.pathname === "/health" && request.method === "GET") {
+        return new Response("ok", { headers: { "cache-control": "no-store" } });
+      }
+      return new Response("not found", { status: 404 });
     }
-    const response = await vlessProxy.fetch(request, env);
-    if (response) return response;
-    if (url.pathname === "/health" && request.method === "GET") {
-      return new Response("ok", { headers: { "cache-control": "no-store" } });
-    }
-    return new Response("not found", { status: 404 });
-  }
-};
+  };
+}
+
+export default createSmokeWorker();

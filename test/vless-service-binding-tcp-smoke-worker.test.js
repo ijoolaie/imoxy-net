@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import worker, { recordDiagnostic } from "./vless-service-binding-tcp-smoke-worker.js";
+import worker, { createSmokeWorker, recordDiagnostic } from "./vless-service-binding-tcp-smoke-worker.js";
 import {
   VLESS_SERVICE_BINDING_SMOKE_HOST,
   VLESS_SERVICE_BINDING_SMOKE_PEER,
@@ -75,6 +75,27 @@ test("service-binding connector rejects any other target and missing binding", a
   );
 });
 
+
+test("service-binding smoke Worker forwards the request execution context", async () => {
+  const expectedContext = { waitUntil() {} };
+  const expectedEnv = { marker: "disposable-test-env" };
+  let received;
+  const smokeWorker = createSmokeWorker({
+    proxyFetch(request, env, executionContext) {
+      received = { request, env, executionContext };
+      return new Response("proxied");
+    }
+  });
+
+  const request = new Request("https://smoke.test/proxy/vless");
+  const response = await smokeWorker.fetch(request, expectedEnv, expectedContext);
+
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "proxied");
+  assert.equal(received.request, request);
+  assert.equal(received.env, expectedEnv);
+  assert.equal(received.executionContext, expectedContext);
+});
 
 test("test-only diagnostics endpoint is token-gated, bounded, and payload-free", async () => {
   for (let index = 0; index < 260; index += 1) {
