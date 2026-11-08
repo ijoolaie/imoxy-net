@@ -409,3 +409,21 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 
 - PR #245 (`docs: record Issue #78 PR #244 merge`) was squash-merged under standing merge authorization after exact-head CI run `42459569169`, job `128665733045` (`test`), completed successfully including `Run npm run verify`. PR head `293d09d15e50d8f5bd4552d78bf603e1985cdf7b`; no submitted reviews or unresolved inline review threads; GitHub reported mergeable. Expected-head SHA supplied. Squash merge commit: `383528bca8d8c510447bd388a141c852d5874e54`.
 - After merge, Raya fetched `origin/main` at `383528bca8d8c510447bd388a141c852d5874e54` and created clean branch `docs/issue78-pr245-merge-handoff-2026-11-08` from that exact commit for this record. No Cloudflare runtime probe or resource mutation was performed. `HANDOFF.md` remains untouched due its size exceeding the supported 256 KiB text-tool limit.
+
+## PR #246 merge handoff — 2026-11-08
+
+- PR #246 (`docs: record Issue #78 PR #245 merge`) was squash-merged under standing merge authorization after exact-head CI run `42459621370`, job `128665892961` (`test`), completed successfully, including `Run npm run verify`. PR head `99b8e40cbda87008c7ebaed83fca2316ea56c2f2`; no submitted reviews or unresolved inline review threads; GitHub reported mergeable. Expected-head SHA supplied. Squash merge commit: `8081676de1f405d19f1e002650a03d46c17a2d87`.
+- The merged PR records PR #245's merge in the supplemental handoff. No application code changed.
+
+## Disposable Cloudflare probe Run #14 — 2026-11-08
+
+- User supplied run/job: https://github.com/ijoolaie/imoxy-net/actions/runs/42460056979 and https://github.com/ijoolaie/imoxy-net/actions/runs/42460056979/job/128667224635.
+- Workflow checked out exact main commit `383528bca8d8c510447bd388a141c852d5874e54` (PR #245 merge).
+- Disposable D1 database migrations 0001–0008 applied; internal-only disposable TCP Echo Worker deployed.
+- Baseline VLESS Worker WebSocket → handler → Service Binding TCP echo succeeded with two concurrent clients. Each uploaded/downloaded 65,542 bytes; aggregate 131,084 bytes in each direction.
+- Baseline session-lease drain failed: `drained=false`, `activeSessions=1` after 30 polls. The workflow stopped before slow-reader admission; no new evidence about bounded Worker-internal downstream buffering was collected.
+- Preview output exposes lifecycle events that were not visible in Run #13's captured output: `websocket.close_event`, `session.close.start`, `tcp.socket_close.complete`, and `session.lease_release.start`. No matching `session.lease_release.complete` or `session.lease_release.error` appears in the captured tail. This narrows the visible sequence to after release-start but does not prove that the D1 delete is blocked or establish a definitive root cause; output-tail truncation or delayed/ambiguous completion remain possible.
+- The workflow explicitly reports disposable Worker and D1 cleanup completed and absence verified. No staging/production resources touched. This was not a 1101 failure.
+- Issue #78 updated with comment https://github.com/ijoolaie/imoxy-net/issues/78#issuecomment-6718928198. Issue remains open; Worker-internal downstream buffering remains unproven.
+- Do not relax the lease-drain gate, add speculative release retries, alter lease/session/resource caps, or claim a definitive D1 root cause. Next work should inspect the exact release promise/logging and D1 operation outcome path locally before proposing a narrowly scoped harness or code change. Any further Cloudflare execution requires fresh explicit user authorization.
+- Raya MCP availability/config and workspace roots were checked; the workspace was reachable and the worktree was clean on branch `docs/issue78-pr245-merge-handoff-2026-11-08`. `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB text-tool limit; this addendum remains the supplemental handoff.
