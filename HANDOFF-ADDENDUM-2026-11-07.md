@@ -613,4 +613,12 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - Issue #78 remains open. The workerd queue implementation evidence is pinned only to its exact public source commit and must not be generalized to managed runtime without build correlation. Any disposable Cloudflare runtime probe still requires fresh explicit user authorization. Preserve final-priority 1101/domain/VPN treatment.
 - Workspace fetched `origin/main` at merge commit `7fe3cce00d03a4b0d0f6214f9912a348b90d0595` and created clean branch `docs/handoff-pr268-merge-2026-11-08` for this handoff update.
 
+## PR #269 merge — managed runtime traceability boundary — 2026-11-08
+
+- PR #269 (`docs: record Issue 78 managed runtime traceability`) was squash-merged under standing merge authorization after exact-head CI run `42482816748` succeeded on `57e1aa5135d126d904d8dd8443f66d650c4aa256`; no submitted reviews or unresolved review threads; GitHub reported mergeable/clean. Expected head SHA was supplied. Merge commit: `194bcdeb7857b16bdce94a0054aec15d91a5c447`.
+- Official Cloudflare docs review found that Worker versions/deployments identify user code/config versions, compatibility settings and traffic deployment, while compatibility_date/flags opt into runtime behavior changes; neither is a managed `workerd` build pin. The platform changelog is not a per-deployment runtime-build mapping. Public `workerd` npm release notes explain source package date-versioning but no mapping to the exact managed build for an arbitrary deployed Worker was found.
+- Issue #78 comment `6721801158` records this conclusion and proposes the next non-runtime step: ask Cloudflare Support whether they can supply exact managed runtime build/revision provenance for a given Worker deployment/time window, and whether supported per-WebSocket queued-byte/depth/drain-completion telemetry exists.
+- Issue #78 remains open. No Cloudflare account API, runtime, Worker, D1, staging, or production resource was queried or changed. Any disposable Cloudflare runtime probe requires fresh explicit user authorization. Preserve final-priority 1101/domain/VPN treatment.
+- Workspace fetched `origin/main` at `194bcdeb7857b16bdce94a0054aec15d91a5c447` and created clean branch `docs/handoff-pr269-merge-2026-11-08` for this handoff update.
+
 - `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB tool limit; this addendum remains the supplemental handoff.
