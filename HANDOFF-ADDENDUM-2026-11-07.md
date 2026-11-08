@@ -837,3 +837,11 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - Decision unchanged: no migration. The two indexes optimize distinct query shapes, their actual value depends on per-account reservation cardinality and managed D1 planner behavior, and no local SQLite timing can establish D1 latency improvement. A disposable D1 evaluation still requires separate explicit authorization before any Cloudflare runtime execution.
 - Issue #78 remains open; no Worker, D1, staging, production, or Cloudflare runtime resource was touched. Bounded Worker-internal buffering remains unproven; preserve final-priority 1101/domain/VPN treatment.
 - `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
+
+## PR #288 merge handoff — 2026-11-08
+
+- PR #288 (`docs: record small-cardinality index check`) was squash-merged at `53129ead016fc7a72c5e54f1ef541c5e0650fc7a`. Exact PR HEAD `6df508d26ae4e73ba9da3d994e35af80ceed1412` passed CI run `42500378267`, job `128791623607`; `npm run verify` succeeded. Fresh review/thread checks returned no submitted reviews or inline threads; GitHub reported mergeable/clean. Merge used the expected head SHA.
+- PR #288 changed only this supplemental handoff. Local `cmd.exe /c npm run verify` passed 274 tests, 1 skipped, 0 failed (275 total); `git diff --check` passed.
+- Local workspace fetched `origin/main` at merge commit `53129ead016fc7a72c5e54f1ef541c5e0650fc7a` and created clean follow-up branch `docs/issue78-pr288-merge-handoff-2026-11-08` for this handoff update.
+- Issue #78 remains open. No Worker, D1, staging, production, or Cloudflare runtime resource was touched; any future runtime attempt requires fresh explicit authorization. Keep 1101/domain/VPN at final priority.
+- `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
