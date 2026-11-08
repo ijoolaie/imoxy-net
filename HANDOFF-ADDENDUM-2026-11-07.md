@@ -439,3 +439,10 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 
 - PR #249 (`docs: record Issue #78 PR #248 merge`) was squash-merged under standing merge authorization after exact-head CI run `42460500331`, job `128668559719` (`test`), completed successfully, including `Run npm run verify`. PR head `b5a9799683ff83908a33ac7a0fb684f1bf64e41c`; no submitted reviews or unresolved inline review threads; GitHub reported mergeable. Expected-head SHA supplied. Squash merge commit: `9cf4f9e5be8f11a8678a178956dcabd339d83971`.
 - This was a documentation-only handoff update. No application code or Cloudflare resources changed; Issue #78 remains open.
+## PR #250 merge handoff — 2026-11-08
+
+- PR #250 (`docs: record Issue #78 PR #249 merge`) was squash-merged under standing merge authorization after exact-head CI run `42460546841`, job `128668696582` (`test`), completed successfully, including `Run npm run verify`.
+- Exact PR head: `fe96e344741fd74df1f6e24d953d9b277e5001db`. Immediately before merge, PR was open and mergeable/clean, with no submitted reviews or unresolved inline review threads. Expected-head SHA was supplied. Squash merge commit: `aef6e7d02287a7bb83cdfcd5ae6b2a098e22ff63`.
+- Documentation-only; no application code or Cloudflare resources changed. Issue #78 remains open; Run #14's unresolved lease-release stage and Worker-internal downstream buffering remain unproven. No new Cloudflare run was dispatched.
+- Raya fetched `origin/main` and created a clean branch `docs/issue78-pr250-merge-handoff-2026-11-08` from exact merge commit `aef6e7d02287a7bb83cdfcd5ae6b2a098e22ff63` for this record.
+- `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB text-tool limit; this addendum remains the supplemental handoff.
