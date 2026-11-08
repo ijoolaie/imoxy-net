@@ -7,10 +7,71 @@ import {
 const MAX_DIAGNOSTIC_EVENTS = 256;
 const MAX_LOGGED_DIAGNOSTIC_EVENTS = 64;
 const MAX_LOGGED_LIFECYCLE_EVENTS = 32;
+const MAX_TRANSFER_SUMMARIES = 16;
+const MAX_LOGGED_TRANSFER_SUMMARIES = 16;
 let loggedDiagnosticEvents = 0;
 let loggedLifecycleEvents = 0;
+let loggedTransferSummaries = 0;
 const diagnosticEvents = [];
+const transferSummaries = [];
 let droppedDiagnosticEvents = 0;
+
+function createStageTotals() {
+  return { count: 0, bytes: 0, totalDurationMs: 0, maxDurationMs: 0 };
+}
+
+export function createTransferDiagnosticsAccumulator() {
+  const totals = {
+    scope: "worker-isolate-cumulative",
+    closeSequence: 0,
+    downloadChunksRead: 0,
+    downloadBytesRead: 0,
+    websocketSend: createStageTotals(),
+    quotaReserve: createStageTotals(),
+    quotaMarkForwarding: createStageTotals(),
+    quotaSettle: createStageTotals()
+  };
+
+  const addStage = (stage, event) => {
+    const durationMs = Number.isFinite(event.durationMs) && event.durationMs >= 0
+      ? event.durationMs
+      : 0;
+    stage.count += 1;
+    stage.bytes += Number.isSafeInteger(event.bytes) && event.bytes > 0 ? event.bytes : 0;
+    stage.totalDurationMs += durationMs;
+    stage.maxDurationMs = Math.max(stage.maxDurationMs, durationMs);
+  };
+
+  return {
+    record(event) {
+      const name = String(event?.event ?? "unknown");
+      if (name === "tcp.read_chunk" && Number.isSafeInteger(event.bytes) && event.bytes > 0) {
+        totals.downloadChunksRead += 1;
+        totals.downloadBytesRead += event.bytes;
+      } else if (name === "websocket.send.complete") {
+        addStage(totals.websocketSend, event);
+      } else if (name === "quota.reserve.complete" && event.direction === "download") {
+        addStage(totals.quotaReserve, event);
+      } else if (name === "quota.mark_forwarding.complete" && event.direction === "download") {
+        addStage(totals.quotaMarkForwarding, event);
+      } else if (name === "quota.settle.complete" && event.direction === "download") {
+        addStage(totals.quotaSettle, event);
+      }
+
+      if (name !== "session.close.start") return null;
+      totals.closeSequence += 1;
+      return {
+        ...totals,
+        websocketSend: { ...totals.websocketSend },
+        quotaReserve: { ...totals.quotaReserve },
+        quotaMarkForwarding: { ...totals.quotaMarkForwarding },
+        quotaSettle: { ...totals.quotaSettle }
+      };
+    }
+  };
+}
+
+const transferDiagnostics = createTransferDiagnosticsAccumulator();
 
 export function recordDiagnostic(event) {
   // Keep only the small, explicitly approved payload-free fields.
@@ -28,6 +89,15 @@ export function recordDiagnostic(event) {
     droppedDiagnosticEvents += 1;
   }
   diagnosticEvents.push(record);
+  const transferSummary = transferDiagnostics.record(record);
+  if (transferSummary) {
+    if (transferSummaries.length >= MAX_TRANSFER_SUMMARIES) transferSummaries.shift();
+    transferSummaries.push(transferSummary);
+    if (loggedTransferSummaries < MAX_LOGGED_TRANSFER_SUMMARIES) {
+      console.log("VLESS_SMOKE_TRANSFER_SUMMARY " + JSON.stringify(transferSummary));
+      loggedTransferSummaries += 1;
+    }
+  }
   const isLifecycleEvent = record.event.startsWith("session.") ||
     record.event === "websocket.close_event" ||
     record.event.startsWith("tcp.socket_close.");
@@ -59,7 +129,8 @@ function diagnosticsResponse(request, env) {
   return new Response(JSON.stringify({
     scope: "current-worker-isolate",
     events: diagnosticEvents,
-    droppedEvents: droppedDiagnosticEvents
+    droppedEvents: droppedDiagnosticEvents,
+    transferSummaries
   }), {
     headers: {
       "content-type": "application/json; charset=utf-8",
