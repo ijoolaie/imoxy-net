@@ -584,4 +584,13 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - Therefore, the current source and deterministic tests establish an application-level one-chunk-at-a-time pipeline only. They do not establish a bound on Worker-internal WebSocket buffering under a slow/non-reading client. Do not close Issue #78 or describe the system as bounded-buffer-safe based on these tests.
 - Next useful evidence must come from a supported runtime-level observable or a controlled slow-reader experiment that can distinguish bytes accepted by `send()` from bytes actually drained/consumed, with bounded memory/queue observations. If the Workers runtime exposes no supported observable, record that measurement limitation explicitly rather than inferring a bound from synchronous `send()` or test doubles. Any new Cloudflare runtime run requires fresh explicit user authorization.
 - No code, resource caps, Worker, D1, staging, or production configuration changed during this source review. Preserve the final-priority treatment of 1101/domain/VPN and keep Issue #78 open.
+
+## PR #266 merge — downstream-buffering evidence boundary — 2026-11-08
+
+- PR #266 (`docs: clarify Issue 78 buffering evidence boundary`) was squash-merged under standing merge authorization after exact-head CI run `42480859424` completed successfully on `6355fe1c815784c1b78fbfd71c51a6a7564e471e`; no submitted reviews or unresolved review threads; GitHub reported mergeable/clean. Expected head SHA was supplied. Squash merge commit: `b0604e44defc7bd0764f344c8b0901a3700eaf67`.
+- The documentation records the current proof boundary: handler sequencing and fake-WebSocket tests establish application-level one-chunk-at-a-time reads behind downstream quota settlement, not a bound on Worker-internal WebSocket buffering.
+- Issue #78 remains open. Next evidence must use a supported runtime observable or controlled slow-reader measurement that distinguishes bytes accepted by `send()` from bytes drained/consumed, including bounded queue/memory observations. If the runtime offers no supported observable, record that limitation rather than infer a bound.
+- No Cloudflare runtime, Worker, D1, staging, or production resource was run or modified by this documentation PR. Any future Cloudflare runtime run requires fresh explicit user authorization. Preserve the final-priority treatment of 1101/domain/VPN.
+- Workspace fetched `origin/main` at merge parent `21ba9e18ee025c264aaa80f0851925c5496fecf0` and created clean branch `docs/handoff-pr266-merge-2026-11-08` for this handoff update.
+
 - `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB tool limit; this addendum remains the supplemental handoff.
