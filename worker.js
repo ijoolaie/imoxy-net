@@ -5,8 +5,8 @@ const api = createApiHandler();
 const vlessProxy = createVlessWebSocketHandler();
 
 export default {
-  async fetch(request, env) {
-    const proxyResponse = await vlessProxy.fetch(request, env);
+  async fetch(request, env, ctx) {
+    const proxyResponse = await vlessProxy.fetch(request, env, ctx);
     if (proxyResponse) return proxyResponse;
     const pathname = new URL(request.url).pathname;
     if (env?.ASSETS && !pathname.startsWith("/api/") && pathname !== "/health") {

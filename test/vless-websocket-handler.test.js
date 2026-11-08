@@ -1792,3 +1792,39 @@ test("session release failure does not prevent socket cleanup and reports bounde
   assert.ok(failure.durationMs >= 0);
   assert.equal(JSON.stringify(diagnostics).includes("injected session release failure"), false);
 });
+
+test("WebSocket close cleanup is registered with the Workers execution context", async () => {
+  let resolveRelease;
+  const releaseGate = new Promise((resolve) => { resolveRelease = resolve; });
+  const waitUntilPromises = [];
+  const executionContext = {
+    waitUntil(promise) { waitUntilPromises.push(promise); }
+  };
+  const upstream = fakeSocket();
+  const h = harness({
+    connectTcp: async () => upstream.socket,
+    sessionReleaseWait: releaseGate
+  });
+
+  await h.handler.fetch(request(), h.env, executionContext);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+  assert.equal(h.sessionCalls.acquire.length, 1);
+
+  h.server.close();
+  await settle();
+
+  assert.equal(waitUntilPromises.length, 1,
+    "the detached close cleanup must be attached to the request execution context once");
+  assert.equal(h.sessionCalls.release.length, 1);
+  let cleanupSettled = false;
+  waitUntilPromises[0].then(() => { cleanupSettled = true; });
+  await settle();
+  assert.equal(cleanupSettled, false,
+    "the execution-context task must remain pending until the D1 lease release settles");
+
+  resolveRelease();
+  await Promise.all(waitUntilPromises);
+  assert.equal(cleanupSettled, true);
+  assert.equal(h.sessionCalls.release.length, 1);
+});
