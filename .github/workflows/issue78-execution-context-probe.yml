@@ -1,0 +1,35 @@
+name: Issue 78 disposable ExecutionContext probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_disposable_run:
+        description: Create one temporary Worker preview, run the WebSocket lifetime probe, then delete it
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    if: github.ref == 'refs/heads/main' && inputs.confirm_disposable_run
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: "0d548671f52ffc237fb80dcb2067ac1a"
+      IMOXY_CONFIRM_DISPOSABLE_RUN: ${{ inputs.confirm_disposable_run }}
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run isolated ExecutionContext lifetime probe
+        run: node scripts/issue78-execution-context-probe-cloudflare.mjs

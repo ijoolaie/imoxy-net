@@ -1,6 +1,6 @@
 # Issue #78 — disposable WebSocket ExecutionContext lifetime probe
 
-Status: **design only; not yet implemented or executed**  
+Status: **implemented and locally verified; disposable Cloudflare runtime execution pending GitHub Actions dispatch**
 Scope: one disposable Worker preview, no production/staging resources, no D1 dependency, no TCP connector, no proxy session, and no quota/resource-cap changes.
 
 ## Question
@@ -13,7 +13,7 @@ The current VLESS handler receives the original Fetch context and calls `executi
 
 The disposable VLESS smoke config deliberately sets `PROXY_MAX_SESSION_DURATION_MS=30000`. Increasing that cap to hold a VLESS session open beyond 30 seconds would violate the project's resource-cap guardrail and confound the question with proxy lifecycle/accounting.
 
-Instead, add a narrowly scoped test-only route to `test/vless-service-binding-tcp-smoke-worker.js`. It creates a plain `WebSocketPair`, accepts the server socket, and does no D1, DNS, TCP, quota, or VLESS work. It receives the same third Fetch argument (`executionContext`) as the production handler. The route is reachable only at a per-run random path supplied through the disposable Worker vars; do not expose a fixed public probe path.
+Instead, use the standalone `test/issue78-execution-context-probe-worker.js` entrypoint. It creates a plain `WebSocketPair`, accepts the server socket, and does no D1, DNS, TCP, quota, or VLESS work. It receives the third Fetch argument (`executionContext`) from the Worker runtime. The route is reachable only at a per-run random path supplied through the disposable Worker vars; do not expose a fixed public probe path. The separate workflow provisions only this temporary Worker preview; it does not create D1 or TCP echo resources.
 
 ## Probe protocol
 
@@ -45,8 +45,8 @@ A successful late case does **not** prove that the VLESS handler's D1 release co
 
 ## Runtime execution guardrails
 
-- This is a **future** disposable-workflow addition. Do not run it, dispatch the workflow, deploy a Worker, or create resources without fresh explicit user authorization for that Cloudflare execution.
-- Keep the workflow restricted to `main` plus `confirm_disposable_run=true`; retain the existing disposable resource naming and cleanup verification.
+- The probe is wired to `.github/workflows/issue78-execution-context-probe.yml`. It is restricted to `main` plus `confirm_disposable_run=true`; the script refuses to provision without the same explicit environment confirmation.
+- The script uses a unique per-run Worker name, refuses to overwrite an existing name, captures bounded preview output, and deletes/verifies absence of that Worker in `finally`. No D1, TCP echo Worker, staging, or production resource is part of this workflow.
 - Do not change the 30-second VLESS session duration, session lease grace, concurrency limit, download cap, or any production/staging binding.
 - Capture only event names, nonce, elapsed durations, and error names. Never log credentials, route tokens, WebSocket payloads, D1 identifiers, or account/session identifiers.
 - Run the probe before the existing baseline VLESS smoke so its bounded event sequence is not crowded out of the preview log tail. Preserve the existing baseline lease-drain gate; do not advance to slow-reader testing if that gate fails.
@@ -54,12 +54,12 @@ A successful late case does **not** prove that the VLESS handler's D1 release co
 
 ## Local acceptance before any Cloudflare run
 
-- Unit tests cover tokenized route isolation, missing ExecutionContext, synchronous `waitUntil` throw, registration success, delayed task completion, nonce correlation, and payload-free logs.
-- Node client tests cover the 5-second control and 36-second late-close timing with injected WebSocket/timer dependencies so the test suite does not sleep for 41 seconds.
-- Orchestrator tests verify that both cases are required, that the exact run nonce is used, and that missing/ambiguous preview markers fail closed.
-- `cmd.exe /c npm run verify` and `git diff --check` pass.
+- `test/issue78-execution-context-probe.test.js` covers tokenized route isolation, missing ExecutionContext, synchronous `waitUntil` throw, registration success, delayed task completion, nonce correlation, payload-free logs, client close timing, and strict log validation.
+- Node client tests use injected WebSocket/timer dependencies so the test suite does not sleep for 41 seconds.
+- The orchestrator runs both cases in sequence and rejects missing, duplicate, out-of-order, or ambiguous markers.
+- `cmd.exe /c npm run verify` and `git diff --check` pass before merge.
 - Review the final diff to ensure only test harness/scripts/docs changed; no production proxy behavior, Worker bindings, staging, or production resources changed.
 
 ## Current conclusion
 
-No runtime result exists yet. The 30-second post-response concern remains an unresolved design/runtime risk, not a proven explanation for Runs #14–#16. Issue #78 remains open; bounded Worker-internal downstream buffering is still unproven.
+The probe implementation and isolated workflow are present and locally verified, but no Cloudflare runtime result exists yet. The 30-second post-response concern remains an unresolved runtime question, not a proven explanation for Runs #14–#16. The runtime run can only be started by dispatching the workflow on `main` with `confirm_disposable_run=true`; the connected GitHub interface does not expose workflow dispatch. Issue #78 remains open; bounded Worker-internal downstream buffering is still unproven.
