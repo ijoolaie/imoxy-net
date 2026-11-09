@@ -47,7 +47,16 @@ This file supplements `HANDOFF.md` and the existing `HANDOFF-ADDENDUM-2026-11-07
 
 ## Current workspace — aggregate memory audit
 
-- Base: `origin/main` at `fd7ff7a4338f7ddfff0101cef0cc23d395a624fc` (PR #306 merge).
-- Branch: `feat/issue78-aggregate-queue-memory-audit-2026-11-09`.
-- Scope: one deterministic handler regression test and this handoff addendum; no production code changes.
+- Base at start: `origin/main` at `fd7ff7a4338f7ddfff0101cef0cc23d395a624fc` (PR #306 merge).
+- Audit branch: `feat/issue78-aggregate-queue-memory-audit-2026-11-09`; merged via PR #307.
+- Follow-up branch: `docs/issue78-pr307-merge-handoff-2026-11-09`, created from post-merge `origin/main` at `01b20791eeda308e7f34bac36e3462b1ad26ea1c`.
+- Scope: one deterministic handler regression test and handoff documentation; no production code changes.
 - `HANDOFF.md` remains unchanged because its 302,410-byte size exceeds the supported 256 KiB file-tool limit. This dated addendum is the supplemental handoff.
+
+## PR #307 merge handoff — 2026-11-09
+
+- PR #307 (`test: document VLESS aggregate memory envelope`) was squash-merged at `01b20791eeda308e7f34bac36e3462b1ad26ea1c`. Exact PR HEAD `b8c66aaa47dc4a25bafd2ece19ac0073acb8e99e`; exact-head PR CI run `42625572922`, job `129188322498`, completed successfully with `npm run verify` (277 passed, 1 skipped, 0 failed). A separate push-triggered run `42625594393` was still in progress when the PR CI run had already succeeded.
+- Fresh pre-merge review checks showed no submitted reviews or inline review threads; GitHub reported mergeable true. Merge used the expected head SHA.
+- PR #307 added a deterministic oversized-TCP-read regression and the aggregate memory-envelope audit in this addendum. Issue #78 received comment `6741225403` with the findings and remaining evidence boundary.
+- The workspace fetched `origin/main` at `01b20791eeda308e7f34bac36e3462b1ad26ea1c` and created clean documentation follow-up branch `docs/issue78-pr307-merge-handoff-2026-11-09`.
+- No Cloudflare runtime, Worker, D1, staging, or production resource was touched. Issue #78 remains open; Worker-internal WebSocket buffering and the pre-budget TCP read-chunk allocation remain unresolved. Any future Cloudflare runtime execution requires fresh explicit user authorization. Error 1101/domain/VPN remains final-priority.
