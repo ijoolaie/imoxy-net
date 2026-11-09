@@ -958,3 +958,10 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - PR #294 changed only the supplemental handoff. Local workspace fetched `origin/main` at merge commit `3df127370d34997e0b91e5c0979133fb75be6e37` and created clean follow-up branch `docs/issue78-pr294-merge-handoff-2026-11-09`.
 - The expanded read and write microbenchmarks do not justify a migration: read wins vary by query/cardinality and are counterbalanced by index maintenance and page growth. No index was added. Issue #78 remains open; no Worker, D1, staging, production, or Cloudflare runtime resource was touched. Any future runtime execution requires fresh explicit authorization. Preserve final-priority 1101/domain/VPN treatment.
 - `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
+
+## PR #295 merge handoff — 2026-11-09
+
+- PR #295 (`docs: record PR 294 merge handoff`) was squash-merged at `7bb0878a50bc3197a2741e2dc4d1ace28f3d3ed3`. Exact PR HEAD `06b9dda059e5cec7be7fe908293d4b41938839f1`; CI run `42568916094`, job `129001522973`, completed successfully with `npm run verify`. Fresh pre-merge checks showed no submitted reviews or inline review threads, and GitHub reported mergeable true. Merge used the expected head SHA.
+- PR #295 changed only this supplemental handoff. Local workspace fetched `origin/main` at merge commit `7bb0878a50bc3197a2741e2dc4d1ace28f3d3ed3` and created clean follow-up branch `docs/issue78-pr295-merge-handoff-2026-11-09`.
+- The local read/write index evaluation is complete for now: no schema migration recommended. Continue prioritizing Issue #78's deterministic resource-safety and backpressure work; managed Worker queue behavior remains unproven and no Cloudflare runtime run was authorized. No Worker, D1, staging, or production resource was touched. Future Cloudflare runtime execution requires fresh explicit authorization. Preserve final-priority 1101/domain/VPN treatment.
+- `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
