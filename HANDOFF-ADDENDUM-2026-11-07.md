@@ -965,3 +965,10 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - PR #295 changed only this supplemental handoff. Local workspace fetched `origin/main` at merge commit `7bb0878a50bc3197a2741e2dc4d1ace28f3d3ed3` and created clean follow-up branch `docs/issue78-pr295-merge-handoff-2026-11-09`.
 - The local read/write index evaluation is complete for now: no schema migration recommended. Continue prioritizing Issue #78's deterministic resource-safety and backpressure work; managed Worker queue behavior remains unproven and no Cloudflare runtime run was authorized. No Worker, D1, staging, or production resource was touched. Future Cloudflare runtime execution requires fresh explicit authorization. Preserve final-priority 1101/domain/VPN treatment.
 - `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
+
+## PR #296 merge handoff — 2026-11-09
+
+- PR #296 (`docs: record PR 295 merge handoff`) was squash-merged at `cd8744b1711920fae6e63562ca19e32693dbc759`. Exact PR HEAD `b25d555e49c9ca9e8124cfbf6cbb61263392cf06`; CI run `42569056398`, job `129001962710`, completed successfully with `npm run verify`. Fresh pre-merge checks showed no submitted reviews or inline review threads, and GitHub reported mergeable true. Merge used the expected head SHA.
+- PR #296 changed only this supplemental handoff. Local workspace fetched `origin/main` at merge commit `cd8744b1711920fae6e63562ca19e32693dbc759` and created clean follow-up branch `docs/issue78-pr296-merge-handoff-2026-11-09`.
+- Issue #78 remains open. The local index experiment concluded with no migration. No Worker, D1, staging, production, or Cloudflare runtime resource was touched; any future runtime execution requires fresh explicit authorization. Preserve final-priority 1101/domain/VPN treatment.
+- `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
