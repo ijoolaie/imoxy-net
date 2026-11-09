@@ -1594,6 +1594,30 @@ test("a non-reading downstream client is closed before cumulative download bytes
   assert.equal(h.sessionCalls.release.length, 1);
 });
 
+test("rejects a single already-read upstream chunk larger than the session budget before forwarding", async () => {
+  const upstream = fakeSocket();
+  const h = harness({
+    config: { PROXY_MAX_DOWNLOAD_BYTES: "4" },
+    connectTcp: async () => upstream.socket
+  });
+
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  // The stream has already materialized this chunk before the handler can
+  // compare it with the remaining cumulative download budget.
+  upstream.push(new Uint8Array(1024 * 1024));
+  await settle();
+
+  assert.equal(h.server.sent.length, 1, "only the two-byte VLESS response header may be sent");
+  assert.equal(h.quotaCalls.reserve.length, 0, "an oversized read chunk must not reserve quota");
+  assert.ok(h.server.closeCalls.some((item) =>
+    item.code === 1008 && item.reason === "download_limit_exceeded"
+  ));
+  assert.equal(h.sessionCalls.release.length, 1);
+});
+
 test("allows a download exactly at the configured byte budget and closes before the next chunk", async () => {
   const upstream = fakeSocket();
   const h = harness({

@@ -32,3 +32,22 @@ This file supplements `HANDOFF.md` and the existing `HANDOFF-ADDENDUM-2026-11-07
 - PR #305 changed the VLESS handler, deterministic tests, and this dated supplemental addendum. Local workspace fetched `origin/main` at merge commit `ae29c7373b397099b3e5c4cedb39a182bc1aaecf` and created clean documentation follow-up branch `docs/issue78-pr305-merge-handoff-2026-11-09`.
 - Issue #78 received comment `6738890532` summarizing the distinction between app-level send-count bounds and unproven Worker-internal buffering, plus the inbound zero-length message queue fix. Issue #78 remains open.
 - No Cloudflare runtime, Worker, D1, staging, or production resource was touched. Any future Cloudflare runtime execution requires fresh explicit user authorization. Preserve final-priority 1101/domain/VPN treatment.
+
+## Issue #78 aggregate memory-envelope audit — 2026-11-09
+
+- Audited per-session application-owned queue state and the installation-wide D1 session lease ceiling in `src/proxy/vless-websocket-handler.js` and `docs/vless-session-admission-design.md`.
+- For each admitted session, the inbound message queue enforces at most 1 MiB of accounted message payload and at most 1,024 message/promise-chain entries, including the in-flight message. The unauthenticated VLESS handshake buffer has a separate 64 KiB retained limit. These are per-session application limits, not Cloudflare's pre-dispatch WebSocket receive buffering or exact heap-byte limits.
+- The queue's byte accounting counts `ArrayBuffer`, view, and Blob payload lengths. Blob conversion through `arrayBuffer()` may allocate a second copy; initial-handshake `concatBytes()` also temporarily allocates a joined copy before rejecting a buffer above 64 KiB. Object, closure, backing-store, allocator, and runtime overhead are not assigned a defensible byte multiplier.
+- For downstream application sends, a finite per-session download budget B permits at most B positive-byte data sends plus one two-byte VLESS response header. With installation-wide admitted-session ceiling C, the application-submitted downstream payload envelope is at most `C * (B + 2)` bytes and the send-call envelope is at most `C * (B + 1)`. This is not a bound on native WebSocket framing/copies, flush, peer receipt, or the managed runtime's internal queue.
+- The settings B (`PROXY_MAX_DOWNLOAD_BYTES`) and C (`PROXY_MAX_CONCURRENT_SESSIONS`) are required positive safe integers but the handler does not impose a fixed upper bound on either or on their product. The design doc records that no numeric production C has been selected; the repository contains only disposable smoke examples. Therefore there is no owner-approved absolute aggregate memory budget to enforce, and no new production configuration cap was invented.
+- Found an additional boundary in the downstream path: `reader.read()` materializes a TCP chunk before the handler compares its size with the remaining B budget. A single chunk can therefore be larger than B in application-visible memory even though it is rejected before quota reservation or WebSocket forwarding. Added a deterministic test using a 1 MiB read with B=4 bytes; it proves no downstream send beyond the two-byte header and no quota reservation, but does not claim to bound the already-materialized read buffer.
+- Focused handler tests passed: 72/72. Full `cmd.exe /c npm run verify` passed: 277 passed, 1 skipped, 0 failed (278 total). `git diff --check` passed.
+- Decision: no production memory cap or stream rechunking change is safe to select without an approved C/B resource envelope and evidence about TCP read chunk sizing and runtime buffering. Preserve serial `reader.read()` → reserve → forwarding marker → send → settlement ordering; do not introduce read-ahead/coalescing. Issue #78 remains open.
+- No Cloudflare runtime, Worker, D1, staging, or production resource was touched. Any runtime validation still requires fresh explicit user authorization. Error 1101/domain/VPN remains final-priority.
+
+## Current workspace — aggregate memory audit
+
+- Base: `origin/main` at `fd7ff7a4338f7ddfff0101cef0cc23d395a624fc` (PR #306 merge).
+- Branch: `feat/issue78-aggregate-queue-memory-audit-2026-11-09`.
+- Scope: one deterministic handler regression test and this handoff addendum; no production code changes.
+- `HANDOFF.md` remains unchanged because its 302,410-byte size exceeds the supported 256 KiB file-tool limit. This dated addendum is the supplemental handoff.
