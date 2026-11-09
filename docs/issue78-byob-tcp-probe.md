@@ -29,3 +29,12 @@ This is a compatibility probe only. It is not a production implementation and do
 - Do not create a D1 database for this probe.
 - Do not expose the echo Worker on workers.dev.
 - Remove both Workers and verify their absence even if the probe fails.
+
+## Runtime attempt — 2026-11-09 (inconclusive; cleaned up)
+
+- User explicitly authorized this disposable BYOB probe. The Cloudflare connector identity and exact account name were checked before provisioning; the account Workers subdomain already existed. No new account-level subdomain was created.
+- Provisioned two run-unique Workers: an internal-only TCP echo Worker with a `connect(socket)` handler and a probe Worker with one Service Binding to the echo Worker. Only the probe Worker was temporarily enabled on the existing workers.dev subdomain, and only a random unguessable path was used. No D1 or other Cloudflare resource was created.
+- The probe route returned HTTP 500 with an empty response body. A request to the probe Worker root also returned HTTP 500, so the evidence does not establish whether the probe fetch handler ran. Neither default-reader nor BYOB results were returned; BYOB support is therefore **undetermined**, not unsupported.
+- Two temporary Workers Tail sessions were created, but the local WebSocket client could not establish a connection to the returned tail URLs; no useful runtime log was captured. The Tail sessions were deleted.
+- Cleanup disabled the probe Worker subdomain, deleted the probe Worker and echo Worker, deleted both Tail sessions, and verified both Worker names absent from the account's script inventory. No existing staging or production Worker/binding/route, D1, or other project resource was modified.
+- Do not retry or change the probe runtime deployment without fresh explicit user authorization. Next work should first resolve why the disposable API-uploaded Worker returns 500 before attempting the BYOB read again.
