@@ -853,3 +853,50 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - Local workspace fetched `origin/main` at merge commit `fe49526612c5d6b94e75762bebd50a83a5c856b1` and created clean follow-up branch `docs/issue78-pr289-merge-handoff-2026-11-08` for this handoff update.
 - Issue #78 remains open. No Worker, D1, staging, production, or Cloudflare runtime resource was touched; any future runtime attempt requires fresh explicit authorization. Keep 1101/domain/VPN at final priority.
 - `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
+
+## PR #290 merge handoff — 2026-11-09
+
+- PR #290 (`docs: record PR 289 merge handoff`) was squash-merged at `86dc968efe3f1158bd5b6c354fcc22196bdca357`. Exact PR HEAD `470360ca71d219ed9b7b77c418a415093d4f4dc4`; CI run `42500568936`, job `128792194077`, completed successfully with `npm run verify`. GitHub review submissions and inline review threads were both empty. The PR body records `git diff --check` passed.
+- PR #290 changed only this supplemental handoff. Local workspace fetched `origin/main` at the merge commit and created clean follow-up branch `docs/issue78-pr290-merge-handoff-2026-11-09`.
+- Issue #78 remains open. No Worker, D1, staging, production, or Cloudflare runtime resource was touched; any future runtime execution still requires fresh explicit authorization. Keep 1101/domain/VPN at final priority.
+- `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
+
+## Expanded local SQLite cardinality matrix — 2026-11-09
+
+- Replaced the previously timed-out local cardinality experiment with a faster, fully ephemeral Node SQLite benchmark. Each case applied the actual repository migrations 0001–0008 to a fresh in-memory database, seeded rows using recursive-CTE bulk inserts, and ran `ANALYZE`. Settled history rows were created through the schema's valid active-to-settled transition so migration triggers remained enabled. No persistent DB or repository source/migration was changed.
+- Environment: Node `v22.23.2`, SQLite `3.51.3`, 4 KiB pages. Four synthetic shapes:
+  - small: 1 account × (1,000 settled historical + 20 active) = 1,020 rows;
+  - medium: 20 accounts × (500 historical + 50 active) = 11,000 rows;
+  - history-heavy: 100 accounts × (1,000 historical + 20 active) = 102,000 rows;
+  - active-heavy: 100 accounts × (1,000 historical + 500 active) = 150,000 rows.
+- Active rows were deliberately mixed: 25% forwarding-marked, 25% expired and unforwarded, 50% unexpired and unforwarded. The benchmark measured the exact active-reservation SUM shape and the cleanup subquery's selection shape for account `acct-0001`; cleanup measurement selects IDs only and does not time the UPDATE/write portion. Each measurement used 50 warm-up executions, then five samples of 300 executions, reporting the median elapsed milliseconds.
+- Compared four index variants: existing indexes only; cleanup partial index `(account_id, lease_expires_at) WHERE status='active' AND forwarding_started_at IS NULL`; active-SUM covering partial index `(account_id, reserved_bytes) WHERE status='active'`; and both candidates together.
+
+| Dataset | Index variant | Active SUM (ms / 300 × 5) | Cleanup selection (ms / 300 × 5) | SQLite pages |
+|---|---|---:|---:|---:|
+| Small | baseline | 1.83 | 2.00 | 126 |
+| Small | cleanup | 1.81 | 1.76 | 127 |
+| Small | active-SUM | 1.03 | 3.14 | 127 |
+| Small | both | 1.04 | 1.91 | 128 |
+| Medium | baseline | 16.74 | 22.50 | 774 |
+| Medium | cleanup | 16.95 | 4.17 | 783 |
+| Medium | active-SUM | 1.73 | 5.67 | 780 |
+| Medium | both | 1.55 | 3.73 | 789 |
+| History-heavy | baseline | 29.54 | 30.62 | 6,362 |
+| History-heavy | cleanup | 33.99 | 2.31 | 6,367 |
+| History-heavy | active-SUM | 0.98 | 3.04 | 6,366 |
+| History-heavy | both | 1.21 | 2.39 | 6,371 |
+| Active-heavy | baseline | 55.29 | 92.05 | 9,556 |
+| Active-heavy | cleanup | 57.38 | 38.66 | 9,953 |
+| Active-heavy | active-SUM | 10.33 | 44.32 | 9,816 |
+| Active-heavy | both | 10.51 | 26.43 | 10,213 |
+
+- Query-plan observations after `ANALYZE`:
+  - The cleanup candidate consistently changed the cleanup selection to an account + expiry-range search on `candidate_cleanup`, removing the temporary B-tree sort seen in the baseline or active-SUM-only variants in the larger cases.
+  - The active-SUM candidate consistently changed the lifetime aggregate to a covering search on `candidate_active_sum` constrained by account, rather than scanning the account's historical reservation entries through the existing indexes.
+  - The two candidates target different statements. The combined variant selected the corresponding candidate for each query.
+- The matrix supports the query-shape hypotheses more clearly than the earlier small-cardinality run: cleanup selection benefits when there is a substantial settled history and expired-unforwarded work; the active-SUM index has its largest read effect when settled history dominates active rows. At small cardinality, timing differences are near measurement noise.
+- Page-count deltas relative to baseline were small in the small/history-heavy cases (+1 to +9 pages) but material in active-heavy (+397 cleanup-only, +260 active-SUM-only, +657 both). Page count is a coarse SQLite storage indicator, not a D1 billing/storage estimate. This run did not measure index write amplification; prior isolated write microbenchmarks are from different synthetic setups and should not be combined as if directly comparable.
+- Limitations: local SQLite only; synthetic distributions; one selected account; no D1 network/request latency, managed D1 planner/storage, concurrency, or realistic workload. Cleanup timing covers the selection SELECT, not the full UPDATE. The 300×5 samples are microbenchmarks and do not establish production performance or D1 benefit.
+- Decision remains **no migration**. Keep cleanup partial index as the first candidate for a separately approved disposable D1 evaluation; keep active-SUM optional for history-heavy cardinalities. Evaluate each independently before combining and include write/storage cost. No Cloudflare runtime or D1 execution is authorized by this work; any future Cloudflare execution requires fresh explicit user authorization.
+- Issue #78 remains open; this benchmark does not reduce the three D1 request boundaries per forwarded chunk and does not prove bounded Worker-internal WebSocket buffering. No Worker, D1, staging, production, or Cloudflare resource was touched. Preserve final-priority 1101/domain/VPN treatment.
