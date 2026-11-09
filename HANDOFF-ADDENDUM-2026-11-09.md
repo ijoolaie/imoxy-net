@@ -20,7 +20,7 @@ This file supplements `HANDOFF.md` and the existing `HANDOFF-ADDENDUM-2026-11-07
 ## Current workspace
 
 - Workspace: `C:\\Users\\Ali\\imoxy-net-review-worktree`
-- Feature branch: `feat/issue78-inbound-message-count-bound-2026-11-09` (to be created from this clean-base branch after this handoff update).
+- Feature branch: `feat/issue78-inbound-message-count-bound-2026-11-09`, created from clean `origin/main` at the base SHA above.
 - Base: `origin/main` at `fe30ee955d6ed33b0504b00b6b56b8b24d9c02eb`.
 - `HANDOFF.md` remains unchanged because its 302,410-byte size exceeds the supported 256 KiB file-tool limit. This dated addendum is the supplemental handoff.
 - Preserve Issue #78 as open and Error 1101/domain/VPN as final-priority. Do not run Cloudflare runtime tests without fresh, explicit user authorization.
