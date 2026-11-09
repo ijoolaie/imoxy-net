@@ -90,3 +90,11 @@ This file supplements `HANDOFF.md` and the existing `HANDOFF-ADDENDUM-2026-11-07
 - Even if BYOB acquisition succeeds and returned views are <= requested size, that only proves the API's delivered view bound for the tested runtime; it does not automatically prove a strict bound on native socket buffering or all internal allocations. Preserve serial read → reserve → forwarding marker → send → settlement and test close/cancel/error paths before considering code adoption.
 - No application code changed and no tests were run. No Cloudflare account, Worker, D1, staging, production resource, or issue state was accessed/changed. Issue #78 remains open. `HANDOFF.md` remains unchanged due its 302,410-byte size exceeding the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
 - Error 1101/domain/VPN remains final-priority.
+## PR #311 merge handoff — 2026-11-09
+
+- PR #311 (`docs: record BYOB TCP contract follow-up`) was squash-merged at `230d35828410f9cb83bded9c3e0882d6f800fd77`. Exact PR HEAD `bfaa5317e31fd141c3145271ebcd8b16cf5e09e9`; exact-head CI run `42629897328`, job `129203171345`, completed successfully (`npm run verify`).
+- Fresh pre-merge checks showed no submitted reviews or inline review threads; GitHub reported mergeable true. Merge used the expected head SHA.
+- PR #311 changed only `HANDOFF-ADDENDUM-2026-11-09.md`; no application code or runtime configuration changed. Issue #78 comment `6741831762` records the BYOB follow-up and proposed disposable-only probe plan.
+- After merge, workspace fetched `origin/main` at `230d35828410f9cb83bded9c3e0882d6f800fd77`; clean handoff branch `docs/issue78-pr311-merge-handoff-2026-11-09` was created from that exact base.
+- Issue #78 remains open. No Cloudflare runtime, Worker, D1, staging, or production resource was touched. `HANDOFF.md` remains unchanged because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
+- Error 1101/domain/VPN remains final-priority.
