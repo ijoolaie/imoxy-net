@@ -72,3 +72,11 @@ This file supplements `HANDOFF.md` and the existing `HANDOFF-ADDENDUM-2026-11-07
 - Decision: no production code change is justified by current documented API evidence. Do not add a speculative BYOB reader, arbitrary `highWaterMark`, TCP chunk cap, rechunking, or read-ahead. Preserve the existing one-read/one-settlement sequencing and Issue #78's open status. A future BYOB experiment requires a disposable local/runtime compatibility test and must first verify that the actual Cloudflare TCP readable accepts BYOB; any Cloudflare runtime execution requires fresh explicit user authorization. A hard bound on the source read allocation requires a documented/runtime-supported source-side contract or platform confirmation.
 - No tests were run because no code changed. No Cloudflare runtime, Worker, D1, staging, production resource, or GitHub issue state was touched. `HANDOFF.md` remains unchanged because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
 - Error 1101/domain/VPN remains final-priority.
+## PR #309 merge handoff — 2026-11-09
+
+- PR #309 (`docs: record TCP readable chunk boundary audit`) was squash-merged at `b2017cb6464bf1e8d3361303f0ef57b84abbdef4`. Exact PR HEAD `ed27a27befef6552183a25c83e37cd27a7b39509`; exact-head CI run `42627462071`, job `129194826322`, completed successfully (`npm run verify`).
+- Fresh pre-merge checks showed no submitted reviews or inline review threads; GitHub reported mergeable true. Merge used the expected head SHA.
+- PR #309 changed only `HANDOFF-ADDENDUM-2026-11-09.md` and documented the TCP readable chunk-boundary audit. No application code or runtime configuration changed.
+- After merge, workspace fetched `origin/main` at `b2017cb6464bf1e8d3361303f0ef57b84abbdef4`; clean documentation follow-up branch `docs/issue78-pr309-merge-handoff-2026-11-09` was created from that exact base.
+- Issue #78 remains open. No Cloudflare runtime, Worker, D1, staging, or production resource was touched. `HANDOFF.md` remains unchanged because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
+- Error 1101/domain/VPN remains final-priority.
