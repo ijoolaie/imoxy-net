@@ -7,6 +7,12 @@ function expectedByte(offset) {
   return (offset * 31 + 7) & 0xff;
 }
 
+async function closeSocket(socket) {
+  try {
+    await socket.close?.();
+  } catch {}
+}
+
 async function readSocket(socket, mode) {
   let reader;
   try {
@@ -14,7 +20,7 @@ async function readSocket(socket, mode) {
       ? socket.readable.getReader({ mode: "byob" })
       : socket.readable.getReader();
   } catch (error) {
-    await socket.close?.().catch?.(() => {});
+    await closeSocket(socket);
     return {
       mode,
       supported: false,
@@ -79,7 +85,7 @@ async function readSocket(socket, mode) {
     };
   } finally {
     try { reader.releaseLock(); } catch {}
-    try { await socket.close?.(); } catch {}
+    await closeSocket(socket);
   }
 }
 
@@ -87,9 +93,13 @@ export function createByobTcpProbeWorker() {
   return {
     async fetch(request, env) {
       const url = new URL(request.url);
-      if (request.method !== "GET" || url.pathname !== env.PROBE_PATH) {
-        return new Response("not found", { status: 404 });
+      if (request.method !== "GET") return new Response("method not allowed", { status: 405 });
+      if (url.pathname === "/health") {
+        return Response.json({ ok: true, role: "issue78-byob-probe" }, {
+          headers: { "cache-control": "no-store" }
+        });
       }
+      if (url.pathname !== env.PROBE_PATH) return new Response("not found", { status: 404 });
       if (!env.BACKEND || typeof env.BACKEND.connect !== "function") {
         return new Response("disposable backend binding unavailable", { status: 503 });
       }
@@ -101,7 +111,7 @@ export function createByobTcpProbeWorker() {
         const byobReader = await readSocket(byobSocket, "byob");
         const ok = defaultReader.ok === true &&
           (byobReader.supported === false || byobReader.ok === true);
-        return new Response(JSON.stringify({
+        return Response.json({
           ok,
           payloadBytes: PAYLOAD_BYTES,
           sourceChunkBytes: SOURCE_CHUNK_BYTES,
@@ -109,21 +119,18 @@ export function createByobTcpProbeWorker() {
           defaultReader,
           byobReader,
           caveat: "A successful BYOB result bounds delivered views in this tested runtime only; it does not prove all native socket buffering or allocations are bounded."
-        }), {
+        }, {
           status: ok ? 200 : 500,
-          headers: {
-            "content-type": "application/json; charset=utf-8",
-            "cache-control": "no-store"
-          }
+          headers: { "cache-control": "no-store" }
         });
       } catch (error) {
-        return new Response(JSON.stringify({
+        return Response.json({
           ok: false,
           errorName: String(error?.name ?? "Error"),
           errorMessage: String(error?.message ?? error).slice(0, 240)
-        }), {
+        }, {
           status: 500,
-          headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }
+          headers: { "cache-control": "no-store" }
         });
       }
     }
