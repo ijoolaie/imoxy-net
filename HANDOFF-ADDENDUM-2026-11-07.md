@@ -979,3 +979,10 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - PR #297 changed only this supplemental handoff. Local workspace fetched `origin/main` at merge commit `812e675930a0f7441d2bf66cfc9ae1a35c10a75e` and created clean follow-up branch `docs/issue78-pr297-merge-handoff-2026-11-09`.
 - Issue #78 remains open. No migration was added from the local SQLite index experiments. No Worker, D1, staging, production, or Cloudflare runtime resource was touched; any future runtime execution requires fresh explicit authorization. Preserve final-priority 1101/domain/VPN treatment.
 - `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
+
+## PR #298 merge handoff — 2026-11-09
+
+- PR #298 (`docs: record PR 297 merge handoff`) was squash-merged at `047df11cccac05d86b8f80bbf12def10ba8ccd86`. Exact PR HEAD `082778c4a726315e040a4f32f7930dfacfed1784`; CI run `42569588859`, job `129003631168`, completed successfully with `npm run verify`. Fresh pre-merge checks showed no submitted reviews or inline review threads, and GitHub reported mergeable true. Merge used the expected head SHA.
+- PR #298 changed only this supplemental handoff. Local workspace fetched `origin/main` at merge commit `047df11cccac05d86b8f80bbf12def10ba8ccd86` and created clean follow-up branch `docs/issue78-pr298-merge-handoff-2026-11-09`.
+- Issue #78 remains open; no bounded Worker-internal downstream buffering has been proven. Local SQLite index evaluation is complete with no migration recommendation. No Worker, D1, staging, production, or Cloudflare runtime resource was touched; any future runtime execution requires fresh explicit authorization. Preserve final-priority 1101/domain/VPN treatment.
+- `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
