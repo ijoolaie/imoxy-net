@@ -6,6 +6,8 @@ import { parseVlessRequest, VlessProtocolError } from "./vless-parser.js";
 const DEFAULT_PATH = "/proxy/vless";
 const MAX_INITIAL_BUFFER_BYTES = 64 * 1024;
 const MAX_QUEUED_CLIENT_BYTES = 1024 * 1024;
+// Byte accounting cannot bound promise-chain nodes for zero-length frames.
+const MAX_QUEUED_CLIENT_MESSAGES = 1024;
 const MAX_DIAL_CANDIDATES = 8;
 const SESSION_CLOSED = Symbol("session_closed");
 const DEFAULT_INITIAL_HANDSHAKE_TIMEOUT_MS = 10_000;
@@ -392,6 +394,7 @@ export function createVlessWebSocketHandler({
         writeQueue: Promise.resolve(),
         pendingWritePromise: null,
         queuedClientBytes: 0,
+        queuedClientMessages: 0,
         downloadBytesForwarded: 0,
         accountId: null,
         sessionId: null,
@@ -896,16 +899,19 @@ export function createVlessWebSocketHandler({
           return;
         }
         if (messageBytes > MAX_QUEUED_CLIENT_BYTES ||
-            state.queuedClientBytes + messageBytes > MAX_QUEUED_CLIENT_BYTES) {
+            state.queuedClientBytes + messageBytes > MAX_QUEUED_CLIENT_BYTES ||
+            state.queuedClientMessages >= MAX_QUEUED_CLIENT_MESSAGES) {
           void trackCloseSession(1009, "client_write_queue_full");
           return;
         }
         state.queuedClientBytes += messageBytes;
+        state.queuedClientMessages += 1;
         state.writeQueue = state.writeQueue.then(async () => {
           try {
             await handleMessage(event.data);
           } finally {
             state.queuedClientBytes = Math.max(0, state.queuedClientBytes - messageBytes);
+            state.queuedClientMessages = Math.max(0, state.queuedClientMessages - 1);
           }
         }).catch(() => trackCloseSession(1011, "proxy_session_failed"));
       });

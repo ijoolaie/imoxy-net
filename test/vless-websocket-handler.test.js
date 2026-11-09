@@ -261,7 +261,69 @@ test("optional diagnostics identify each upload and download forwarding boundary
   await settle();
 });
 
-test("bounds queued client messages and closes before the queue can grow without limit", async () => {
+test("ignores empty upstream chunks and bounds downstream sends by the byte budget", async () => {
+  const upstream = fakeSocket();
+  const h = harness({
+    config: { PROXY_MAX_DOWNLOAD_BYTES: "4" },
+    connectTcp: async () => upstream.socket
+  });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  upstream.push([]);
+  upstream.push([0xa1]);
+  upstream.push([0xa2]);
+  upstream.push([0xa3]);
+  upstream.push([0xa4]);
+  upstream.push([0xa5]);
+  await settle();
+
+  // One two-byte VLESS response header plus at most four positive-byte sends.
+  assert.equal(h.server.sent.length, 5);
+  assert.ok(h.server.sent.every((message) => message.length > 0));
+  assert.equal(h.quotaCalls.reserve.length, 4);
+  assert.equal(h.quotaCalls.settle.length, 4);
+  assert.ok(h.server.closeCalls.some((item) =>
+    item.code === 1008 && item.reason === "download_limit_exceeded"
+  ));
+});
+
+test("bounds queued client message count even when zero-length frames bypass the byte budget", async () => {
+  let releaseSettlement;
+  const settlementGate = new Promise((resolve) => { releaseSettlement = resolve; });
+  const upstream = fakeSocket();
+  const h = harness({
+    connectTcp: async () => upstream.socket,
+    quotaSettleWait: settlementGate
+  });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  // Hold the first queued message in settlement so subsequent empty frames
+  // remain represented by pending promise-chain nodes.
+  h.server.receive(Uint8Array.of(0xaa));
+  await settle();
+  assert.equal(h.quotaCalls.settle.length, 1);
+
+  // The in-flight message counts toward the 1,024-message cap.
+  for (let index = 0; index < 1023; index += 1) {
+    h.server.receive(new Uint8Array(0));
+  }
+  h.server.receive(new Uint8Array(0));
+  await settle();
+
+  assert.ok(h.server.closeCalls.some((item) =>
+    item.code === 1009 && item.reason === "client_write_queue_full"
+  ));
+  assert.equal(h.quotaCalls.reserve.length, 1,
+    "empty queued frames must not create quota reservations");
+  releaseSettlement();
+  await settle();
+});
+
+test("bounds queued client bytes and closes before the byte queue can grow without limit", async () => {
   const upstream = fakeSocket();
   const h = harness({ connectTcp: async () => upstream.socket });
   await h.handler.fetch(request(), h.env);
