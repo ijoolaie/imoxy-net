@@ -914,3 +914,40 @@ This addendum supplements `HANDOFF.md`; it does not replace or rewrite that file
 - PR #292 changed only this supplemental handoff. Local workspace fetched `origin/main` at merge commit `44c4dd9cab9f7a5dde1ca4f9007c413996db2885` and created clean follow-up branch `docs/issue78-pr292-merge-handoff-2026-11-09`.
 - Issue #78 remains open. No Worker, D1, staging, production, or Cloudflare runtime resource was touched; any future runtime execution requires fresh explicit authorization. Preserve final-priority 1101/domain/VPN treatment.
 - `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
+
+## PR #293 merge handoff — 2026-11-09
+
+- PR #293 (`docs: record PR 292 merge handoff`) was squash-merged at `69ff2c09ee6a9a232d1da845d5170d6f3eb50b09`. Exact PR HEAD `98fef4f0db0ea010bca211ad36039caf80d85cf1`; CI run `42565519712`, job `128991064590`, completed successfully with `npm run verify`. Fresh pre-merge checks showed no submitted reviews or inline review threads, and GitHub reported mergeable true. Merge used the expected head SHA.
+- PR #293 changed only this supplemental handoff. Local workspace fetched `origin/main` at merge commit `69ff2c09ee6a9a232d1da845d5170d6f3eb50b09` and created clean follow-up branch `docs/issue78-pr293-merge-handoff-2026-11-09`.
+- Issue #78 remains open. No Worker, D1, staging, production, or Cloudflare runtime resource was touched; any future runtime execution requires fresh explicit authorization. Preserve final-priority 1101/domain/VPN treatment.
+- `HANDOFF.md` remains untouched because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
+
+## Candidate index write-cost microbenchmark — 2026-11-09
+
+- Follow-up to the four-cardinality read matrix: measured local SQLite write maintenance for each candidate index independently and together. Fresh in-memory DB per scenario/variant; actual migrations 0001–0008; schema triggers left enabled; recursive-CTE bulk seeding for settled history and active rows; `ANALYZE` before measurements.
+- Each measured sample executed 500 reservation lifecycles inside one local SQLite transaction. Each lifecycle performed: INSERT active reservation with null forwarding marker; UPDATE to set immutable forwarding marker; UPDATE active reservation to settled with actual_bytes=4096. This exercises candidate-index insertion and partial-index row removal on marker/status transitions. Five samples per variant; report median elapsed time. Node v22.23.2, SQLite 3.51.3, 4 KiB pages.
+- Dataset shapes match the preceding matrix: small (1,000 historical + 20 active on one account); medium (10,000 historical + 1,000 active across 20 accounts); history-heavy (100,000 historical + 2,000 active across 100 accounts); active-heavy (100,000 historical + 50,000 active across 100 accounts). The benchmark operates on account `acct-0001` for its 500 new rows.
+
+| Dataset | Index variant | 500 lifecycle writes (median ms) | SQLite pages after writes |
+|---|---|---:|---:|
+| Small | baseline | 14.62 | 316 |
+| Small | cleanup | 16.94 | 317 |
+| Small | active-SUM | 16.67 | 317 |
+| Small | both | 17.68 | 318 |
+| Medium | baseline | 16.89 | 965 |
+| Medium | cleanup | 16.47 | 975 |
+| Medium | active-SUM | 15.39 | 972 |
+| Medium | both | 18.38 | 982 |
+| History-heavy | baseline | 15.49 | 6,572 |
+| History-heavy | cleanup | 19.49 | 6,577 |
+| History-heavy | active-SUM | 18.07 | 6,576 |
+| History-heavy | both | 18.52 | 6,581 |
+| Active-heavy | baseline | 16.50 | 9,759 |
+| Active-heavy | cleanup | 20.26 | 10,158 |
+| Active-heavy | active-SUM | 19.84 | 10,020 |
+| Active-heavy | both | 22.36 | 10,419 |
+
+- The write results are directionally consistent with extra B-tree maintenance: at active-heavy cardinality, cleanup-only was ~23% slower than baseline, active-SUM-only ~20% slower, and both ~36% slower for this local reservation lifecycle. At small cardinality, the candidates were also slower (roughly 14–21%); medium-case timings were noisy and did not show a stable penalty for each individual index. History-heavy timings showed a ~17–26% increase. Page counts increased with candidate indexes; active-heavy deltas versus baseline were +399 pages (cleanup), +261 (active-SUM), and +660 (both).
+- Interpretation is deliberately narrow. This is a local SQLite microbenchmark, not D1 write latency or billing. It measures reservation-table insert/marker/settle index maintenance only; it does not execute the full D1 `reserveQuota`/forwarding-marker/usage-event batches, usage-event triggers, network latency, concurrent writes, or managed D1 storage behavior. Transaction grouping is local SQLite and differs from the three D1 request boundaries used by the handler. Five samples are small and timing noise remains.
+- Combined with the prior read matrix: the cleanup candidate has a substantial local cleanup-selection benefit in large/history-heavy shapes but imposes ongoing maintenance cost; active-SUM can dramatically reduce local aggregate scans when historical rows dominate, but also adds active-row write maintenance. Combining both has the largest storage/write cost. No index is approved for migration based on these synthetic local results.
+- Decision remains **no migration**. If a disposable D1 comparison is later explicitly authorized, test cleanup and active-SUM separately, and compare end-to-end request latency plus write/storage cost under representative cardinalities. No Cloudflare runtime, Worker, D1, staging, or production resource was used or changed. Issue #78 remains open and bounded Worker-internal buffering remains unproven.
