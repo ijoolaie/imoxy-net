@@ -1,22 +1,26 @@
 const PAYLOAD_BYTES = 32 * 1024;
-const SOURCE_CHUNK_BYTES = 8 * 1024;
-
+const CHUNK_BYTES = 8 * 1024;
+let connection = 0;
+const expected = (n) => (n * 31 + 7) & 255;
 export default {
   async connect(socket) {
+    const n = ++connection;
+    if (n === 4) {
+      await new Promise(resolve => setTimeout(resolve, 10_000));
+      try { await socket.close?.(); } catch {}
+      return;
+    }
     const writer = socket.writable.getWriter();
     try {
-      for (let offset = 0; offset < PAYLOAD_BYTES; offset += SOURCE_CHUNK_BYTES) {
-        const length = Math.min(SOURCE_CHUNK_BYTES, PAYLOAD_BYTES - offset);
+      if (n === 5) { await writer.close(); return; }
+      if (n === 6) { await writer.abort(new Error("intentional disposable TCP peer error")); return; }
+      for (let offset = 0; offset < PAYLOAD_BYTES; offset += CHUNK_BYTES) {
+        const length = Math.min(CHUNK_BYTES, PAYLOAD_BYTES - offset);
         const chunk = new Uint8Array(length);
-        for (let index = 0; index < length; index += 1) {
-          chunk[index] = (((offset + index) * 31) + 7) & 0xff;
-        }
+        for (let i = 0; i < length; i++) chunk[i] = expected(offset + i);
         await writer.write(chunk);
       }
       await writer.close();
-    } catch (error) {
-      try { await writer.abort(error); } catch {}
-      throw error;
-    }
+    } catch (e) { try { await writer.abort(e); } catch {} throw e; }
   }
 };

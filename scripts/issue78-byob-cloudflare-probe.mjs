@@ -218,9 +218,7 @@ async function main() {
   }
 
   console.log("BYOB probe result: " + JSON.stringify(result));
-  console.log("Interpretation: default-reader control passed; BYOB " +
-    (result.byobReader.supported ? "reader acquired" : "not supported by this TCP readable in the tested runtime") +
-    ". This does not establish a bound on native socket buffering.");
+  console.log("Interpretation: six disposable lifecycle cases completed. Results do not establish a bound on native socket buffering.");
 }
 
 async function cleanup() {
