@@ -24,3 +24,11 @@ This file supplements `HANDOFF.md` and the existing `HANDOFF-ADDENDUM-2026-11-07
 - Base: `origin/main` at `fe30ee955d6ed33b0504b00b6b56b8b24d9c02eb`.
 - `HANDOFF.md` remains unchanged because its 302,410-byte size exceeds the supported 256 KiB file-tool limit. This dated addendum is the supplemental handoff.
 - Preserve Issue #78 as open and Error 1101/domain/VPN as final-priority. Do not run Cloudflare runtime tests without fresh, explicit user authorization.
+
+## PR #305 merge handoff — 2026-11-09
+
+- PR #305 (`fix: bound queued VLESS client message count`) was squash-merged at `ae29c7373b397099b3e5c4cedb39a182bc1aaecf`. Exact PR HEAD `66b4516626b3dabe7cfc9ceb15f31c0176bfca38`; CI run `42608833344`, rerun attempt 2, job `129132073868`, completed successfully with `npm run verify`. A separate PR check run `42608842351`, job `129131651183`, also succeeded. The first CI attempt failed only at the pre-existing slow-reader test's exact `pausedDurationMs >= 1000` timing assertion (observed around the 1-second timer boundary); rerunning the failed job passed. No product-code failure was reported.
+- Fresh pre-merge review checks showed no submitted reviews or inline review threads; GitHub reported mergeable true. Merge used the expected head SHA.
+- PR #305 changed the VLESS handler, deterministic tests, and this dated supplemental addendum. Local workspace fetched `origin/main` at merge commit `ae29c7373b397099b3e5c4cedb39a182bc1aaecf` and created clean documentation follow-up branch `docs/issue78-pr305-merge-handoff-2026-11-09`.
+- Issue #78 received comment `6738890532` summarizing the distinction between app-level send-count bounds and unproven Worker-internal buffering, plus the inbound zero-length message queue fix. Issue #78 remains open.
+- No Cloudflare runtime, Worker, D1, staging, or production resource was touched. Any future Cloudflare runtime execution requires fresh explicit user authorization. Preserve final-priority 1101/domain/VPN treatment.
