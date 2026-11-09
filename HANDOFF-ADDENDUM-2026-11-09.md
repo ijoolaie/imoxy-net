@@ -108,3 +108,11 @@ This file supplements `HANDOFF.md` and the existing `HANDOFF-ADDENDUM-2026-11-07
 - PR #313 added `test/issue78-byob-probe-worker.js`, `test/issue78-byob-probe-echo-worker.js`, deterministic Node tests, package syntax checks, and `docs/issue78-byob-tcp-probe.md`; it did not change production VLESS handler behavior. Issue #78 remains open.
 - After PR #313 merge, workspace fetched `origin/main` at `58a116c4afaa7de95b1f02f83f1339a19c606cdd`; clean follow-up branch `docs/issue78-byob-probe-run-handoff-2026-11-09` was created from that exact base. `HANDOFF.md` remains unchanged because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
 - Error 1101/domain/VPN remains final-priority.
+## PR #314 merge handoff — 2026-11-09
+
+- PR #314 (`docs: record inconclusive BYOB runtime attempt`) was squash-merged as `566759a286a1fc84cecd01f9e13348c49ff47695`. Exact PR HEAD `40a2e70053f8f96846c1f2271353b812d4a99de3`; exact-head CI run `42633303258`, job `129214840120`, completed successfully (`npm run verify`).
+- Fresh pre-merge checks showed no submitted reviews or inline review threads; GitHub reported mergeable true. Merge used the expected head SHA.
+- PR #314 updated only `HANDOFF-ADDENDUM-2026-11-09.md` and `docs/issue78-byob-tcp-probe.md`; no application code or runtime configuration changed. Issue #78 comment `6742277688` records the inconclusive runtime outcome and verified cleanup.
+- After merge, workspace fetched `origin/main` at `566759a286a1fc84cecd01f9e13348c49ff47695`; clean handoff branch `docs/issue78-pr314-merge-handoff-2026-11-09` was created from that exact base.
+- Issue #78 remains open. No disposable Worker/Tail session remains; both Workers and both Tail sessions were deleted and absence verified. No staging or production resource was modified. `HANDOFF.md` remains unchanged because its 302,410-byte size exceeds the supported 256 KiB file-tool limit; this addendum is the supplemental handoff.
+- Error 1101/domain/VPN remains final-priority.
