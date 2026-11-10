@@ -28,16 +28,27 @@ async function transfer(socket, mode, fresh = false) {
   } finally { try { reader.releaseLock(); } catch {} await close(socket); }
 }
 async function cancelPending(socket) {
-  const reader = socket.readable.getReader({ mode: "byob" }); let settled = false;
+  const reader = socket.readable.getReader({ mode: "byob" });
+  let settled = false;
   const pending = reader.read(new Uint8Array(BUFFER_BYTES)).then(r => {
-    settled = true; return { done: r.done, bytes: r.value?.byteLength ?? 0 };
-  }, e => { settled = true; return { error: String(e?.name ?? "Error") }; });
-  try {
-    await reader.cancel("issue78 lifecycle cancellation"); const result = await pending;
-    reader.releaseLock(); await close(socket);
-    return { ok: settled && result.done === true && result.bytes === 0, settled, result };
-  } catch (e) { try { await pending; } catch {} try { reader.releaseLock(); } catch {}
-    await close(socket); return { ok: false, settled, error: String(e?.name ?? "Error") }; }
+    settled = true;
+    return { status: "fulfilled", done: r.done, bytes: r.value?.byteLength ?? 0 };
+  }, e => {
+    settled = true;
+    return { status: "rejected", errorName: String(e?.name ?? "Error") };
+  });
+  const cancellation = reader.cancel("issue78 lifecycle cancellation").then(
+    () => ({ status: "fulfilled" }),
+    e => ({ status: "rejected", errorName: String(e?.name ?? "Error") })
+  );
+  const [readOutcome, cancelOutcome] = await Promise.all([pending, cancellation]);
+  try { reader.releaseLock(); } catch {}
+  await close(socket);
+  return {
+    ok: settled && cancelOutcome.status === "fulfilled" &&
+      readOutcome.status === "fulfilled" && readOutcome.done === true && readOutcome.bytes === 0,
+    settled, cancelOutcome, readOutcome
+  };
 }
 async function eof(socket) {
   const reader = socket.readable.getReader({ mode: "byob" });
@@ -46,11 +57,17 @@ async function eof(socket) {
   } catch (e) { return { ok: false, error: String(e?.name ?? "Error") }; }
   finally { try { reader.releaseLock(); } catch {} await close(socket); }
 }
-async function peerError(socket) {
+async function peerSocketClose(socket) {
   const reader = socket.readable.getReader({ mode: "byob" });
-  try { await reader.read(new Uint8Array(BUFFER_BYTES)); return { ok: false, unexpectedResolve: true }; }
-  catch (e) { return { ok: true, rejected: true, error: String(e?.name ?? "Error") }; }
-  finally { try { reader.releaseLock(); } catch {} await close(socket); }
+  try {
+    const result = await reader.read(new Uint8Array(BUFFER_BYTES));
+    return { ok: true, observed: { status: "fulfilled", done: result.done, bytes: result.value?.byteLength ?? 0 } };
+  } catch (e) {
+    return { ok: true, observed: { status: "rejected", errorName: String(e?.name ?? "Error") } };
+  } finally {
+    try { reader.releaseLock(); } catch {}
+    await close(socket);
+  }
 }
 export function createByobTcpProbeWorker() {
   return { async fetch(request, env) {
@@ -67,12 +84,12 @@ export function createByobTcpProbeWorker() {
         results.byobFreshBuffers = { ok: true, skipped: "BYOB unavailable" };
         results.pendingReadCancel = { ok: true, skipped: "BYOB unavailable" };
         results.peerEof = { ok: true, skipped: "BYOB unavailable" };
-        results.peerError = { ok: true, skipped: "BYOB unavailable" };
+        results.peerSocketClose = { ok: true, skipped: "BYOB unavailable" };
       } else {
         results.byobFreshBuffers = await transfer(await env.BACKEND.connect(ADDRESS), "byob", true);
         results.pendingReadCancel = await cancelPending(await env.BACKEND.connect(ADDRESS));
         results.peerEof = await eof(await env.BACKEND.connect(ADDRESS));
-        results.peerError = await peerError(await env.BACKEND.connect(ADDRESS));
+        results.peerSocketClose = await peerSocketClose(await env.BACKEND.connect(ADDRESS));
       }
       const ok = Object.values(results).every(x => x.ok === true);
       return Response.json({ ok, payloadBytes: PAYLOAD_BYTES, chunkBytes: CHUNK_BYTES, bufferBytes: BUFFER_BYTES,

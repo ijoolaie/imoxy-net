@@ -13,7 +13,11 @@ export default {
     const writer = socket.writable.getWriter();
     try {
       if (n === 5) { await writer.close(); return; }
-      if (n === 6) { await writer.abort(new Error("intentional disposable TCP peer error")); return; }
+      if (n === 6) {
+        // This observes peer socket closure; it does not synthesize a TCP reset.
+        try { await socket.close?.(); } catch {}
+        return;
+      }
       for (let offset = 0; offset < PAYLOAD_BYTES; offset += CHUNK_BYTES) {
         const length = Math.min(CHUNK_BYTES, PAYLOAD_BYTES - offset);
         const chunk = new Uint8Array(length);

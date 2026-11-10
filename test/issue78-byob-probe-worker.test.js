@@ -31,7 +31,7 @@ function backend({ nonByte = false } = {}) {
     }
   };
 }
-test("BYOB probe covers default reader, buffer reuse/replacement, pending cancel, EOF and peer error", async () => {
+test("BYOB probe covers default reader, buffer reuse/replacement, pending cancel, EOF and peer socket close observation", async () => {
   const worker = createByobTcpProbeWorker(), binding = backend();
   const response = await worker.fetch(new Request("https://probe.invalid/probe"), { PROBE_PATH: "/probe", BACKEND: binding });
   const result = await response.json();
@@ -42,9 +42,10 @@ test("BYOB probe covers default reader, buffer reuse/replacement, pending cancel
   assert.ok(result.byobReader.maxReadBytes <= 4096);
   assert.ok(result.byobReader.maxBackingBufferBytes <= 4096);
   assert.equal(result.byobFreshBuffers.receivedBytes, 32768);
-  assert.equal(result.pendingReadCancel.result.done, true);
+  assert.equal(result.pendingReadCancel.cancelOutcome.status, "fulfilled");
+  assert.equal(result.pendingReadCancel.readOutcome.done, true);
   assert.equal(result.peerEof.done, true);
-  assert.equal(result.peerError.rejected, true);
+  assert.equal(result.peerSocketClose.observed.status, "rejected");
   assert.equal(binding.calls, 6);
 });
 test("BYOB probe reports a non-byte stream as unsupported while default reader succeeds", async () => {
