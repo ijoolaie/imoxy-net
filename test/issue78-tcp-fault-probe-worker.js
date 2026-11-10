@@ -42,6 +42,22 @@ function isPublicIpv4(value) {
   return true;
 }
 
+async function signCommand(token, mode, nonce) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(token),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signature = new Uint8Array(await crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode("MODE " + mode + " " + nonce)
+  ));
+  return [...signature].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 function readConfig(env) {
   const ip = env?.FAULT_IP;
   const port = Number(env?.FAULT_PORT);
@@ -155,6 +171,7 @@ function captureRead(promise, localCloseStarted) {
 
 export function createTcpFaultProbeWorker(options = {}) {
   const injectedConnect = options.connectTcp;
+  if (typeof injectedConnect !== "function") throw new TypeError("connectTcp is required");
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const observationTimeoutMs = options.observationTimeoutMs ?? DEFAULT_OBSERVATION_TIMEOUT_MS;
   const cleanupWaitMs = options.cleanupWaitMs ?? CLEANUP_WAIT_MS;
@@ -211,7 +228,7 @@ export function createTcpFaultProbeWorker(options = {}) {
       }
 
       try {
-        const connectTcp = injectedConnect ?? (await import("cloudflare:sockets")).connect;
+        const connectTcp = injectedConnect;
         nonce = crypto.randomUUID().replaceAll("-", "");
         if (!/^[a-f0-9]{32}$/.test(nonce)) throw new Error("tcp_probe_nonce_invalid");
 
@@ -251,7 +268,8 @@ export function createTcpFaultProbeWorker(options = {}) {
         writer = socket.writable.getWriter();
         const cursor = createCursor(reader, timeoutMs);
 
-        const command = encoder.encode("MODE " + config.mode + " " + nonce + " " + config.token + "\n");
+        const signature = await signCommand(config.token, config.mode, nonce);
+        const command = encoder.encode("MODE " + config.mode + " " + nonce + " " + signature + "\n");
         const commandStart = now();
         await withTimeout(writer.write(command), timeoutMs, "tcp_probe_command_write");
         commandWrite = { status: "fulfilled", durationMs: now() - commandStart };
@@ -343,5 +361,3 @@ export function createTcpFaultProbeWorker(options = {}) {
     }
   };
 }
-
-export default createTcpFaultProbeWorker();

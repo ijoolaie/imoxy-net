@@ -46,23 +46,23 @@ A real reset test requires a separately controlled TCP endpoint outside the Work
 Use a small, single-purpose server on a disposable Linux VM. Keep its listener disabled until the operator explicitly starts the one-run test. The server must:
 
 - Bind to loopback by default. Public binding requires a separate explicit command-line opt-in and a dedicated firewall rule for the test port; never default to `0.0.0.0`.
-- Require a high-entropy one-run authentication token in addition to a fresh random nonce. Load the token from a protected file or runtime secret, never from a committed config or logged command line. Compare tokens in constant time and never log them.
-- Accept only two fixed commands, `MODE FIN <nonce> <token>` and `MODE RST <nonce> <token>`, with strict length/character limits. Reject unknown commands, malformed/non-fresh nonces, extra fields, and all attempts to specify arbitrary destinations or payload sizes.
+- Require a high-entropy one-run HMAC key in addition to a fresh random nonce. Load the key from a protected file or Worker secret, never from committed config or a logged command line. The Worker sends only a lowercase-hex HMAC-SHA256 signature over `MODE <mode> <nonce>`; the key itself never crosses the TCP connection. The server compares signatures in constant time and never logs the key or signature.
+- Accept only two fixed commands, `MODE FIN <nonce> <signature>` and `MODE RST <nonce> <signature>`, with strict length/character limits. The signature is `hex(HMAC-SHA256(one_run_key, ASCII("MODE <mode> <nonce>")))`. Reject unknown commands, malformed/non-fresh nonces, invalid signatures, extra fields, and all attempts to specify arbitrary destinations or payload sizes.
 - Permit at most one active connection per mode and a small fixed total connection count. Enforce short connect, handshake, ACK and idle deadlines; cap every line and total bytes. Exit after the planned FIN and RST pair or a hard overall deadline.
-- Send a nonce-correlated `READY <nonce>` line followed by a fixed binary prelude. Never relay arbitrary client bytes to another host. Never relay arbitrary client bytes to another host. Record only mode, nonce, peer address, connection sequence, state transitions and monotonic timestamps; redact the authentication token and avoid logging arbitrary stream errors.
+- Send a nonce-correlated `READY <nonce>` line followed by a fixed binary prelude. Never relay arbitrary client bytes to another host. Record only mode, nonce, peer address, connection sequence, state transitions and monotonic timestamps; redact the HMAC key and avoid logging arbitrary stream errors.
 - For RST, use a Linux TCP socket with `SO_LINGER={on:1, linger:0}` on the accepted socket immediately before close. Treat failure to set the option as a hard test failure; do not silently fall back to an orderly close.
 - For FIN, perform an orderly write-half shutdown and normal close. Record the orderly-close action separately from RST mode.
 - Have an operator-controlled hard stop and a cleanup step that stops the listener, removes the temporary token/config, closes the firewall rule and verifies the process and port are absent.
 
 Use this exact one-connection wire sequence for each mode:
 
-1. Worker sends exactly one command: `MODE FIN <nonce> <token>` or `MODE RST <nonce> <token>`. Each command is terminated by one LF byte (`0x0A`).
-2. Server validates the token and nonce, logs `accepted`, and sends `READY <nonce>` followed by one LF byte and a fixed binary prelude.
+1. Worker sends exactly one command: `MODE FIN <nonce> <signature>` or `MODE RST <nonce> <signature>`. Each command is terminated by one LF byte (`0x0A`); the one-run HMAC key is never sent.
+2. Server validates the HMAC signature and nonce, logs `accepted`, and sends `READY <nonce>` followed by one LF byte and a fixed binary prelude.
 3. Worker validates the READY nonce and prelude, then sends `ACK <nonce>` followed by one LF byte.
 4. Server logs `acknowledged`. In FIN mode it performs orderly `shutdown(SHUT_WR)` and closes normally. In RST mode it applies zero-linger and closes abortively.
 5. Worker attaches `socket.closed` observers immediately after `connect()`, awaits `socket.opened`, and independently records the read and ACK-write outcomes. It does not call local `socket.close()` until those observations finish or the bounded observation deadline expires.
 
-The Worker must use a dedicated probe implementation importing `connect` from `cloudflare:sockets`, not the existing Service Binding echo worker. It must accept only a configured literal IP and port from a disposable environment, validate the response nonce, send only the fixed protocol messages, and reject any request parameter that could alter the destination. No user-supplied hostname, URL, port, payload, or arbitrary TCP target is allowed. Keep the auth token in a Worker secret, not a `vars` value or source file.
+The Worker must use a dedicated probe implementation importing `connect` from `cloudflare:sockets`, not the existing Service Binding echo worker. It must accept only a configured literal IP and port from a disposable environment, validate the response nonce, send only the fixed protocol messages, and reject any request parameter that could alter the destination. No user-supplied hostname, URL, port, payload, or arbitrary TCP target is allowed. Keep the HMAC key in a Worker secret, not a `vars` value or source file.
 
 A successful server-side `SO_LINGER` call and log are necessary but not sufficient evidence that the remote Worker observed a reset. Capture a packet trace on the disposable Linux endpoint (or equivalent kernel-level evidence) and correlate the outgoing RST with the accepted connection tuple and monotonic event window. If packet-level confirmation is unavailable, label the result as an abortive-close attempt, not a confirmed TCP RST.
 
@@ -70,12 +70,25 @@ A successful server-side `SO_LINGER` call and log are necessary but not sufficie
 
 The first isolated caller implementation is `test/issue78-tcp-fault-probe-worker.js`. It is a test-only Worker module and is not imported by `worker.js` or the production VLESS handler.
 
-- It dynamically imports `connect` from `cloudflare:sockets` in the Worker runtime; deterministic Node tests inject a fake connector.
+- The disposable entrypoint `scripts/issue78-tcp-fault-probe-cloudflare-worker.js` statically imports `connect` from `cloudflare:sockets` and injects it into the probe factory; deterministic Node tests inject a fake connector. The entrypoint is not wired into a Wrangler config or deployment workflow.
 - Required environment: `PROBE_PATH` (unique random path), `FAULT_MODE` (`FIN` or `RST`), `FAULT_IP` (canonical public IPv4 literal), `FAULT_PORT` (canonical port 1024–65535), and `FAULT_TOKEN` (32–128 base64url characters stored as a Worker secret). Optional `ALLOW_HALF_OPEN=true` selects the half-open control.
-- The caller has no destination query parameters, accepts only GET on the exact configured path, rejects DNS names/private/special-use IPv4 targets and malformed settings before dialing, and sends only the fixed MODE/ACK protocol.
+- The caller has no destination query parameters, accepts only GET on the exact configured path, rejects DNS names/private/special-use IPv4 targets and malformed settings before dialing, and sends only the fixed HMAC-authenticated MODE/ACK protocol.
 - It attaches a rejection observer to `socket.closed` immediately after `connect()`, before awaiting `socket.opened`; records command/ACK writes, readable outcome, closed outcome, timestamps and local cleanup separately; and marks observations that happen only after local cleanup.
 - Read-ahead is not used. The line reader has a fixed 128-byte line limit and a bounded response buffer. The response never includes the auth token or arbitrary error text. The standalone probe has no D1 binding or VLESS admission lease.
 - Deterministic fake-peer tests validate FIN/EOF and RST-shaped stream-error observations, nonce mismatch, fixed-target enforcement, path/method rejection and secret redaction. These tests validate caller logic only; they do not synthesize or prove a real network RST.
+
+### Linux fault-injector implementation
+
+The server-side counterpart is `scripts/issue78-tcp-fault-injector.py`. It is a one-run Linux-only utility; it is not a general proxy and has no forwarding path.
+
+- Default bind is `127.0.0.1`. Public binding to `0.0.0.0` requires both `--public-bind` and `--ack-public-exposure`; the script never opens or manages a firewall rule.
+- Requires a protected regular token file owned by the server user, mode `0600` or stricter, opened without following symlinks. `--delete-token-file` is mandatory and the one-run file is deleted in the server's final cleanup.
+- The token is not sent on the TCP connection. The Worker sends a 64-character lowercase-hex HMAC-SHA256 signature over `MODE <mode> <nonce>`; the server verifies it with constant-time comparison. Nonces are single-use.
+- Only FIN and RST modes are accepted, one successful connection per mode. Total accepts are capped at four; each socket I/O has a five-second timeout and the entire server run has a 60-second deadline. Lines are capped at 256 bytes; payload is fixed.
+- FIN uses `shutdown(SHUT_WR)` and waits for the Worker to close. RST requires Linux and sets `SO_LINGER=(1,0)` immediately before the accepted socket is closed. Failure to arm zero-linger is a failed connection, never a fallback to FIN.
+- JSON logs contain only event, mode, nonce, peer tuple and monotonic timestamp (or a bounded error type). The HMAC key and signature are not logged.
+- The script closes each accepted socket and listener and deletes the one-run token file. The operator still owns firewall closure, packet capture, process/port absence verification, and destruction of the disposable VM.
+- Manual local validation: `python test/test_issue78_tcp_fault_injector.py -v` ran 12 tests on Windows: 10 passed and two Linux-only tests were skipped (token-file POSIX permissions/symlink checks and a real loopback TCP RST check). The Linux CI runner will execute all 12, including the loopback test that requires the peer to observe `ConnectionResetError` after zero-linger close. This validates the Linux kernel's local abortive-close behavior, not the remote Cloudflare path or packet-level trace. The public listener script has not been started.
 
 ### Runtime execution checklist
 

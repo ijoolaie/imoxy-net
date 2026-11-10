@@ -27,6 +27,7 @@ function peer(mode, { mismatchReady = false } = {}) {
   let resolveClosed;
   let rejectClosed;
   let closeCalls = 0;
+  let modeCommand = null;
   const closed = new Promise((resolve, reject) => {
     resolveClosed = resolve;
     rejectClosed = reject;
@@ -37,10 +38,25 @@ function peer(mode, { mismatchReady = false } = {}) {
     }
   });
   const writable = new WritableStream({
-    write(chunk) {
+    async write(chunk) {
       const text = decoder.decode(chunk);
       if (text.startsWith("MODE ")) {
-        const nonce = text.trim().split(" ")[2];
+        modeCommand = text;
+        const [verb, requestedMode, nonce, signatureHex] = text.trim().split(" ");
+        const expectedMode = mode === "HOLD" ? "RST" : mode;
+        if (verb !== "MODE" || requestedMode !== expectedMode || !/^[a-f0-9]{64}$/.test(signatureHex)) {
+          throw new Error("invalid mode command");
+        }
+        const key = await crypto.subtle.importKey(
+          "raw", encoder.encode(TOKEN), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]
+        );
+        const signature = Uint8Array.from(
+          signatureHex.match(/.{2}/g).map((byte) => Number.parseInt(byte, 16))
+        );
+        const valid = await crypto.subtle.verify(
+          "HMAC", key, signature, encoder.encode("MODE " + requestedMode + " " + nonce)
+        );
+        if (!valid) throw new Error("invalid command signature");
         const readyNonce = mismatchReady ? "wrongnonce" : nonce;
         const ready = encoder.encode("READY " + readyNonce + "\n");
         const initial = new Uint8Array(ready.byteLength + PRELUDE.byteLength);
@@ -71,7 +87,8 @@ function peer(mode, { mismatchReady = false } = {}) {
         rejectClosed(new Error("local cleanup"));
       }
     },
-    get closeCalls() { return closeCalls; }
+    get closeCalls() { return closeCalls; },
+    get modeCommand() { return modeCommand; }
   };
 }
 
@@ -105,6 +122,8 @@ test("FIN probe uses only its configured literal target and records clean readab
   assert.equal(result.readable.done, true);
   assert.equal(result.readable.afterLocalCleanup, false);
   assert.equal(result.cleanup.closeStartedAt !== null, true);
+  assert.match(connection.modeCommand.trim(), /^MODE FIN [a-f0-9]{32} [a-f0-9]{64}$/);
+  assert.equal(connection.modeCommand.includes(TOKEN), false);
   assert.equal(connection.closeCalls, 1);
   assert.equal(JSON.stringify(result).includes(TOKEN), false);
 });
@@ -149,6 +168,8 @@ test("RST probe records socket.closed and readable rejection before local cleanu
   assert.equal(result.readable.status, "rejected");
   assert.equal(result.readable.afterLocalCleanup, false);
   assert.equal(connection.closeCalls, 1);
+  assert.match(connection.modeCommand.trim(), /^MODE RST [a-f0-9]{32} [a-f0-9]{64}$/);
+  assert.equal(connection.modeCommand.includes(TOKEN), false);
   assert.equal(JSON.stringify(result).includes(TOKEN), false);
 });
 
