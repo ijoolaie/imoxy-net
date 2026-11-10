@@ -84,3 +84,13 @@ This file records the latest Issue #78 BYOB runtime result and cancellation/erro
 - Documentation/design only. No endpoint was created or started, no public port opened, no Worker deployed, and no Cloudflare runtime executed. Any later Cloudflare probe still requires fresh explicit one-run user authorization and manual GitHub UI dispatch.
 - `HANDOFF.md` remains unchanged due to its size exceeding the supported 256 KiB file-tool limit; this addendum records the work.
 
+## PR #328 merge handoff — 2026-11-10
+
+- PR #328 (`docs: harden issue 78 FIN RST probe protocol`) was squash-merged into `main` at `0c1cfced5ab1f2e58428138122cefccfb892f1de`. Exact PR HEAD: `827def4c3b4a9d46c8fe7c5a2d9f58d3018d8e54`; base SHA: `da49f75fb495d981456e64695a90dcb89e8f47c9`.
+- Exact-head CI run `42784783029`, job `129723185003`, completed successfully; `npm run verify` passed. Local verification: 294 total, 293 passed, 0 failed, 1 skipped. `git diff --check` passed with only LF-to-CRLF working-copy warnings.
+- No submitted reviews or inline review threads. GitHub reported the PR mergeable before merge; squash merge used the expected exact head SHA.
+- PR #328 changes only `docs/issue78-socket-closed-and-rst-test-plan.md` and this supplemental addendum. No endpoint, public port, Worker, D1, staging, production resource, or Cloudflare runtime was created or touched.
+- Issue #78 remains open. The test protocol is designed but not implemented or executed; no true TCP RST propagation or bounded downstream buffering has been proven.
+- Follow-up handoff branch: `docs/issue78-pr328-merge-handoff-2026-11-10`, based on merged `main` commit `0c1cfced5ab1f2e58428138122cefccfb892f1de`.
+- `HANDOFF.md` remains unchanged because it exceeds the supported 256 KiB file-tool limit; this addendum is the current supplemental handoff.
+
