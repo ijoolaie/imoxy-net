@@ -97,6 +97,17 @@ This file records the latest Issue #78 BYOB runtime result and cancellation/erro
 - Clarified the RST/FIN acceptance criteria: the standalone `cloudflare:sockets` probe has no D1 binding or VLESS admission lease, so its acceptance covers socket cleanup only. Lease-release assertions apply only if a later, separately approved VLESS integration phase is added.
 - This avoids implying that the isolated raw-TCP test exercises production VLESS admission/accounting. No runtime or resource was created or touched.
 
+## Dedicated FIN/RST caller Worker — local-only implementation — 2026-11-10
+
+- Added test-only `test/issue78-tcp-fault-probe-worker.js`, with no import from production `worker.js` or the VLESS handler. In Workers it dynamically imports `connect` from `cloudflare:sockets`; Node tests inject a fake connector.
+- The Worker accepts only GET on an exact configured random path, rejects query parameters, and uses fixed environment settings: `FAULT_MODE` FIN/RST, canonical public IPv4 literal `FAULT_IP`, canonical `FAULT_PORT` 1024–65535, one-run base64url `FAULT_TOKEN`, and optional `ALLOW_HALF_OPEN=true`.
+- It rejects DNS names, private/special-use IPv4 targets and malformed settings before dialing. It sends only the fixed MODE/ACK protocol; it does not accept a destination or payload from the request.
+- It attaches the `socket.closed` observer immediately after `connect()` and before awaiting `socket.opened`; records command/ACK writes, readable result, closed result, monotonic timestamps and local cleanup separately; marks outcomes occurring only after local cleanup; and never serializes the auth token or arbitrary error messages.
+- The bounded line reader caps line length at 128 bytes and total buffered response bytes. No read-ahead, D1 binding, VLESS admission lease, production adapter or runtime workflow changes.
+- Added eight deterministic fake-connector tests: FIN EOF, `allowHalfOpen` propagation, RST-shaped rejection, rejection of local-cleanup-induced false RST classification after timeout, rejection of non-literal/private/special-use targets and malformed configuration, route/query/method restrictions, static health, and nonce mismatch cleanup. These are caller-logic tests, not real TCP/RST evidence.
+- Focused test: `node --test test/issue78-tcp-fault-probe-worker.test.js` passed 8/8. Full `cmd.exe /c npm run verify` passed: 303 total, 302 passed, 0 failed, 1 skipped. `git diff --check` passed with only LF-to-CRLF working-copy warnings.
+- No endpoint created, no public port opened, no Worker deployed, and no Cloudflare runtime executed. The separate Linux fault-injector endpoint and runtime workflow are not implemented.
+
 ## PR #328 FIN/RST scope clarification — 2026-11-10
 
 - The standalone socket probe has no D1 binding or VLESS admission lease. Its acceptance criteria now assert socket cleanup only; lease-release assertions are reserved for a later, separately approved VLESS integration phase.

@@ -5,7 +5,7 @@
   "type": "module",
   "engines": { "node": ">=22" },
   "scripts": {
-    "check": "node --check worker.js && node --check scripts/vless-cloudflare-runtime-smoke.mjs && node --check scripts/vless-cloudflare-slow-reader-smoke.mjs && node --check scripts/vless-service-binding-cloudflare-smoke.mjs && node --check scripts/issue78-execution-context-probe.mjs && node --check scripts/issue78-execution-context-probe-cloudflare.mjs && node --check test/issue78-execution-context-probe-worker.js && node --check test/issue78-byob-probe-worker.js && node --check test/issue78-byob-reader-lifecycle.test.js && node --check test/issue78-byob-probe-echo-worker.js && node --check scripts/issue78-byob-cloudflare-probe.mjs",
+    "check": "node --check worker.js && node --check scripts/vless-cloudflare-runtime-smoke.mjs && node --check scripts/vless-cloudflare-slow-reader-smoke.mjs && node --check scripts/vless-service-binding-cloudflare-smoke.mjs && node --check scripts/issue78-execution-context-probe.mjs && node --check scripts/issue78-execution-context-probe-cloudflare.mjs && node --check test/issue78-execution-context-probe-worker.js && node --check test/issue78-byob-probe-worker.js && node --check test/issue78-byob-reader-lifecycle.test.js && node --check test/issue78-byob-probe-echo-worker.js && node --check scripts/issue78-byob-cloudflare-probe.mjs && node --check test/issue78-tcp-fault-probe-worker.js",
     "test": "node --experimental-sqlite --test",
     "verify": "npm run check && npm test"
   }
