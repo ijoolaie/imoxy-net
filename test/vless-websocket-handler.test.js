@@ -1071,6 +1071,69 @@ test("a reservation with an ambiguous response is released only before any forwa
 });
 
 
+test("socket.closed rejection waits for a pending upload write rejection and retains its forwarding reservation", async () => {
+  let rejectWrite;
+  let rejectSocketClosed;
+  let writeStarted = false;
+  let socketCloseCalls = 0;
+  let writerAbortCalled = false;
+  const writeGate = new Promise((_, reject) => { rejectWrite = reject; });
+  const socketClosed = new Promise((_, reject) => { rejectSocketClosed = reject; });
+  const upstream = {
+    opened: Promise.resolve({ remoteAddress: "93.184.216.34", localAddress: null }),
+    closed: socketClosed,
+    readable: new ReadableStream({ start() {} }),
+    writable: {
+      getWriter() {
+        return {
+          write() {
+            writeStarted = true;
+            return writeGate;
+          },
+          abort() { writerAbortCalled = true; }
+        };
+      }
+    },
+    async close() { socketCloseCalls += 1; }
+  };
+  const h = harness({ connectTcp: async () => upstream });
+
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+  h.server.receive(Uint8Array.from([0x51, 0x52]));
+  await settle();
+
+  assert.equal(writeStarted, true);
+  assert.equal(h.quotaCalls.reserve.length, 1);
+  assert.equal(h.quotaCalls.markForwarding.length, 1);
+  assert.equal(h.quotaCalls.settle.length, 0);
+
+  rejectSocketClosed(new Error("injected socket closure"));
+  await settle();
+
+  assert.ok(h.server.closeCalls.some((item) =>
+    item.code === 1011 && item.reason === "upstream_error"
+  ));
+  assert.equal(socketCloseCalls, 1);
+  assert.equal(writerAbortCalled, true);
+  assert.equal(h.sessionCalls.release.length, 0,
+    "the admission lease must remain held until the in-flight write has a definitive outcome");
+
+  rejectWrite(new Error("injected pending write rejection"));
+  await settle();
+
+  assert.equal(h.quotaCalls.settle.length, 0,
+    "a failed write must never be reported as successfully settled");
+  assert.equal(h.quotaCalls.release.length, 0,
+    "a forwarding-marked reservation must be retained after an ambiguous transport outcome");
+  assert.equal(h.sessionCalls.release.length, 1);
+  h.server.close();
+  await settle();
+  assert.equal(h.sessionCalls.release.length, 1,
+    "repeated close notifications must not release the lease twice");
+});
+
 test("session lease remains held until an in-flight upload write settles after close", async () => {
   let resolveWrite;
   let writeStarted = false;
