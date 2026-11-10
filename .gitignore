@@ -4,5 +4,7 @@ node_modules/
 .env.*
 !.env.example
 coverage/
+__pycache__/
+*.py[cod]
 dist/
 .DS_Store

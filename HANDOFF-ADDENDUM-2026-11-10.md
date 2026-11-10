@@ -99,14 +99,25 @@ This file records the latest Issue #78 BYOB runtime result and cancellation/erro
 
 ## Dedicated FIN/RST caller Worker — local-only implementation — 2026-11-10
 
-- Added test-only `test/issue78-tcp-fault-probe-worker.js`, with no import from production `worker.js` or the VLESS handler. In Workers it dynamically imports `connect` from `cloudflare:sockets`; Node tests inject a fake connector.
+- Added test-only `test/issue78-tcp-fault-probe-worker.js`, with no import from production `worker.js` or the VLESS handler. Added separate `scripts/issue78-tcp-fault-probe-cloudflare-worker.js`, which statically imports `connect` from `cloudflare:sockets` and injects it into the factory; Node tests inject a fake connector. This entrypoint is not wired to a Wrangler config or deployment workflow.
 - The Worker accepts only GET on an exact configured random path, rejects query parameters, and uses fixed environment settings: `FAULT_MODE` FIN/RST, canonical public IPv4 literal `FAULT_IP`, canonical `FAULT_PORT` 1024–65535, one-run base64url `FAULT_TOKEN`, and optional `ALLOW_HALF_OPEN=true`.
 - It rejects DNS names, private/special-use IPv4 targets and malformed settings before dialing. It sends only the fixed MODE/ACK protocol; it does not accept a destination or payload from the request.
 - It attaches the `socket.closed` observer immediately after `connect()` and before awaiting `socket.opened`; records command/ACK writes, readable result, closed result, monotonic timestamps and local cleanup separately; marks outcomes occurring only after local cleanup; and never serializes the auth token or arbitrary error messages.
 - The bounded line reader caps line length at 128 bytes and total buffered response bytes. No read-ahead, D1 binding, VLESS admission lease, production adapter or runtime workflow changes.
 - Added eight deterministic fake-connector tests: FIN EOF, `allowHalfOpen` propagation, RST-shaped rejection, rejection of local-cleanup-induced false RST classification after timeout, rejection of non-literal/private/special-use targets and malformed configuration, route/query/method restrictions, static health, and nonce mismatch cleanup. These are caller-logic tests, not real TCP/RST evidence.
 - Focused test: `node --test test/issue78-tcp-fault-probe-worker.test.js` passed 8/8. Full `cmd.exe /c npm run verify` passed: 303 total, 302 passed, 0 failed, 1 skipped. `git diff --check` passed with only LF-to-CRLF working-copy warnings.
-- No endpoint created, no public port opened, no Worker deployed, and no Cloudflare runtime executed. The separate Linux fault-injector endpoint and runtime workflow are not implemented.
+- No endpoint created, no public port opened, no Worker deployed, and no Cloudflare runtime executed.
+
+## One-run Linux TCP fault-injector — source-only implementation — 2026-11-10
+
+- Added `scripts/issue78-tcp-fault-injector.py`, a Linux-only one-run TCP server for the planned FIN/RST pair. It is a fixed-protocol fault injector, not a proxy; it has no arbitrary destination or data relay path.
+- Default listener binds only to `127.0.0.1`. Public bind to `0.0.0.0` requires both `--public-bind` and `--ack-public-exposure`; the script does not open firewall rules. Port range is 1024–65535.
+- Requires a regular token file owned by the server user, mode 0600 or stricter, opened with no-follow semantics. `--delete-token-file` is mandatory and the token file is deleted in final cleanup.
+- Hardened the protocol to HMAC-SHA256: the Worker sends a 64-character lowercase-hex signature over `MODE <mode> <nonce>`; the secret key itself is never sent over TCP. The server validates with constant-time comparison and enforces single-use nonces.
+- Only one successful FIN and one successful RST connection are accepted; total attempts capped at four, per-I/O timeout five seconds, overall runtime deadline 60 seconds, line limit 256 bytes, fixed prelude and ACK.
+- FIN performs `shutdown(SHUT_WR)` and waits for peer EOF. RST is Linux-only and sets `SO_LINGER=(1,0)` before the actual accepted-socket close. A mode counts completed only after `close()` returns successfully. Server logs include a post-close event for tuple/time correlation.
+- Added twelve Python unit tests, primarily fake-socket protocol tests. `python test/test_issue78_tcp_fault_injector.py -v` ran 12 tests on Windows: 10 passed and two Linux-only tests were skipped (POSIX token-file permission/symlink checks and a real loopback TCP RST check). The Linux-only loopback test requires the peer to observe `ConnectionResetError` after zero-linger close; it validates local Linux kernel behavior, not the remote Cloudflare path or packet-level trace. The worker's eight Node tests verify HMAC signatures and that the key is absent from the command. CI now sets up Python 3.12 and runs all 12 tests on Ubuntu.
+- Added a CI step using Python 3.12 to run the Python unit tests alongside Node verification. No server listener started, no token file created, no public port/firewall rule, VM, Worker, or Cloudflare runtime used. Actual Linux kernel RST and packet capture remain unverified.
 
 ## PR #331 merge handoff — 2026-11-10
 
