@@ -64,3 +64,13 @@ This file records the latest Issue #78 BYOB runtime result and cancellation/erro
 - This is deterministic Node/fake-socket evidence only. It does not prove Cloudflare TCP error propagation, RST behavior, bounded downstream buffering, or total Worker memory. Issue #78 remains open.
 - `HANDOFF.md` was not modified because it exceeds the supported 256 KiB file-tool limit; this addendum records the current work.
 
+## PR #326 merge handoff — 2026-11-10
+
+- PR #326 (`test: cover socket close during pending upload write`) was squash-merged into `main` at `567ca7228ca94c5a890b631fcc03c66184f163bd`. Exact PR HEAD: `ffd9fef052b14218f0c9a628787cb1036c1ef931`; base SHA: `461630b1dbbe1a5973dcfd3f9e943031706db553`.
+- Exact-head CI run `42782231494`, job `129714765662`, completed successfully; the `npm run verify` step passed. Local verification on the same test content: 294 total, 293 passed, 0 failed, 1 skipped.
+- No submitted reviews or inline review threads. GitHub reported the PR mergeable before merge; squash merge used the expected exact head SHA.
+- PR #326 adds only the deterministic pending-write rejection test and this supplemental handoff update. No production code, quota semantics, D1 schema, Worker configuration, or runtime resources changed.
+- No post-merge main workflow run was returned at handoff time. No Cloudflare runtime was executed. Issue #78 remains open; this test does not prove TCP RST propagation, bounded downstream buffering, or total Worker memory.
+- Follow-up handoff branch: `docs/issue78-pr326-merge-handoff-2026-11-10`, based on merged `main` commit `567ca7228ca94c5a890b631fcc03c66184f163bd`.
+- `HANDOFF.md` remains unchanged because it exceeds the supported 256 KiB file-tool limit; this addendum is the current supplemental handoff.
+
