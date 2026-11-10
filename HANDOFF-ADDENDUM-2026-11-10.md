@@ -108,6 +108,16 @@ This file records the latest Issue #78 BYOB runtime result and cancellation/erro
 - Focused test: `node --test test/issue78-tcp-fault-probe-worker.test.js` passed 8/8. Full `cmd.exe /c npm run verify` passed: 303 total, 302 passed, 0 failed, 1 skipped. `git diff --check` passed with only LF-to-CRLF working-copy warnings.
 - No endpoint created, no public port opened, no Worker deployed, and no Cloudflare runtime executed. The separate Linux fault-injector endpoint and runtime workflow are not implemented.
 
+## PR #331 merge handoff — 2026-11-10
+
+- PR #331 (`test: add isolated TCP fault probe Worker`) was squash-merged into `main` at `3884da7f88a53c623831d8e49c2939df6c13e53f`. Exact PR HEAD: `05bff3513ba2a63d803b92d34cec69f65c49649e`; base SHA: `4e5c10bcf5368152b47ac84a1de93539a34510ac`.
+- Exact-head CI run `42787689352`, job `129732952481`, completed successfully; `npm run verify` passed. Local verification: 303 total, 302 passed, 0 failed, 1 skipped; focused probe tests 8/8 passed.
+- No submitted reviews or inline review threads. GitHub reported the PR mergeable before merge; squash merge used the expected exact head SHA.
+- PR #331 adds only the test Worker, deterministic tests, syntax-check registration, RST test-plan implementation notes, and this supplemental handoff. It is not imported by production Worker/VLESS code.
+- No Linux fault-injector endpoint, public port, Worker deployment, Cloudflare runtime, D1, staging, or production resource was created or touched. Fake RST-shaped tests are not network RST evidence. Issue #78 remains open.
+- Follow-up handoff branch: `docs/issue78-pr331-merge-handoff-2026-11-10`, based on merged `main` commit `3884da7f88a53c623831d8e49c2939df6c13e53f`.
+- `HANDOFF.md` remains unchanged because it exceeds the supported 256 KiB file-tool limit; this addendum is the current supplemental handoff.
+
 ## PR #328 FIN/RST scope clarification — 2026-11-10
 
 - The standalone socket probe has no D1 binding or VLESS admission lease. Its acceptance criteria now assert socket cleanup only; lease-release assertions are reserved for a later, separately approved VLESS integration phase.
