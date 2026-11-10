@@ -117,7 +117,17 @@ This file records the latest Issue #78 BYOB runtime result and cancellation/erro
 - Only one successful FIN and one successful RST connection are accepted; total attempts capped at four, per-I/O timeout five seconds, overall runtime deadline 60 seconds, line limit 256 bytes, fixed prelude and ACK.
 - FIN performs `shutdown(SHUT_WR)` and waits for peer EOF. RST is Linux-only and sets `SO_LINGER=(1,0)` before the actual accepted-socket close. A mode counts completed only after `close()` returns successfully. Server logs include a post-close event for tuple/time correlation.
 - Added twelve Python unit tests, primarily fake-socket protocol tests. `python test/test_issue78_tcp_fault_injector.py -v` ran 12 tests on Windows: 10 passed and two Linux-only tests were skipped (POSIX token-file permission/symlink checks and a real loopback TCP RST check). The Linux-only loopback test requires the peer to observe `ConnectionResetError` after zero-linger close; it validates local Linux kernel behavior, not the remote Cloudflare path or packet-level trace. The worker's eight Node tests verify HMAC signatures and that the key is absent from the command. CI now sets up Python 3.12 and runs all 12 tests on Ubuntu.
-- Added a CI step using Python 3.12 to run the Python unit tests alongside Node verification. No server listener started, no token file created, no public port/firewall rule, VM, Worker, or Cloudflare runtime used. Actual Linux kernel RST and packet capture remain unverified.
+- Added a CI step using Python 3.12 to run the Python unit tests alongside Node verification. No server listener started, no token file created, no public port/firewall rule, VM, Worker, or Cloudflare runtime used. Actual remote Cloudflare RST propagation and packet capture remain unverified.
+
+## PR #333 merge handoff — 2026-11-10
+
+- PR #333 (test: add isolated Linux TCP FIN RST fault injector) was squash-merged into main at 9d3435fa9d556f4cc53e6e83ce61fd40bbef5866. Exact PR HEAD: 114657ef76c5f8f1ec03a34315630f588f0c78e6; base SHA: 9ad5a00531e89688a6be285b6a6e2bece1a96d9a.
+- Exact-head CI run 42790917580, job 129743818034, completed successfully. Both npm run verify and the Python 3.12 unit-test step passed. Node result: 303 total, 302 passed, 0 failed, 1 skipped. Linux CI ran all 12 Python tests, including the loopback kernel RST and POSIX token-file checks. Local Windows Python result: 12 total, 10 passed, 2 Linux-only skipped.
+- No submitted reviews or inline review threads. GitHub reported the PR mergeable before merge; squash merge used the expected exact head SHA.
+- PR #333 adds the Linux fault-injector source, separate static-import Cloudflare probe entrypoint, Python tests and CI step, HMAC wire protocol, Python cache ignore patterns, and test-plan/handoff documentation. No production handler or routing changes.
+- No disposable VM/endpoint provisioned, no listener started, no token file created, no public port/firewall rule opened, no Worker deployed, and no Cloudflare runtime executed. The loopback CI test confirms only local Linux kernel abortive-close behavior; remote Cloudflare RST propagation and packet capture remain pending. Issue #78 remains open.
+- Follow-up handoff branch: docs/issue78-pr333-merge-handoff-2026-11-10, based on merged main commit 9d3435fa9d556f4cc53e6e83ce61fd40bbef5866.
+- HANDOFF.md remains unchanged because it exceeds the supported 256 KiB file-tool limit; this addendum is the current supplemental handoff.
 
 ## PR #331 merge handoff — 2026-11-10
 
