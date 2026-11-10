@@ -44,3 +44,12 @@ This file records the latest Issue #78 BYOB runtime result and cancellation/erro
 - Cross-repository evidence: workerd issue #6479 remains open as of 2026-11-10; PR #6483 is also open and adds a runtime regression test, not proof of a merged fix. Do not classify a `socket.closed` rejection alone as TCP reset; workerd's reported FIN/explicit-close race can reject with `undefined`.
 - Changes are on feature branch `audit/issue78-socket-closed-lifecycle-2026-11-10`; production handler behavior change is limited to observing documented socket.closed rejection and routing it through existing cleanup. No D1 schema, quota logic, session admission logic, Worker config, staging, or production resources changed.
 - Future Cloudflare runtime execution still requires fresh explicit one-run user approval. The prior one-shot approval was consumed by Run #42772724549. Issue #78 remains open; this work does not prove bounded downstream buffering or total Worker memory. Production adapter remains default reader; Error 1101/domain/VPN remains final-priority.
+
+## PR #324 merge handoff — 2026-11-10
+
+- PR #324 (`fix: observe TCP socket closure errors`) was squash-merged into `main` at `37ffb9c6bbc3eeb58527b75582fd413999779e68`. Exact PR HEAD: `f38ae40f28ba5ac04e4bc5a01c1d4ac12e76bb88`.
+- Exact-head CI run `42780067862`, job `129707691815`, completed successfully. The local exact-head `cmd.exe /c npm run verify` result was 292 passed, 1 skipped, 0 failed (293 total); `git diff --check` passed.
+- No submitted reviews or inline review threads; PR was mergeable and clean before merge. Merge used the expected head SHA.
+- PR #324 changes production handler only to observe `socket.closed` rejection and route active failure through the existing idempotent cleanup. It does not alter quota reservation/settlement, D1 schema, session-admission policy, Worker config or transport reader choice. It adds deterministic tests and the TCP RST plan.
+- No Cloudflare runtime or external TCP fault-injection endpoint was executed. Any next runtime run requires fresh explicit one-run user authorization; the earlier authorization was consumed by Run #42772724549.
+- Follow-up handoff branch: `docs/issue78-pr324-merge-handoff-2026-11-10`, based on merged `main` commit `37ffb9c6bbc3eeb58527b75582fd413999779e68`.
