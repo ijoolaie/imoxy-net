@@ -74,3 +74,13 @@ This file records the latest Issue #78 BYOB runtime result and cancellation/erro
 - Follow-up handoff branch: `docs/issue78-pr326-merge-handoff-2026-11-10`, based on merged `main` commit `567ca7228ca94c5a890b631fcc03c66184f163bd`.
 - `HANDOFF.md` remains unchanged because it exceeds the supported 256 KiB file-tool limit; this addendum is the current supplemental handoff.
 
+## FIN/RST endpoint protocol hardening — 2026-11-10
+
+- Expanded `docs/issue78-socket-closed-and-rst-test-plan.md` with a narrowly scoped endpoint contract and exact nonce/token wire protocol for FIN control and abortive RST mode.
+- Added safety constraints: loopback-only default bind; explicit public-bind/firewall opt-in; one-run high-entropy token loaded as a secret; constant-time token comparison; fixed command set and payload; strict line/byte/connection/deadline caps; no arbitrary destination or relay; sanitized monotonic event logs; hard stop and cleanup verification.
+- Specified a dedicated Cloudflare probe importing `connect` from `cloudflare:sockets`, with literal IP/port allowlisting, token in a Worker secret, immediate independent observation of `socket.closed`/read/write outcomes, and no local close before bounded observation completes.
+- Strengthened RST acceptance: a server-side zero-linger call/log alone is not proof. Require packet-level outgoing RST evidence correlated to the connection tuple; otherwise report only an abortive-close attempt.
+- Corrected the wire protocol to use `MODE FIN|RST <nonce> <token>`; added a distinct runtime execution checklist.
+- Documentation/design only. No endpoint was created or started, no public port opened, no Worker deployed, and no Cloudflare runtime executed. Any later Cloudflare probe still requires fresh explicit one-run user authorization and manual GitHub UI dispatch.
+- `HANDOFF.md` remains unchanged due to its size exceeding the supported 256 KiB file-tool limit; this addendum records the work.
+

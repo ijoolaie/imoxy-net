@@ -39,7 +39,34 @@ These are local fake-socket tests; they do not prove Cloudflare runtime behavior
 
 The current Worker-to-Worker Service Binding echo peer cannot reliably inject a TCP RST: `writer.abort()` is a Streams writable operation, and `socket.close()` is the documented socket close API. Neither is a documented RST primitive. The previous peer-abort test was therefore not a valid network-error test.
 
-A real reset test requires a separately controlled TCP endpoint outside the Worker runtime, on a disposable public test host/IP and dedicated port:
+A real reset test requires a separately controlled TCP endpoint outside the Worker runtime, on a disposable public test host/IP and dedicated port. The endpoint is a narrowly scoped fault injector, not a general TCP proxy.
+
+### Endpoint protocol and safety contract
+
+Use a small, single-purpose server on a disposable Linux VM. Keep its listener disabled until the operator explicitly starts the one-run test. The server must:
+
+- Bind to loopback by default. Public binding requires a separate explicit command-line opt-in and a dedicated firewall rule for the test port; never default to `0.0.0.0`.
+- Require a high-entropy one-run authentication token in addition to a fresh random nonce. Load the token from a protected file or runtime secret, never from a committed config or logged command line. Compare tokens in constant time and never log them.
+- Accept only two fixed commands, `MODE FIN <nonce> <token>` and `MODE RST <nonce> <token>`, with strict length/character limits. Reject unknown commands, malformed/non-fresh nonces, extra fields, and all attempts to specify arbitrary destinations or payload sizes.
+- Permit at most one active connection per mode and a small fixed total connection count. Enforce short connect, handshake, ACK and idle deadlines; cap every line and total bytes. Exit after the planned FIN and RST pair or a hard overall deadline.
+- Send a fixed prelude containing the nonce and a fixed test payload. Never relay arbitrary client bytes to another host. Record only mode, nonce, peer address, connection sequence, state transitions and monotonic timestamps; redact the authentication token and avoid logging arbitrary stream errors.
+- For RST, use a Linux TCP socket with `SO_LINGER={on:1, linger:0}` on the accepted socket immediately before close. Treat failure to set the option as a hard test failure; do not silently fall back to an orderly close.
+- For FIN, perform an orderly write-half shutdown and normal close. Record the orderly-close action separately from RST mode.
+- Have an operator-controlled hard stop and a cleanup step that stops the listener, removes the temporary token/config, closes the firewall rule and verifies the process and port are absent.
+
+Use this exact one-connection wire sequence for each mode:
+
+1. Worker sends exactly one command: `MODE FIN <nonce> <token>` or `MODE RST <nonce> <token>`. Each command is terminated by one LF byte (`0x0A`).
+2. Server validates the token and nonce, logs `accepted`, and sends `READY <nonce>` followed by one LF byte and a fixed binary prelude.
+3. Worker validates the READY nonce and prelude, then sends `ACK <nonce>` followed by one LF byte.
+4. Server logs `acknowledged`. In FIN mode it performs orderly `shutdown(SHUT_WR)` and closes normally. In RST mode it applies zero-linger and closes abortively.
+5. Worker attaches `socket.closed` observers immediately after `connect()`, awaits `socket.opened`, and independently records the read and ACK-write outcomes. It does not call local `socket.close()` until those observations finish or the bounded observation deadline expires.
+
+The Worker must use a dedicated probe implementation importing `connect` from `cloudflare:sockets`, not the existing Service Binding echo worker. It must accept only a configured literal IP and port from a disposable environment, validate the response nonce, send only the fixed protocol messages, and reject any request parameter that could alter the destination. No user-supplied hostname, URL, port, payload, or arbitrary TCP target is allowed. Keep the auth token in a Worker secret, not a `vars` value or source file.
+
+A successful server-side `SO_LINGER` call and log are necessary but not sufficient evidence that the remote Worker observed a reset. Capture a packet trace on the disposable Linux endpoint (or equivalent kernel-level evidence) and correlate the outgoing RST with the accepted connection tuple and monotonic event window. If packet-level confirmation is unavailable, label the result as an abortive-close attempt, not a confirmed TCP RST.
+
+### Runtime execution checklist
 
 1. Run a minimal TCP fault-injection server on a disposable VM/container with an externally reachable address. Do not reuse a production service or account.
 2. Provide two modes on the same test listener:
@@ -53,7 +80,7 @@ A real reset test requires a separately controlled TCP endpoint outside the Work
    - explicit cleanup `socket.close()` start/complete.
 5. For RST, do not call `socket.close()` until the `socket.closed` and read/write observations have settled or a bounded observation timeout expires. Otherwise cleanup can create the very `closed` rejection being measured. Always close in a finally/timeout cleanup path.
 6. For FIN, separately test default `allowHalfOpen=false` and (if needed) `true`. Include both: (a) allow automatic EOF close to settle without explicit close; (b) explicit `socket.close()` after readable EOF to expose the #6479 race. Report any `undefined` rejection as a close-race observation, not as RST.
-7. Acceptance for the RST case: the independently generated RST is confirmed by the server-side nonce/connection log; caller `socket.closed` rejects before explicit local cleanup; stream read/write outcomes are captured independently; no bytes are forwarded after the error signal; cleanup closes the socket and releases any VLESS admission lease exactly once. Do not require a particular error message or exact error class.
+7. Acceptance for the RST case: packet-level outgoing RST evidence is correlated to the server-side connection tuple and time window; caller `socket.closed` rejects before explicit local cleanup; stream read/write outcomes are captured independently; no bytes are forwarded after the error signal; cleanup closes the socket and releases any VLESS admission lease exactly once. Do not require a particular error message or exact error class.
 8. Acceptance for FIN control: peer-side orderly shutdown is confirmed; readable reaches EOF; `socket.closed` outcome is captured; no `upstream_error` is inferred solely from a possible #6479 undefined rejection; lease cleanup remains idempotent.
 9. Destroy the disposable endpoint and verify its absence after the run. Save sanitized logs, exact Worker SHA, compatibility date/flags, Wrangler version, CF-Ray, and cleanup proof.
 
