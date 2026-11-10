@@ -45,6 +45,7 @@ This file records the latest Issue #78 BYOB runtime result and cancellation/erro
 - Changes are on feature branch `audit/issue78-socket-closed-lifecycle-2026-11-10`; production handler behavior change is limited to observing documented socket.closed rejection and routing it through existing cleanup. No D1 schema, quota logic, session admission logic, Worker config, staging, or production resources changed.
 - Future Cloudflare runtime execution still requires fresh explicit one-run user approval. The prior one-shot approval was consumed by Run #42772724549. Issue #78 remains open; this work does not prove bounded downstream buffering or total Worker memory. Production adapter remains default reader; Error 1101/domain/VPN remains final-priority.
 
+
 ## PR #324 merge handoff — 2026-11-10
 
 - PR #324 (`fix: observe TCP socket closure errors`) was squash-merged into `main` at `37ffb9c6bbc3eeb58527b75582fd413999779e68`. Exact PR HEAD: `f38ae40f28ba5ac04e4bc5a01c1d4ac12e76bb88`.
@@ -53,3 +54,13 @@ This file records the latest Issue #78 BYOB runtime result and cancellation/erro
 - PR #324 changes production handler only to observe `socket.closed` rejection and route active failure through the existing idempotent cleanup. It does not alter quota reservation/settlement, D1 schema, session-admission policy, Worker config or transport reader choice. It adds deterministic tests and the TCP RST plan.
 - No Cloudflare runtime or external TCP fault-injection endpoint was executed. Any next runtime run requires fresh explicit one-run user authorization; the earlier authorization was consumed by Run #42772724549.
 - Follow-up handoff branch: `docs/issue78-pr324-merge-handoff-2026-11-10`, based on merged `main` commit `37ffb9c6bbc3eeb58527b75582fd413999779e68`.
+
+## Pending upload-write rejection after socket.closed failure — 2026-11-10
+
+- On feature branch `test/issue78-socket-closed-pending-write-rejection-2026-11-10`, added a deterministic handler regression test for the combined lifecycle: an upload crosses the forwarding marker, `writer.write()` remains pending, `socket.closed` rejects, socket cleanup runs, and the pending write then rejects.
+- Assertions: the session closes with generic `upstream_error`; TCP socket close and writer abort are requested; the admission lease remains held while the write outcome is unresolved; failed write produces no usage settlement; the forwarding-marked reservation is not released; after the write rejection settles, the admission lease is released exactly once even after repeated WebSocket close notification.
+- No production code, D1 schema, quota semantics, Cloudflare resources, staging, or production settings changed.
+- Validation: `cmd.exe /c npm run verify` passed on the feature branch: 294 tests total, 293 passed, 0 failed, 1 skipped. `git diff --check` passed; Git reported only the expected LF-to-CRLF working-copy warning.
+- This is deterministic Node/fake-socket evidence only. It does not prove Cloudflare TCP error propagation, RST behavior, bounded downstream buffering, or total Worker memory. Issue #78 remains open.
+- `HANDOFF.md` was not modified because it exceeds the supported 256 KiB file-tool limit; this addendum records the current work.
+
