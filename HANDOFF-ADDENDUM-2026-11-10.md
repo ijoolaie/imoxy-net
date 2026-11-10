@@ -91,6 +91,16 @@ This file records the latest Issue #78 BYOB runtime result and cancellation/erro
 - No submitted reviews or inline review threads. GitHub reported the PR mergeable before merge; squash merge used the expected exact head SHA.
 - PR #328 changes only `docs/issue78-socket-closed-and-rst-test-plan.md` and this supplemental addendum. No endpoint, public port, Worker, D1, staging, production resource, or Cloudflare runtime was created or touched.
 - Issue #78 remains open. The test protocol is designed but not implemented or executed; no true TCP RST propagation or bounded downstream buffering has been proven.
+
+## FIN/RST standalone probe scope clarification — 2026-11-10
+
+- Clarified the RST/FIN acceptance criteria: the standalone `cloudflare:sockets` probe has no D1 binding or VLESS admission lease, so its acceptance covers socket cleanup only. Lease-release assertions apply only if a later, separately approved VLESS integration phase is added.
+- This avoids implying that the isolated raw-TCP test exercises production VLESS admission/accounting. No runtime or resource was created or touched.
+
+## PR #328 FIN/RST scope clarification — 2026-11-10
+
+- The standalone socket probe has no D1 binding or VLESS admission lease. Its acceptance criteria now assert socket cleanup only; lease-release assertions are reserved for a later, separately approved VLESS integration phase.
+- This is a documentation-only correction to avoid implying that the isolated raw-TCP test exercises production VLESS admission/accounting. No runtime or resource was created or touched.
 - Follow-up handoff branch: `docs/issue78-pr328-merge-handoff-2026-11-10`, based on merged `main` commit `0c1cfced5ab1f2e58428138122cefccfb892f1de`.
 - `HANDOFF.md` remains unchanged because it exceeds the supported 256 KiB file-tool limit; this addendum is the current supplemental handoff.
 
