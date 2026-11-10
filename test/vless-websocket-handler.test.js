@@ -44,21 +44,29 @@ class FakeWebSocket extends EventTarget {
 }
 
 function fakeSocket(remoteAddress = "93.184.216.34") {
+  let socketClosedResolve, socketClosedReject;
   let controller;
   const writes = [];
   let closed = false;
   const socket = {
     opened: Promise.resolve({ remoteAddress, localAddress: null }),
+    closed: new Promise((resolve, reject) => {
+      socketClosedResolve = resolve;
+      socketClosedReject = reject;
+    }),
     readable: new ReadableStream({ start(value) { controller = value; } }),
     writable: new WritableStream({ write(value) { writes.push(Array.from(value)); } }),
     async close() {
       closed = true;
+      socketClosedResolve();
       try { controller.close(); } catch {}
     }
   };
   return {
     socket, writes,
     push(data) { controller.enqueue(Uint8Array.from(data)); },
+    end() { socketClosedResolve(); controller.close(); },
+    failSocket(error) { socketClosedReject(error); },
     get closed() { return closed; }
   };
 }
@@ -237,6 +245,63 @@ test("valid credential is authenticated before dialing and relays initial and la
 });
 
 
+
+test("socket.closed rejection closes the active session and releases its lease", async () => {
+  const upstream = fakeSocket();
+  const h = harness({ connectTcp: async () => upstream.socket });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  assert.equal(h.sessionCalls.release.length, 0);
+  upstream.failSocket();
+  await settle();
+
+  assert.ok(h.server.closeCalls.some((item) =>
+    item.code === 1011 && item.reason === "upstream_error"
+  ));
+  assert.equal(upstream.closed, true);
+  assert.equal(h.sessionCalls.release.length, 1);
+});
+
+test("socket.closed rejection is observed while the socket opened promise is pending", async () => {
+  const upstream = fakeSocket();
+  let resolveOpened;
+  upstream.socket.opened = new Promise((resolve) => { resolveOpened = resolve; });
+  const h = harness({ connectTcp: async () => upstream.socket });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  upstream.failSocket(undefined);
+  await settle();
+
+  assert.ok(h.server.closeCalls.some((item) =>
+    item.code === 1011 && item.reason === "upstream_error"
+  ));
+  assert.equal(upstream.closed, true);
+  assert.equal(h.sessionCalls.release.length, 1);
+  resolveOpened({ remoteAddress: "93.184.216.34", localAddress: null });
+  await settle();
+  assert.equal(h.sessionCalls.release.length, 1);
+});
+
+test("socket.closed normal resolution is classified through readable EOF, not as an error", async () => {
+  const upstream = fakeSocket();
+  const h = harness({ connectTcp: async () => upstream.socket });
+  await h.handler.fetch(request(), h.env);
+  h.server.receive(vlessRequest({ payload: [] }));
+  await settle();
+
+  upstream.end();
+  await settle();
+
+  assert.ok(h.server.closeCalls.some((item) =>
+    item.code === 1000 && item.reason === "upstream_closed"
+  ));
+  assert.ok(!h.server.closeCalls.some((item) => item.reason === "upstream_error"));
+  assert.equal(h.sessionCalls.release.length, 1);
+});
 
 test("optional diagnostics identify each upload and download forwarding boundary without payload data", async () => {
   const upstream = fakeSocket();

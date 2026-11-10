@@ -511,6 +511,19 @@ export function createVlessWebSocketHandler({
         }
         return cleanup;
       };
+      const observeSocketClosed = (socket) => {
+        try {
+          const closed = socket.closed;
+          if (closed && typeof closed.then === "function") {
+            Promise.resolve(closed).catch(() => {
+              if (!state.closed) void trackCloseSession(1011, "upstream_error");
+            });
+          }
+        } catch {
+          // Stream operations remain the fallback for socket implementations
+          // without a usable closed promise.
+        }
+      };
       const resetIdleTimeout = () => {
         if (!state.authenticated || state.closed) return;
         idleTimerGeneration += 1;
@@ -826,6 +839,7 @@ export function createVlessWebSocketHandler({
                   return;
                 }
                 state.pendingSocket = candidateSocket;
+                observeSocketClosed(candidateSocket);
                 const info = await Promise.race([
                   Promise.resolve(candidateSocket.opened),
                   sessionClosed.then(() => SESSION_CLOSED)
