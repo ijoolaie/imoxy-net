@@ -20,7 +20,16 @@ This file records the latest Issue #78 BYOB runtime result and cancellation/erro
 - The pending-cancel harness now records `cancelOutcome` and `readOutcome` separately. A failed read no longer hides whether `reader.cancel()` itself fulfilled or rejected. The test still marks cancellation incompatible if the pending BYOB read rejects rather than completing with `done: true`/zero bytes.
 - Updated only disposable probe files: `test/issue78-byob-probe-worker.js`, `test/issue78-byob-probe-echo-worker.js`, and `test/issue78-byob-probe-worker.test.js`. No production adapter or VLESS handler code changed.
 - `cmd.exe /c npm run verify` passed: 289 passed, 1 skipped, 0 failed (290 total). `npm_test` also passed with the same counts. `git diff --check` passed; only CRLF normalization warnings were reported.
-- Workspace: `D:\\Work\\project\\imoxy-net-review-worktree`; branch: `audit/issue78-byob-cancel-error-contract-2026-11-10`. Offline-only work: no Cloudflare runtime, Worker, D1, staging, production resource, GitHub issue, commit, push, or PR operation was performed.
+- Workspace during implementation: `D:\\Work\\project\\imoxy-net-review-worktree`; feature branch: `audit/issue78-byob-cancel-error-contract-2026-11-10`. The implementation itself was offline-only; no Cloudflare runtime, Worker, D1, staging, production resource, or GitHub issue was modified.
 - Decision: keep the production adapter on the default reader. BYOB transfer works in the tested runtime but pending-read cancellation remains a failed/unexplained compatibility result. The previous peer-writable-abort failure was an invalid expected cross-end error assertion; its replacement only observes socket-close behavior. Issue #78 remains open because native downstream buffering and total Worker memory bounds remain unproven. Error 1101/domain/VPN remains final-priority.
 - Any future Cloudflare runtime execution requires fresh explicit user authorization. The earlier one-shot approval was consumed by Run #42772724549.
 - `HANDOFF.md` remains unchanged because its size exceeds the supported 256 KiB file-tool limit. This addendum is the current supplemental handoff.
+
+## PR #322 merge handoff — 2026-11-10
+
+- PR #322 (`test: clarify BYOB cancel and peer close semantics`) was squash-merged into `main` at `98aa0c0de03d02d59e0b23f42707cffd1b0ccd79`. Exact PR HEAD: `785fde330c9a6ed9f24551b35d4ed8f1de54ba6c`.
+- Exact-head CI run `42775809486`, job `129693917883`, completed successfully with `npm run verify`: 289 passed, 1 skipped, 0 failed (290 total). `git diff --check` passed locally.
+- No submitted reviews or inline review threads; GitHub reported the PR mergeable and clean before merge. Merge used the expected head SHA.
+- PR #322 changed only the disposable BYOB probe worker/echo worker/tests and added `HANDOFF-ADDENDUM-2026-11-10.md`. No production VLESS handler or adapter changed.
+- The post-merge workspace fetched `origin/main` at `98aa0c0de03d02d59e0b23f42707cffd1b0ccd79` and created follow-up branch `docs/issue78-pr322-merge-handoff-2026-11-10` for this merge record.
+- No Cloudflare runtime was executed for PR #322. Any next runtime probe requires fresh explicit user approval; the one-shot approval was consumed by Run #42772724549. Issue #78 remains open; production adapter remains default reader; native bounded buffering and total Worker memory remain unproven.
